@@ -1,0 +1,203 @@
+#!/bin/bash
+# diago-render: render, lint, diff (and embed) the diago diagrams of one document.
+#
+#   diago-render <diagrams-dir> [--embed <doc.md>] [--strict] [--png]
+#
+# For every <slug>.v<N>.json in <diagrams-dir>, the highest N is rendered to
+# <slug>.v<N>.txt and .svg (anchored with -previous on the highest lower
+# version P's spec when one exists) and diffed
+# against P into <slug>.v<P>-v<N>.diff.{txt,svg}. --png writes and links .png
+# (needs resvg) in place of the SVG, which embeds its font and runs ~500 KB. Deterministic: identical
+# inputs give byte-identical outputs. Only dependency: `diago` on PATH.
+set -u
+
+die() { printf 'diago-render: %s\n' "$*" >&2; exit 1; }
+warn() { printf 'diago-render: %s\n' "$*" >&2; }
+
+usage() {
+  cat >&2 <<'USAGE'
+usage: diago-render <diagrams-dir> [--embed <doc.md>] [--strict] [--png]
+USAGE
+  exit 1
+}
+
+DIR=""; EMBED=""; STRICT=0; PNG=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --embed) [ $# -ge 2 ] || usage; EMBED="$2"; shift 2 ;;
+    --strict) STRICT=1; shift ;;
+    --png) PNG=1; shift ;;
+    -h|--help) usage ;;
+    -*) die "unknown option: $1" ;;
+    *) [ -z "$DIR" ] || usage; DIR="$1"; shift ;;
+  esac
+done
+[ -n "$DIR" ] || usage
+[ -d "$DIR" ] || die "no such directory: $DIR"
+command -v diago >/dev/null 2>&1 || die "diago not found on PATH: go install github.com/oxforge/diago/cmd/diago@latest"
+if [ "$PNG" -eq 1 ]; then
+  command -v resvg >/dev/null 2>&1 || die "--png needs resvg on PATH"
+fi
+DIR="${DIR%/}"
+IMG=svg; [ "$PNG" -eq 1 ] && IMG=png
+
+# Scratch files this run may create; removed on any exit (error, Ctrl-C).
+cleanup() { rm -f "$DIR/.diago-body.tmp" "$DIR"/*.tmp ${EMBED:+"$EMBED.diago.tmp" "$EMBED.diago.tmp.2"}; }
+trap cleanup EXIT
+
+# --- discovery ---------------------------------------------------------------
+
+# All slugs that have at least one .v<N>.json, sorted, unique.
+slugs() {
+  ls "$DIR" 2>/dev/null | sed -n 's/^\([a-z0-9-][a-z0-9-]*\)\.v[0-9][0-9]*\.json$/\1/p' | sort -u
+}
+
+# All versions of a slug, ascending numeric.
+versions() {
+  ls "$DIR" | sed -n "s/^$1\.v\([0-9][0-9]*\)\.json\$/\1/p" | sort -n
+}
+
+latest_version() { versions "$1" | tail -n 1; }
+
+# Highest version strictly below $2, or empty.
+previous_version() { versions "$1" | awk -v n="$2" '$1 < n' | tail -n 1; }
+
+# Widest line in characters (terminal columns for box-drawing art). macOS awk
+# counts bytes whatever the locale, so use bash's own length under a UTF-8
+# locale. A locale name is not proof it is installed: probe that a 3-byte glyph
+# counts as one character, trying the caller's locale first, and fail loudly
+# rather than silently fall back to byte counting.
+utf8_probe() { glyph='┌'; [ "${#glyph}" -eq 1 ]; }
+for loc in "${LC_ALL:-}" "${LC_CTYPE:-}" "${LANG:-}" C.UTF-8 en_US.UTF-8; do
+  [ -n "$loc" ] || continue
+  if ( export LC_ALL="$loc"; utf8_probe ) 2>/dev/null; then export LC_ALL="$loc"; break; fi
+done
+utf8_probe || die "no working UTF-8 locale (tried LC_ALL, LC_CTYPE, LANG, C.UTF-8, en_US.UTF-8); set LC_ALL to an installed UTF-8 locale"
+max_width() {
+  m=0
+  while IFS= read -r line || [ -n "$line" ]; do
+    [ "${#line}" -gt "$m" ] && m="${#line}"
+  done < "$1"
+  printf '%s\n' "$m"
+}
+
+# run_diago <lint|quiet> <out> <label> <diago args...>: run diago with stdout
+# to <out> (via a temp file, so a failure never leaves a half-written
+# artifact). In lint mode its stderr warnings are relayed as lint lines. Dies
+# with diago's error on a non-zero exit, whatever the mode.
+run_diago() {
+  mode="$1"; out="$2"; label="$3"; shift 3
+  err="$out.err.tmp"
+  if ! diago "$@" > "$out.tmp" 2> "$err"; then
+    cat "$err" >&2; die "diago $1 failed for $label"
+  fi
+  if [ "$mode" = lint ] && [ -s "$err" ]; then
+    sed "s|^warning: |diago-render: lint $label: |" "$err" >&2
+    LINTED=1
+  fi
+  mv "$out.tmp" "$out"; rm -f "$err"
+}
+
+# --- render one slug ---------------------------------------------------------
+
+render_slug() {
+  slug="$1"
+  n="$(latest_version "$slug")"
+  p="$(previous_version "$slug" "$n")"
+  src="$DIR/$slug.v$n.json"
+  LINTED=0
+
+  # A v<N> is anchored on v<P>'s spec: diago lays the old spec out fresh
+  # (deterministic), so unchanged elements keep their places.
+  prev=""
+  [ -n "$p" ] && prev="$DIR/$slug.v$p.json"
+  # Every render prints the spec's advisories (what `diago check` reports)
+  # plus layout-only ones such as text-label-dropped on stderr; relay the text
+  # render's, once, and run the others quiet.
+  run_diago lint "$DIR/$slug.v$n.txt" "$slug.v$n" render -format text ${prev:+-previous "$prev"} "$src"
+  run_diago quiet "$DIR/$slug.v$n.$IMG" "$slug.v$n" render -format "$IMG" ${prev:+-previous "$prev"} "$src"
+
+  summary="$slug v$n"
+  if [ -n "$p" ]; then
+    base="$DIR/$slug.v$p-v$n.diff"
+    run_diago quiet "$base.txt" "$slug.v$p-v$n" diff "$prev" "$src" -format text
+    run_diago quiet "$base.$IMG" "$slug.v$p-v$n" diff "$prev" "$src" -format "$IMG"
+    if grep -qE '^(added|removed|changed): ' "$base.txt"; then
+      summary="$summary (diff v$p->v$n)"
+    else
+      summary="$summary (diff v$p->v$n, no changes)"
+    fi
+  fi
+  # The diff holds removed and added elements together, so it is usually the
+  # widest art; report and check both.
+  w="$(max_width "$DIR/$slug.v$n.txt")"
+  summary="$summary width=$w"
+  [ "$w" -gt 120 ] && warn "$slug.v$n text art is $w columns wide; over 120 wraps badly in a terminal: shorten labels, switch direction (RIGHT narrows a long chain, DOWN a wide fan-out), or split"
+  if [ -n "$p" ]; then
+    dw="$(max_width "$base.txt")"
+    summary="$summary diff-width=$dw"
+    [ "$dw" -gt 120 ] && warn "$slug.v$p-v$n diff art is $dw columns wide; over 120 wraps badly in a terminal: shorten labels or switch direction"
+  fi
+  [ "$STRICT" -eq 1 ] && [ "$LINTED" -eq 1 ] && die "lint warnings in $src (--strict)"
+  printf '%s ok\n' "$summary"
+}
+
+found=0
+for s in $(slugs); do
+  found=1
+  render_slug "$s"
+done
+[ "$found" -eq 1 ] || warn "no <slug>.v<N>.json files in $DIR"
+
+# --- embed -------------------------------------------------------------------
+
+# Print the replacement body for one marker name ("slug" or "slug.diff").
+# Returns 1 when the rendered files do not exist.
+embed_body() {
+  name="$1"; rel="$(basename "$DIR")"
+  case "$name" in
+    *.diff)
+      slug="${name%.diff}"; n="$(latest_version "$slug")"; [ -n "$n" ] || return 1
+      p="$(previous_version "$slug" "$n")"; [ -n "$p" ] || return 1
+      base="$slug.v$p-v$n.diff" ;;
+    *)
+      slug="$name"; n="$(latest_version "$slug")"; [ -n "$n" ] || return 1
+      base="$slug.v$n" ;;
+  esac
+  [ -s "$DIR/$base.txt" ] && [ -s "$DIR/$base.$IMG" ] || return 1
+  printf '```text\n'
+  cat "$DIR/$base.txt"
+  printf '```\n[%s.%s](%s/%s.%s)\n' "$base" "$IMG" "$rel" "$base" "$IMG"
+}
+
+# Replace everything between each <!-- diago:begin NAME --> / end pair in the
+# document with the body for NAME. Idempotent; a marker without files is fatal
+# so a half-updated document is never left behind.
+embed() {
+  doc="$1"
+  [ -f "$doc" ] || die "no such document: $doc"
+  names="$(sed -n 's/^<!-- diago:begin \([a-z0-9.-]*\) -->$/\1/p' "$doc")"
+  [ -n "$names" ] || { warn "no diago markers in $doc"; return 0; }
+  [ "$(dirname "$doc")/$(basename "$DIR")" -ef "$DIR" ] || warn "the image links assume $(basename "$DIR") sits beside $doc; it does not"
+  tmp="$doc.diago.tmp"; cp "$doc" "$tmp"
+  for name in $names; do
+    body="$DIR/.diago-body.tmp"
+    embed_body "$name" > "$body" || die "marker '$name' in $doc has no rendered files in $DIR"
+    # A begin marker whose end marker is missing or misspelled would otherwise
+    # swallow the rest of the document: awk exits 2 and nothing is written.
+    awk -v name="$name" -v bodyfile="$body" '
+      $0 == "<!-- diago:begin " name " -->" { print; while ((getline line < bodyfile) > 0) print line; close(bodyfile); skipping = 1; next }
+      $0 == "<!-- diago:end " name " -->" { skipping = 0 }
+      !skipping { print }
+      END { if (skipping) exit 2 }
+    ' "$tmp" > "$tmp.2" || die "marker '$name' in $doc has no matching <!-- diago:end $name --> line; document left untouched"
+    mv "$tmp.2" "$tmp"
+  done
+  mv "$tmp" "$doc"
+  for s in $(slugs); do
+    printf '%s\n' "$names" | grep -qx "$s" || warn "$s has no <!-- diago:begin $s --> marker in $doc"
+  done
+}
+
+[ -z "$EMBED" ] || embed "$EMBED"
+exit 0

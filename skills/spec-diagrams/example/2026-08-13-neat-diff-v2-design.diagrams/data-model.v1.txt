@@ -1,0 +1,31 @@
+                         ┌──────────────────────────┐
+                         │          Layout          │
+                         ├──────────────────────────┤
+                         │ nodes: PositionedNode[]  │
+                         │ edges: PositionedEdge[]  │
+                         └──────────────────────────┘
+                                       ╎
+                                       ╎ laid out from
+                                       ▼
+                       ┌──────────────────────────────┐
+                       │          UnionGraph          │
+                       ├──────────────────────────────┤
+                       │ status: Map<Id, DiffStatus>  │
+                       └──────────────────────────────┘
+                   built from ╎        ◆ 1     │ per id
+                              ╎        │       │
+               ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘        │       └────────────┐
+               ▼                       │ 1                  │
+  ┌────────────────────────┐     ┌──────────┐      ┌────────────────┐
+  │       GraphDiff        │     │ IrGraph  │      │ «enumeration»  │
+  ├────────────────────────┤     └──────────┘      │   DiffStatus   │
+  │ added: Id[]            │                       ├────────────────┤
+  │ removed: Id[]          │                       │ added          │
+  │ changedEdges: EdgeId[] │                       │ removed        │
+  └────────────────────────┘                       │ changed        │
+                                                   │ unchanged      │
+                                                   └────────────────┘
+
+─── association
+◆── composition
+╌╌► dependency

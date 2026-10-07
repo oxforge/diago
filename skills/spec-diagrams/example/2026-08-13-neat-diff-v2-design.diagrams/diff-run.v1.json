@@ -1,0 +1,30 @@
+{
+  "type": "sequence",
+  "actors": [
+    { "id": "user", "label": "User" },
+    { "id": "cli", "label": "cli" },
+    { "id": "patch", "label": "patch" },
+    { "id": "core", "label": "core" },
+    { "id": "layout", "label": "layout" },
+    { "id": "render", "label": "render" }
+  ],
+  "interactions": [
+    { "from": "user", "to": "cli", "label": "old + patch" },
+    { "from": "cli", "to": "cli", "label": "sniff kind" },
+    { "from": "cli", "to": "patch", "label": "apply patch" },
+    { "from": "patch", "to": "cli", "label": "new spec", "style": "dashed" },
+    { "from": "patch", "to": "cli", "label": "bad hunk", "style": "dashed" },
+    { "from": "cli", "to": "user", "label": "error, exit 1", "style": "dashed" },
+    { "from": "cli", "to": "core", "label": "decode, diff, union" },
+    { "from": "core", "to": "layout", "label": "union, incremental" },
+    { "from": "layout", "to": "render", "label": "layout + status" },
+    { "from": "render", "to": "cli", "label": "svg/text/png", "style": "dashed" },
+    { "from": "cli", "to": "user", "label": "writes -o, exit 0", "style": "dashed" }
+  ],
+  "fragments": [
+    { "type": "alt", "over": ["user", "cli", "patch"], "sections": [
+      { "label": "patch applies", "start": 2, "end": 3 },
+      { "label": "hunk mismatch", "start": 4, "end": 5 }
+    ]}
+  ]
+}

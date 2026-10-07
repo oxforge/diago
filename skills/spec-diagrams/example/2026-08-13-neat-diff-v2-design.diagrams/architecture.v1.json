@@ -1,0 +1,31 @@
+{
+  "type": "flow",
+  "direction": "DOWN",
+  "nodes": [
+    { "id": "before", "label": "before spec", "shape": "parallelogram" },
+    { "id": "after", "label": "after spec", "shape": "parallelogram" },
+    { "id": "cmd", "label": "neat diff", "shape": "rounded" },
+    { "id": "decode", "label": "decodeDocument" },
+    { "id": "diff", "label": "diffGraphs v2", "color": "blue" },
+    { "id": "union", "label": "buildUnionGraph" },
+    { "id": "layout", "label": "layout (incremental)" },
+    { "id": "svg", "label": "renderDiffSvg" },
+    { "id": "ghost", "label": "ghost overlay", "color": "orange" },
+    { "id": "text", "label": "renderDiffText" }
+  ],
+  "edges": [
+    { "id": "e-cmd-decode", "from": "cmd", "to": "decode", "label": "reads old + new" },
+    { "id": "e-before-decode", "from": "before", "to": "decode" },
+    { "id": "e-after-decode", "from": "after", "to": "decode" },
+    { "id": "e-decode-diff", "from": "decode", "to": "diff", "label": "IR graphs" },
+    { "id": "e-diff-union", "from": "diff", "to": "union", "label": "GraphDiff" },
+    { "id": "e-union-layout", "from": "union", "to": "layout", "label": "union + status" },
+    { "id": "e-layout-svg", "from": "layout", "to": "svg" },
+    { "id": "e-layout-text", "from": "layout", "to": "text" },
+    { "id": "e-svg-ghost", "from": "svg", "to": "ghost", "label": "overlays removed", "style": "dashed" }
+  ],
+  "groups": [
+    { "id": "core", "label": "core", "contains": ["decode", "diff", "union", "layout", "svg", "ghost", "text"] },
+    { "id": "cli", "label": "cli", "contains": ["cmd"] }
+  ]
+}

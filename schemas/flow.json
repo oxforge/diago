@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oxforge/diago/internal/schema/flow-spec",
+  "$ref": "#/$defs/FlowSpec",
+  "$defs": {
+    "EdgeSpec": {
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Optional stable identifier. Keep ids stable across edits because diffs and layout anchoring key on them. Defaults to from-\u003eto#n where n is the edge's ordinal among edges with the same endpoints in spec order."
+        },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "style": {
+          "type": "string",
+          "enum": [
+            "solid",
+            "dashed",
+            "dotted",
+            "thick"
+          ]
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "forward",
+            "backward",
+            "both",
+            "none"
+          ],
+          "description": "Arrowhead direction. forward (default): arrow at target. backward: arrow at source. both: arrows at both ends. none: no arrowhead at either end."
+        },
+        "color": {
+          "type": "string"
+        },
+        "flat": {
+          "type": "boolean",
+          "description": "Optional. When true, this link does not imply order: its ends stay where the rest of the diagram puts them, side by side when it allows, and the edge is routed between them. Use it for links between peers, such as replication between two sites. Not allowed on a self-loop."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ]
+    },
+    "FlowSpec": {
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string",
+          "description": "Diagram title, rendered as a band above the diagram."
+        },
+        "theme": {
+          "type": "string",
+          "enum": [
+            "default",
+            "dark",
+            "midnight",
+            "sketch"
+          ],
+          "description": "Theme the render uses unless the -theme flag overrides it. Defaults to the default theme."
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "DOWN",
+            "UP",
+            "RIGHT",
+            "LEFT",
+            "AUTO"
+          ],
+          "description": "Layout direction. Defaults to AUTO (engine chooses based on graph shape)."
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/NodeSpec"
+          },
+          "type": "array"
+        },
+        "edges": {
+          "items": {
+            "$ref": "#/$defs/EdgeSpec"
+          },
+          "type": "array"
+        },
+        "groups": {
+          "items": {
+            "$ref": "#/$defs/GroupSpec"
+          },
+          "type": "array"
+        },
+        "ignore": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Advisory rules to silence for this spec (see diago check). Each entry must be a rule name."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "type",
+        "nodes",
+        "edges"
+      ]
+    },
+    "GroupSpec": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "contains": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Node IDs or group IDs belonging to this group. Referencing a group ID creates a nested child group (max 3 levels deep)."
+        },
+        "color": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "id",
+        "label",
+        "contains"
+      ]
+    },
+    "NodeSpec": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "rect",
+            "rounded",
+            "circle",
+            "diamond",
+            "cylinder",
+            "hexagon",
+            "parallelogram"
+          ]
+        },
+        "color": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "id",
+        "label"
+      ]
+    }
+  }
+}

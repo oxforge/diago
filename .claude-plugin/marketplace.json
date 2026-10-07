@@ -1,0 +1,13 @@
+{
+  "name": "diago",
+  "owner": { "name": "oxforge" },
+  "metadata": { "description": "diago local marketplace", "version": "0.2.6" },
+  "plugins": [
+    {
+      "name": "diago",
+      "source": "./",
+      "description": "Diagrams from typed JSON specs, and diagram-augmented specs and plans",
+      "version": "0.2.6"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+  ┌──────────────┐     ┌─ cli ────────────┐     ┌────────────────────────┐
+  │ before spec  │     │                  │     │ ~ after spec or patch  │
+  └──────────────┘     │  ╭────────────╮  │     └────────────────────────┘
+          │            │  │ neat diff  │  │               │      │
+          │            │  ╰────────────╯  │               │      │
+          │            └─────────┼────────┘               │      │ if unified diff
+          │                      │                        │      │
+          │                      │                        │      │
+          └────────────────┐     │     ┌──────────────────┘      │
+                           │     │     │                ┌────────┘
+                           │     │     │                │
+         ┌─ core ──────────┼─────┼─────┼────────────────┼────────────┐
+         │                 │     │     │                ▼            │
+         │                 │     │     │     ┌────────────────────┐  │
+         │                 │     │     │     │ + applyUnifiedDiff │  │
+         │                 │     │     │     └────────────────────┘  │
+         │                 │     │     │  new spec text │            │
+         │                 │     │     │                │            │
+         │                 │     └──┐  │  ┌─────────────┘            │
+         │                 └───────┐│  │  │                          │
+         │                         ▼▼  ▼  ▼                          │
+         │                   ┌────────────────┐                      │
+         │                   │ decodeDocument │                      │
+         │                   └────────────────┘                      │
+         │          reads old + new   │                              │
+         │                            │ IR graphs                    │
+         │                            ▼                              │
+         │                   ┌────────────────┐                      │
+         │                   │ diffGraphs v2  │                      │
+         │                   └────────────────┘                      │
+         │                            │                              │
+         │                            │ GraphDiff                    │
+         │                            ▼                              │
+         │                  ┌──────────────────┐                     │
+         │                  │ buildUnionGraph  │                     │
+         │                  └──────────────────┘                     │
+         │                            │                              │
+         │                            │ union + status               │
+         │                            ▼                              │
+         │                ┌──────────────────────┐                   │
+         │                │ layout (incremental) │                   │
+         │                └──────────────────────┘                   │
+         │                       │        │                          │
+         │                       │        │                          │
+         │           ┌───────────┘        └─────┐                    │
+         │           ▼                          ▼                    │
+         │  ┌────────────────┐         ┌────────────────┐            │
+         │  │ renderDiffSvg  │         │ renderDiffText │            │
+         │  └────────────────┘         └────────────────┘            │
+         │       ╎      ╎ overlays removed                           │
+         │       ╎      ╎                                            │
+         │       ╎      └╌╌╌╌╌╌╌╌┐                                   │
+         │       ╎               ▼                                   │
+         │       ╎     ┌──────────────────┐                          │
+         │       ╎     │ - ghost overlay  │                          │
+         │       ╎     └──────────────────┘                          │
+         └───────┼───────────────────────────────────────────────────┘
+                 ╎ rasterizes
+                 ╎
+                 ╎
+      ┌─ + png ──┼─────────┐
+      │          ▼         │
+      │  ┌──────────────┐  │
+      │  │ + renderPng  │  │
+      │  └──────────────┘  │
+      └────────────────────┘
+
+added: node applyUnifiedDiff
+added: node renderPng
+added: edge after spec or patch -> applyUnifiedDiff
+added: edge applyUnifiedDiff -> decodeDocument
+added: edge renderDiffSvg -> renderPng
+added: group png
+removed: node ghost overlay
+removed: edge renderDiffSvg -> ghost overlay
+changed: node after spec or patch

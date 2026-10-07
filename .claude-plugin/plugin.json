@@ -1,0 +1,7 @@
+{
+  "name": "diago",
+  "description": "Diagrams from typed JSON specs with the diago CLI: general diagramming, and diagram-augmented design specs and implementation plans with revision diffs",
+  "version": "0.2.6",
+  "author": { "name": "oxforge" },
+  "keywords": ["diagrams", "architecture", "sequence", "class", "specs", "plans", "review", "superpowers"]
+}

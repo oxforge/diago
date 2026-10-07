@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oxforge/diago/internal/schema/class-spec",
+  "$ref": "#/$defs/ClassSpec",
+  "$defs": {
+    "ClassNodeSpec": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string",
+          "description": "Class name. Defaults to the id."
+        },
+        "stereotype": {
+          "type": "string",
+          "description": "Rendered as «stereotype» above the name; abstract also italicises the name."
+        },
+        "type_params": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Generic parameters. Rendered after the class name as a comma-separated list inside angle brackets."
+        },
+        "color": {
+          "type": "string"
+        },
+        "attributes": {
+          "items": {
+            "$ref": "#/$defs/MemberSpec"
+          },
+          "type": "array"
+        },
+        "methods": {
+          "items": {
+            "$ref": "#/$defs/MemberSpec"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "id"
+      ]
+    },
+    "ClassSpec": {
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string",
+          "description": "Diagram title, rendered as a band above the diagram."
+        },
+        "theme": {
+          "type": "string",
+          "enum": [
+            "default",
+            "dark",
+            "midnight",
+            "sketch"
+          ],
+          "description": "Theme the render uses unless the -theme flag overrides it. Defaults to the default theme."
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "DOWN",
+            "UP",
+            "RIGHT",
+            "LEFT",
+            "AUTO"
+          ],
+          "description": "Layout direction. Defaults to DOWN."
+        },
+        "classes": {
+          "items": {
+            "$ref": "#/$defs/ClassNodeSpec"
+          },
+          "type": "array"
+        },
+        "relations": {
+          "items": {
+            "$ref": "#/$defs/RelationSpec"
+          },
+          "type": "array"
+        },
+        "packages": {
+          "items": {
+            "$ref": "#/$defs/GroupSpec"
+          },
+          "type": "array",
+          "description": "Packages group classes like flow groups: contains holds class ids or package ids (max 3 levels deep)."
+        },
+        "legend": {
+          "type": "boolean",
+          "description": "Render a legend row per relation kind present in the diagram."
+        },
+        "legend_labels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object",
+          "description": "Legend row label per relation kind; an empty value hides that row."
+        },
+        "ignore": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Advisory rules to silence for this spec (see diago check). Each entry must be a rule name."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "type",
+        "classes"
+      ]
+    },
+    "GroupSpec": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "contains": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Node IDs or group IDs belonging to this group. Referencing a group ID creates a nested child group (max 3 levels deep)."
+        },
+        "color": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "id",
+        "label",
+        "contains"
+      ]
+    },
+    "MemberSpec": {
+      "properties": {
+        "visibility": {
+          "type": "string",
+          "enum": [
+            "+",
+            "-",
+            "#",
+            "~"
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "static": {
+          "type": "boolean"
+        },
+        "abstract": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "text"
+      ]
+    },
+    "RelationSpec": {
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Optional stable identifier. Keep ids stable across edits because diffs and layout anchoring key on them. Defaults to from-\u003eto#n over the endpoints as written."
+        },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "association",
+            "inheritance",
+            "realization",
+            "dependency",
+            "aggregation",
+            "composition"
+          ],
+          "description": "Relation kind. Defaults to association. For inheritance and realization from is the subtype and to is the supertype or interface."
+        },
+        "label": {
+          "type": "string"
+        },
+        "from_card": {
+          "type": "string",
+          "description": "Cardinality at the from end. Examples: 1 or 0..*."
+        },
+        "to_card": {
+          "type": "string",
+          "description": "Cardinality at the to end."
+        },
+        "directed": {
+          "type": "boolean",
+          "description": "Arrowhead at the to end. Default true for dependency and false for association; not allowed on adorned kinds."
+        },
+        "color": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ]
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "type": "class",
+  "direction": "DOWN",
+  "classes": [
+    { "id": "layout", "label": "Layout",
+      "attributes": [ { "text": "nodes: PositionedNode[]" }, { "text": "edges: PositionedEdge[]" } ] },
+    { "id": "union", "label": "UnionGraph",
+      "attributes": [ { "text": "status: Map<Id, DiffStatus>" } ] },
+    { "id": "graphdiff", "label": "GraphDiff",
+      "attributes": [ { "text": "added: Id[]" }, { "text": "removed: Id[]" }, { "text": "changedEdges: EdgeId[]" } ] },
+    { "id": "ir", "label": "IrGraph" },
+    { "id": "status", "label": "DiffStatus", "stereotype": "enumeration",
+      "attributes": [ { "text": "added" }, { "text": "removed" }, { "text": "changed" }, { "text": "unchanged" } ] }
+  ],
+  "relations": [
+    { "id": "r-layout-union", "from": "layout", "to": "union", "kind": "dependency", "label": "laid out from" },
+    { "id": "r-union-graphdiff", "from": "union", "to": "graphdiff", "kind": "dependency", "label": "built from" },
+    { "id": "r-union-ir", "from": "union", "to": "ir", "kind": "composition", "from_card": "1", "to_card": "1" },
+    { "id": "r-union-status", "from": "union", "to": "status", "kind": "association", "label": "per id" }
+  ],
+  "legend": true
+}

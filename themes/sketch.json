@@ -1,0 +1,61 @@
+{
+  "name": "sketch",
+  "description": "Hand-drawn feel",
+  "style": "sketch",
+  "background": "#faf8f5",
+  "colors": {
+    "red": "#c92a2a",
+    "green": "#2b8a3e",
+    "blue": "#1864ab",
+    "yellow": "#e67700",
+    "orange": "#d9480f",
+    "purple": "#862e9c",
+    "gray": "#868e96"
+  },
+  "diff": { "added": "#2b8a3e", "changed": "#d9480f" },
+  "node": {
+    "fill": "#fff8f0",
+    "stroke": "#5c5c5c",
+    "stroke_width": 1.8,
+    "corner_radius": 6,
+    "font": { "family": "Pangolin", "size": 14, "weight": 400, "color": "#3c3c3c" },
+    "padding": { "x": 20, "y": 12 }
+  },
+  "edge": {
+    "stroke": "#5c5c5c",
+    "stroke_width": 1.8,
+    "arrow_size": 8,
+    "label_font": { "family": "Pangolin", "size": 12, "weight": 400, "color": "#4a4a4a" }
+  },
+  "group": {
+    "fill": "#f5f0eb",
+    "stroke": "#8c8c8c",
+    "stroke_width": 1.5,
+    "stroke_dash": "6,3",
+    "label_font": { "family": "Pangolin", "size": 12, "weight": 400, "color": "#6c6c6c" },
+    "padding": 24
+  },
+  "actor": {
+    "fill": "#fff8f0",
+    "stroke": "#5c5c5c",
+    "stroke_width": 1.8,
+    "font": { "family": "Pangolin", "size": 14, "weight": 400, "color": "#3c3c3c" }
+  },
+  "fragment": {
+    "fill": "#f8f4ef",
+    "stroke": "#8c8c8c",
+    "stroke_width": 1.5,
+    "stroke_dash": "6,3",
+    "label_font": { "family": "Pangolin", "size": 11, "weight": 400, "color": "#5c5c5c" }
+  },
+  "activation": {
+    "fill": "#ede8e2",
+    "stroke": "#5c5c5c",
+    "stroke_width": 1.0,
+    "width": 10
+  },
+  "class": {
+    "member_font": { "family": "Pangolin", "size": 12, "weight": 400, "color": "#3c3c3c" },
+    "separator_width": 1.0
+  }
+}

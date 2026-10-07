@@ -1,0 +1,61 @@
+{
+  "name": "dark",
+  "description": "Pure dark theme without blue tint",
+  "style": "clean",
+  "background": "#121212",
+  "colors": {
+    "red": "#ff6b6b",
+    "green": "#51cf66",
+    "blue": "#4dabf7",
+    "yellow": "#ffd43b",
+    "orange": "#ff922b",
+    "purple": "#cc5de8",
+    "gray": "#adb5bd"
+  },
+  "diff": { "added": "#51cf66", "changed": "#ff922b" },
+  "node": {
+    "fill": "#1e1e1e",
+    "stroke": "#404040",
+    "stroke_width": 1.5,
+    "corner_radius": 8,
+    "font": { "family": "Inter", "size": 14, "weight": 500, "color": "#e0e0e0" },
+    "padding": { "x": 20, "y": 12 }
+  },
+  "edge": {
+    "stroke": "#606060",
+    "stroke_width": 1.5,
+    "arrow_size": 8,
+    "label_font": { "family": "Inter", "size": 12, "weight": 400, "color": "#a0a0a0" }
+  },
+  "group": {
+    "fill": "#161616",
+    "stroke": "#333333",
+    "stroke_width": 1.5,
+    "stroke_dash": "6,3",
+    "label_font": { "family": "Inter", "size": 12, "weight": 600, "color": "#888888" },
+    "padding": 24
+  },
+  "actor": {
+    "fill": "#1e1e1e",
+    "stroke": "#404040",
+    "stroke_width": 1.5,
+    "font": { "family": "Inter", "size": 14, "weight": 600, "color": "#e0e0e0" }
+  },
+  "fragment": {
+    "fill": "#181818",
+    "stroke": "#333333",
+    "stroke_width": 1.5,
+    "stroke_dash": "6,3",
+    "label_font": { "family": "Inter", "size": 11, "weight": 700, "color": "#a0a0a0" }
+  },
+  "activation": {
+    "fill": "#2a2a2a",
+    "stroke": "#404040",
+    "stroke_width": 1.0,
+    "width": 10
+  },
+  "class": {
+    "member_font": { "family": "Inter", "size": 12, "weight": 400, "color": "#e0e0e0" },
+    "separator_width": 1.0
+  }
+}

@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oxforge/diago/internal/schema/sequence-spec",
+  "$ref": "#/$defs/SequenceSpec",
+  "$defs": {
+    "ActorSpec": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "id",
+        "label"
+      ]
+    },
+    "FragmentSectionSpec": {
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "start": {
+          "type": "integer"
+        },
+        "end": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "label",
+        "start",
+        "end"
+      ]
+    },
+    "FragmentSpec": {
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "alt",
+            "opt",
+            "loop",
+            "par",
+            "break"
+          ]
+        },
+        "over": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "sections": {
+          "items": {
+            "$ref": "#/$defs/FragmentSectionSpec"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "type",
+        "over",
+        "sections"
+      ]
+    },
+    "InteractionSpec": {
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "style": {
+          "type": "string",
+          "enum": [
+            "solid",
+            "dashed",
+            "async"
+          ]
+        },
+        "color": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ]
+    },
+    "SequenceSpec": {
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string",
+          "description": "Diagram title, rendered as a band above the diagram."
+        },
+        "actors": {
+          "items": {
+            "$ref": "#/$defs/ActorSpec"
+          },
+          "type": "array"
+        },
+        "interactions": {
+          "items": {
+            "$ref": "#/$defs/InteractionSpec"
+          },
+          "type": "array"
+        },
+        "fragments": {
+          "items": {
+            "$ref": "#/$defs/FragmentSpec"
+          },
+          "type": "array"
+        },
+        "activations": {
+          "type": "boolean"
+        },
+        "theme": {
+          "type": "string",
+          "enum": [
+            "default",
+            "dark",
+            "midnight",
+            "sketch"
+          ],
+          "description": "Theme the render uses unless the -theme flag overrides it. Defaults to the default theme."
+        },
+        "ignore": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Advisory rules to silence for this spec (see diago check). Each entry must be a rule name."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "type",
+        "actors",
+        "interactions"
+      ]
+    }
+  }
+}
