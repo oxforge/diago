@@ -12,10 +12,37 @@ import (
 )
 
 func TestResvgNotFound(t *testing.T) {
-	t.Setenv("DIAGO_RESVG_PATH", "/nonexistent/resvg-does-not-exist")
-	_, err := Render(context.Background(), []byte("<svg></svg>"), Options{})
-	require.Error(t, err)
-	assert.True(t, errors.Is(err, ErrResvgNotFound), "expected ErrResvgNotFound, got: %v", err)
+	tests := []struct {
+		name     string
+		envPath  string // DIAGO_RESVG_PATH; empty looks resvg up on PATH
+		pathDir  bool   // PATH is an empty directory
+		mentions []string
+	}{
+		{
+			name:     "DIAGO_RESVG_PATH names a missing file",
+			envPath:  "/nonexistent/resvg-does-not-exist",
+			mentions: []string{"DIAGO_RESVG_PATH is /nonexistent/resvg-does-not-exist", "unset it"},
+		},
+		{
+			name:     "no resvg on PATH",
+			pathDir:  true,
+			mentions: []string{"PNG output needs resvg", "brew install resvg", "cargo install resvg", "svg and text output need nothing"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("DIAGO_RESVG_PATH", tt.envPath)
+			if tt.pathDir {
+				t.Setenv("PATH", t.TempDir())
+			}
+			_, err := Render(context.Background(), []byte("<svg></svg>"), Options{})
+			require.Error(t, err)
+			assert.True(t, errors.Is(err, ErrResvgNotFound), "expected ErrResvgNotFound, got: %v", err)
+			for _, m := range tt.mentions {
+				assert.Contains(t, err.Error(), m)
+			}
+		})
+	}
 }
 
 func TestRenderValidSVG(t *testing.T) {

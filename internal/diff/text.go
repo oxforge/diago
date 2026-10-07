@@ -59,27 +59,28 @@ func StampLabels(u UnionGraph) model.Graph {
 	return g
 }
 
-// FlowLegend lists every change, one line each, in the fixed order
+// FlowChanges lists every change, one line each, in the fixed order
 // added / removed / changed × node / edge / group. Removed elements are
 // named by their before labels; edges by their endpoints' labels, in the
 // orientation the spec wrote them (a swapped relation is named back). A
-// class union names its kinds class / relation / package and appends one
-// line per changed member, in node id order.
-func FlowLegend(u UnionGraph) []string {
+// changed line names the fields that differ. A class union names its kinds
+// class / relation / package (a moved class's parent field is package) and
+// appends one changed line per changed member, in node id order.
+func FlowChanges(u UnionGraph) []Change {
 	label := func(id string, removed bool) string {
 		if removed {
 			if l, ok := u.BeforeLabels[id]; ok {
-				return l
+				return oneLine(l)
 			}
 		}
 		for _, n := range u.Graph.Nodes {
 			if n.ID == id {
-				return n.Label
+				return oneLine(n.Label)
 			}
 		}
 		for _, g := range u.Graph.Groups {
 			if g.ID == id {
-				return g.Label
+				return oneLine(g.Label)
 			}
 		}
 		return id
@@ -100,35 +101,55 @@ func FlowLegend(u UnionGraph) []string {
 	if u.Class {
 		kindNode, kindEdge, kindGroup = "class", "relation", "package"
 	}
-	var out []string
-	add := func(verb, kind, name string) { out = append(out, verb+": "+kind+" "+name) }
+	nodeFields := func(id string) []FieldChange {
+		fs := u.Diff.NodeFields[id]
+		if !u.Class {
+			return fs
+		}
+		out := make([]FieldChange, len(fs))
+		for i, f := range fs {
+			if f.Field == "group" {
+				f.Field = "package"
+			}
+			out[i] = f
+		}
+		return out
+	}
+	var out []Change
+	add := func(s Status, wire bool, kind, name, suffix string) {
+		out = append(out, Change{Status: s, Wire: wire, Text: string(s) + ": " + kind + " " + name + suffix})
+	}
 	d := u.Diff
 	for _, id := range d.AddedNodes {
-		add("added", kindNode, label(id, false))
+		add(Added, false, kindNode, label(id, false), "")
 	}
 	for _, id := range d.AddedEdges {
-		add("added", kindEdge, edgeName(id, false))
+		add(Added, true, kindEdge, edgeName(id, false), "")
 	}
 	for _, id := range d.AddedGroups {
-		add("added", kindGroup, label(id, false))
+		add(Added, false, kindGroup, label(id, false), "")
 	}
 	for _, id := range d.RemovedNodes {
-		add("removed", kindNode, label(id, true))
+		add(Removed, false, kindNode, label(id, true), "")
 	}
 	for _, id := range d.RemovedEdges {
-		add("removed", kindEdge, edgeName(removedUnionID(u, id), true))
+		add(Removed, true, kindEdge, edgeName(removedUnionID(u, id), true), "")
 	}
 	for _, id := range d.RemovedGroups {
-		add("removed", kindGroup, label(id, true))
+		add(Removed, false, kindGroup, label(id, true), "")
 	}
 	for _, id := range d.ChangedNodes {
-		add("changed", kindNode, label(id, false))
+		fields := nodeFields(id)
+		if len(fields) == 0 && len(u.Members[id].Records) > 0 {
+			continue // a members-only change: its member lines name the class
+		}
+		add(Changed, false, kindNode, label(id, false), changedSuffix(fields))
 	}
 	for _, id := range d.ChangedEdges {
-		add("changed", kindEdge, edgeName(id, false))
+		add(Changed, true, kindEdge, edgeName(id, false), changedSuffix(d.EdgeFields[id]))
 	}
 	for _, id := range d.ChangedGroups {
-		add("changed", kindGroup, label(id, false))
+		add(Changed, false, kindGroup, label(id, false), changedSuffix(d.GroupFields[id]))
 	}
 	if u.Class {
 		ids := make([]string, 0, len(u.Members))
@@ -144,13 +165,15 @@ func FlowLegend(u UnionGraph) []string {
 		}
 		for _, id := range ids {
 			for _, r := range u.Members[id].Records {
-				out = append(out, "changed: "+kindNode+" "+label(id, false)+
-					", "+string(r.Status)+" "+noun(r.Compartment)+" "+memberText(r.Member))
+				add(Changed, false, kindNode, label(id, false)+", "+string(r.Status)+" "+noun(r.Compartment)+" "+memberText(r.Member), "")
 			}
 		}
 	}
 	return out
 }
+
+// FlowLegend is the text diff's footer: FlowChanges' lines.
+func FlowLegend(u UnionGraph) []string { return Texts(FlowChanges(u)) }
 
 // removedUnionID maps a removed before-edge id to the id it holds in the
 // union (suffixed when after reused the id).

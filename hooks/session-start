@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# SessionStart hook of the diago plugin: puts the standing rule for diagrams
+# in the session's context, worded for the host. Uses bash builtins only and
+# exits 0 whatever happens, so it never blocks a session.
+
+# json_escape prints $1 escaped for a JSON string: backslashes and double
+# quotes (the texts below hold no control characters).
+json_escape() {
+  local s=$1
+  s=${s//\\/\\\\}
+  s=${s//\"/\\\"}
+  printf '%s' "$s"
+}
+
+text='The diago plugin is active. Before you present the user anything with structure (components and how they connect, a request or process path, task order or dependencies, a data model, states, or a change to any of these), decide whether a diagram makes it faster to grasp. If it does, use the diago:illustrating skill; a change to code, architecture or business logic (one you made or propose, or a commit, branch or diff you summarize) is shown as a diff diagram.'
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+  text="$text Its diago-render script is at $CLAUDE_PLUGIN_ROOT/scripts/diago-render."
+fi
+case "${CLAUDE_CODE_ENTRYPOINT:-}" in
+  cli | sdk-cli) text="$text This session runs in a terminal: show diagrams as text art in a fenced text block." ;;
+  *) text="$text This session may run in a graphical host: show diagrams as text art in a fenced text block, then the SVG file's path on its own line." ;;
+esac
+if ! command -v diago >/dev/null 2>&1; then
+  text="$text The hook did not find the diago CLI on its PATH; if \`command -v diago\` fails in your shell too, tell the user once that \`go install github.com/oxforge/diago/cmd/diago@latest\` enables diagrams, and do not draw them by hand."
+fi
+
+printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$(json_escape "$text")"
+exit 0

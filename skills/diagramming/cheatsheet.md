@@ -1,15 +1,15 @@
 # diago JSON cheatsheet
 
 Three diagram types, selected by `type`. Every id is a stable identity: keep it
-across versions when the thing is the same. Full reference: the diago:diagramming
-skill and the repository README.
+across versions when the thing is the same. How to draw well: `SKILL.md` beside
+this file; full reference: the repository README.
 
 ## Flow (architecture, states, task DAGs)
 
 ```json
 { "type": "flow", "title": "Login", "direction": "DOWN",
   "nodes": [
-    { "id": "req", "label": "Request", "shape": "rounded", "color": "blue" },
+    { "id": "req", "label": "Request", "shape": "rounded", "color": "purple" },
     { "id": "ok", "label": "Authed?", "shape": "diamond" },
     { "id": "app", "label": "Handler" },
     { "id": "deny", "label": "401 page" }
@@ -87,11 +87,14 @@ Class diagrams take `packages` (groups under another name) and `legend: true`.
 ## Advisories you will hit
 
 `vague-edge-label` / `vague-message-label` ("data", "calls"), `edge-without-id`,
-`long-label`, `shape-soup` (too many shapes), `too-large`, `unlabeled-branch`
-(a diamond whose out-edges have no labels), `unlabeled-alt-section`,
-`isolated-node`, `seq-too-many-participants`, `god-class`, and
-`text-label-dropped` (text art had no room for a label: shorten it). Fix the
-JSON; do not add them to `ignore` in a spec diagram.
+`long-label` (over 60 characters), `unbreakable-token` (a word over 24
+characters), `shape-soup` (more than 5 shapes), `too-large` (more than 20
+nodes), `deep-nesting` (sequence fragments nested over 3 levels), `unlabeled-branch` (a diamond
+whose out-edges have no labels), `unlabeled-alt-section`, `isolated-node`,
+`seq-too-many-participants` (more than 8), `god-class` (more than 15 members),
+`overlong-member` (over 40 characters), and `text-label-dropped` (text art had
+no room for a label: shorten it). Fix the JSON; add a rule to `ignore` only
+when the finding is deliberate, never to silence it.
 
 `removed-field` means a leftover top-level `style`, `hints` or `alignment`
 key from before diago went orthogonal-only; under `--strict` it fails the

@@ -48,13 +48,14 @@ func Render(graph *model.PositionedGraph, th theme.Theme) string {
 // RenderOptions (Phase 2b diff rendering). A nil opts produces byte-identical
 // output to Render.
 func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *RenderOptions) string {
-	// The class legend grows the canvas below the graph and, for
-	// a long label, to the right. Without a legend both are zero and the
-	// canvas is exactly the graph's.
+	// The class legend and then the change list grow the canvas below the
+	// graph and, for a long label, to the right. Without either both are
+	// zero and the canvas is exactly the graph's.
 	legendW, legendH := legendSize(graph.Legend, th)
 	band, titleW := titleBand(graph.Title, th.Node.Font)
-	w := max(graph.Width, legendW, titleW)
-	h := graph.Height + legendH + band
+	changesW, changesH := changeListSize(opts.changes(), th)
+	w := max(graph.Width, legendW, changesW, titleW)
+	h := graph.Height + legendH + changesH + band
 
 	doc := SVGDoc{
 		Width:    w,
@@ -67,14 +68,16 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 		doc.Styles = opts.Styles
 	}
 
+	sketch := th.Style == "sketch"
+
 	// Arrow marker definitions.
-	marker := ArrowMarker(arrowMarkerID, th.Edge.ArrowSize, th.Edge.Stroke)
-	markerThick := ArrowMarker(arrowMarkerThickID, th.Edge.ArrowSize*thickArrowScale, th.Edge.Stroke)
+	marker := arrowMarker(arrowMarkerID, th.Edge.ArrowSize, th.Edge.Stroke, sketch)
+	markerThick := arrowMarker(arrowMarkerThickID, th.Edge.ArrowSize*thickArrowScale, th.Edge.Stroke, sketch)
 	doc.Defs = append(doc.Defs, marker, markerThick)
 
 	// UML adornment markers, emitted only when a class relation needs one.
 	if slices.ContainsFunc(graph.Edges, func(e model.PositionedEdge) bool { return e.Relation.Adorned() }) {
-		doc.Defs = append(doc.Defs, umlMarkers("", th.Edge.Stroke, th.Edge.StrokeWidth)...)
+		doc.Defs = append(doc.Defs, umlMarkers("", th.Edge.Stroke, th.Edge.StrokeWidth, sketch)...)
 	}
 
 	// Background rectangle.
@@ -82,8 +85,6 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 		X: 0, Y: 0, Width: w, Height: h,
 		Fill: th.Background,
 	})
-
-	sketch := th.Style == "sketch"
 
 	// Add sketch distortion filter to defs if using sketch style.
 	if sketch {
@@ -104,8 +105,10 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 		if accent := resolveAccent(g.Color, th); accent != "" {
 			dc := theme.DeriveColors(accent, th.Background, theme.ElementGroup)
 			adjustedStyle.Fill = dc.Fill
-			adjustedStyle.Stroke = dc.Stroke
-			adjustedStyle.LabelFont.Color = dc.Text
+			if opts.ownStrokes() {
+				adjustedStyle.Stroke = dc.Stroke
+				adjustedStyle.LabelFont.Color = dc.Text
+			}
 		} else {
 			adjustedStyle.Fill = adjustGroupFill(th.Group.Fill, g.Depth)
 		}
@@ -118,12 +121,20 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 		}
 	}
 
+	// edgeAccent is an edge's own color, which a status-paint render drops.
+	edgeAccent := func(e model.PositionedEdge) string {
+		if !opts.ownStrokes() {
+			return ""
+		}
+		return resolveAccent(e.Color, th)
+	}
+
 	// Collect unique edge colors and create markers for each.
 	edgeMarkers := map[string]string{}      // accent hex → marker ID
 	edgeMarkersThick := map[string]string{} // accent hex → thick marker ID
 	umlAccents := map[string]bool{}         // accent hex → UML trio already emitted
 	for _, e := range graph.Edges {
-		accent := resolveAccent(e.Color, th)
+		accent := edgeAccent(e)
 		if accent == "" {
 			continue
 		}
@@ -137,15 +148,15 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 			id := fmt.Sprintf("diago-arrow-%s", accent[1:]) // strip #
 			idThick := fmt.Sprintf("diago-arrow-thick-%s", accent[1:])
 			doc.Defs = append(doc.Defs,
-				ArrowMarker(id, th.Edge.ArrowSize, dc.Stroke),
-				ArrowMarker(idThick, th.Edge.ArrowSize*thickArrowScale, dc.Stroke),
+				arrowMarker(id, th.Edge.ArrowSize, dc.Stroke, sketch),
+				arrowMarker(idThick, th.Edge.ArrowSize*thickArrowScale, dc.Stroke, sketch),
 			)
 			edgeMarkers[accent] = id
 			edgeMarkersThick[accent] = idThick
 		}
 		if needUML {
 			umlAccents[accent] = true
-			doc.Defs = append(doc.Defs, umlMarkers(accent[1:], dc.Stroke, th.Edge.StrokeWidth)...)
+			doc.Defs = append(doc.Defs, umlMarkers(accent[1:], dc.Stroke, th.Edge.StrokeWidth, sketch)...)
 		}
 	}
 
@@ -166,11 +177,11 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 		for _, cls := range sortedKeys(needed) {
 			fill := needed[cls]
 			doc.Defs = append(doc.Defs,
-				ArrowMarker(statusMarkerID(cls, false), th.Edge.ArrowSize, fill),
-				ArrowMarker(statusMarkerID(cls, true), th.Edge.ArrowSize*thickArrowScale, fill),
+				arrowMarker(statusMarkerID(cls, false), th.Edge.ArrowSize, fill, sketch),
+				arrowMarker(statusMarkerID(cls, true), th.Edge.ArrowSize*thickArrowScale, fill, sketch),
 			)
 			if umlFill, ok := neededUML[cls]; ok {
-				doc.Defs = append(doc.Defs, umlMarkers(cls, umlFill, th.Edge.StrokeWidth)...)
+				doc.Defs = append(doc.Defs, umlMarkers(cls, umlFill, th.Edge.StrokeWidth, sketch)...)
 			}
 		}
 	}
@@ -181,7 +192,7 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 	var edgeLabels []Element
 	for _, e := range graph.Edges {
 		edgeStyle := th.Edge
-		accent := resolveAccent(e.Color, th)
+		accent := edgeAccent(e)
 		markerIDOverride := ""
 		markerThickIDOverride := ""
 		if accent != "" {
@@ -252,8 +263,10 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 		if accent := resolveAccent(n.Color, th); accent != "" {
 			dc := theme.DeriveColors(accent, th.Background, theme.ElementNode)
 			nodeStyle.Fill = dc.Fill
-			nodeStyle.Stroke = dc.Stroke
-			nodeStyle.Font.Color = dc.Text
+			if opts.ownStrokes() {
+				nodeStyle.Stroke = dc.Stroke
+				nodeStyle.Font.Color = dc.Text
+			}
 		}
 		var grp SVGGroup
 		if n.Members != nil {
@@ -273,6 +286,9 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 
 	if len(graph.Legend) > 0 {
 		doc.Children = append(doc.Children, renderLegend(graph.Legend, graph.Height, th))
+	}
+	if lines := opts.changes(); len(lines) > 0 {
+		doc.Children = append(doc.Children, renderChangeList(lines, graph.Height+legendH, th))
 	}
 
 	doc.Children = withTitleBand(doc.Children, graph.Title, w, band, th.Node.Font)

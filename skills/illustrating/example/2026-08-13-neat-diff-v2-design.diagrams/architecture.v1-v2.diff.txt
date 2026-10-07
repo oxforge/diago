@@ -73,4 +73,4 @@ added: edge renderDiffSvg -> renderPng
 added: group png
 removed: node ghost overlay
 removed: edge renderDiffSvg -> ghost overlay
-changed: node after spec or patch
+changed: node after spec or patch: label "after spec" → "after spec or patch"

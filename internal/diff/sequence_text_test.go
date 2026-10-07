@@ -64,8 +64,8 @@ func TestSequenceLegend_OrderAndWording(t *testing.T) {
 		`added: message Web App -> Audit Log "record login"`,
 		`added: message Auth Service -> Web App "locked"`,
 		"added: section [locked] of alt",
-		`changed: message User -> Web App "submit form" -> "submit credentials"`,
-		"changed: message Web App -> User (solid -> async)",
+		`changed: message User -> Web App: label "submit form" → "submit credentials"`,
+		"changed: message Web App -> User: style solid → async",
 	}, SequenceLegend(u))
 }
 
@@ -78,10 +78,22 @@ func TestSequenceLegend_RemovedNamesBeforeLabels(t *testing.T) {
 		"removed: actor Mailer",
 		`removed: message User -> Mailer "send"`,
 		"removed: fragment opt",
-		"changed: actor Person",
+		`changed: actor Person: label "User" → "Person"`,
 	}, SequenceLegend(BuildUnionSequence(before, after)))
 }
 
 func TestSequenceLegend_EmptyWhenIdentical(t *testing.T) {
 	assert.Empty(t, SequenceLegend(BuildUnionSequence(parseSeq(t, loginV1), parseSeq(t, loginV1))))
+}
+
+func TestSequenceLegend_LabelsWithNewlineAndQuote(t *testing.T) {
+	const v1 = `{"type":"sequence","actors":[{"id":"a","label":"A\nB"},{"id":"b","label":"C"}],
+	 "interactions":[{"from":"a","to":"b","label":"x"}]}`
+	const v2 = `{"type":"sequence","actors":[{"id":"a","label":"A\nB","color":"red"},{"id":"b","label":"C"}],
+	 "interactions":[{"from":"a","to":"b","label":"x"},{"from":"b","to":"a","label":"Say \"hi\""}]}`
+	got := SequenceLegend(BuildUnionSequence(parseSeq(t, v1), parseSeq(t, v2)))
+	assert.Equal(t, []string{
+		`added: message C -> A B "Say \"hi\""`,
+		`changed: actor A B: color none → red`,
+	}, got)
 }

@@ -57,6 +57,14 @@ func TestValidateRejectsInvalidColor(t *testing.T) {
 	assert.Contains(t, err.Error(), "notacolor")
 }
 
+func TestValidateRejectsInvalidDiffRemoved(t *testing.T) {
+	th := DefaultTheme()
+	th.Diff.Removed = "notacolor"
+	err := Validate(th)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "diff.removed")
+}
+
 func TestValidateRejectsNegativeStrokeWidth(t *testing.T) {
 	th := DefaultTheme()
 	th.Node.StrokeWidth = -1

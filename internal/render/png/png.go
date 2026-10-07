@@ -16,6 +16,12 @@ import (
 // ErrResvgNotFound is returned when the resvg binary cannot be located.
 var ErrResvgNotFound = errors.New("resvg binary not found")
 
+// notFoundError is an ErrResvgNotFound whose message says what to do next.
+type notFoundError struct{ msg string }
+
+func (e notFoundError) Error() string { return e.msg }
+func (e notFoundError) Unwrap() error { return ErrResvgNotFound }
+
 // Options controls PNG rendering parameters.
 type Options struct {
 	Width      int     // Target width in pixels (0 = use SVG intrinsic width).
@@ -28,13 +34,13 @@ type Options struct {
 func findResvg() (string, error) {
 	if p := os.Getenv("DIAGO_RESVG_PATH"); p != "" {
 		if _, err := os.Stat(p); err != nil {
-			return "", fmt.Errorf("%w: %s", ErrResvgNotFound, p)
+			return "", notFoundError{fmt.Sprintf("DIAGO_RESVG_PATH is %s, which does not exist: point it at the resvg binary, or unset it to look resvg up on PATH", p)}
 		}
 		return p, nil
 	}
 	p, err := exec.LookPath("resvg")
 	if err != nil {
-		return "", fmt.Errorf("%w: not in $PATH", ErrResvgNotFound)
+		return "", notFoundError{"PNG output needs resvg, and none is on PATH: install it (brew install resvg, cargo install resvg, or a binary from https://github.com/linebender/resvg/releases) or set DIAGO_RESVG_PATH to one; svg and text output need nothing"}
 	}
 	return p, nil
 }

@@ -33,7 +33,8 @@ func seqStatusOpts(th theme.Theme, classes map[string]string) *RenderOptions {
 	return &RenderOptions{
 		Class:       func(kind, id string) string { return classes[kind+":"+id] },
 		Styles:      SequenceDiffStyles(th),
-		MarkerFills: map[string]string{"added": th.Diff.Added, "changed": th.Diff.Changed},
+		MarkerFills: map[string]string{"added": th.Diff.Added, "changed": th.Diff.Changed, "removed": th.Diff.Removed},
+		StatusPaint: true,
 	}
 }
 
@@ -85,5 +86,56 @@ func TestSequenceDiffStyles_ExtendsFlowStyles(t *testing.T) {
 	th := theme.DefaultTheme()
 	s := SequenceDiffStyles(th)
 	assert.True(t, strings.HasPrefix(s, DiffStyles(th)))
-	assert.Contains(t, s, ".removed line { stroke-dasharray: 6 4; }")
+	assert.Contains(t, s, ".removed line { stroke: "+th.Diff.Removed+"; stroke-dasharray: 6 4; }")
+}
+
+func TestSequenceDiffStyles_SectionStatusOutranksItsFragment(t *testing.T) {
+	th := theme.DefaultTheme()
+	s := SequenceDiffStyles(th)
+	// A section's group sits inside its fragment's: .changed line and
+	// .added line tie on specificity, so the later one would win.
+	for _, rule := range []string{
+		".changed .added line { stroke: " + th.Diff.Added + "; }",
+		".changed .added text { fill: " + th.Diff.Added + "; }",
+		".changed .removed line { stroke: " + th.Diff.Removed + "; }",
+		".changed .removed text { fill: " + th.Diff.Removed + "; }",
+	} {
+		assert.Contains(t, s, rule)
+	}
+	assert.Less(t, strings.Index(s, ".changed line {"), strings.Index(s, ".changed .added line {"))
+}
+
+func TestRenderSequenceWithOptions_LabelBackingTakesNoStatusStroke(t *testing.T) {
+	th := theme.DefaultTheme()
+	out := RenderSequenceWithOptions(diffSequence(), th, seqStatusOpts(th, map[string]string{
+		"interaction:0": "changed", "interaction:1": "added",
+	}))
+	for _, id := range []string{"interaction-0", "interaction-1"} {
+		grp := out[strings.Index(out, `<g id="`+id+`"`):]
+		grp = grp[:strings.Index(grp, "</g>")]
+		assert.Contains(t, grp, `<rect class="backing" `, "%s: the label's backing is excluded from the status stroke", id)
+	}
+	assert.Contains(t, out, ".added rect.backing, .changed rect.backing, .removed rect.backing { stroke: none; }")
+	assert.NotContains(t, RenderSequence(diffSequence(), th), `class="backing"`, "a plain render stays byte-identical")
+}
+
+func TestRenderSequenceWithOptions_StatusPaint(t *testing.T) {
+	th := theme.DefaultTheme()
+	s := diffSequence()
+	s.Actors[0].Color = "red" // u, unchanged
+	dc := theme.DeriveColors(th.Colors["red"], th.Background, theme.ElementNode)
+	out := RenderSequenceWithOptions(s, th, seqStatusOpts(th, map[string]string{
+		"actor:u": "dimmed", "lifeline:u": "dimmed", "interaction:1": "dimmed",
+	}))
+	actor := groupOf(t, out, "actor-u")
+	assert.Contains(t, actor, `fill="`+dc.Fill+`"`, "the actor keeps its own fill")
+	assert.Contains(t, actor, `stroke="`+th.Actor.Stroke+`"`)
+	assert.NotContains(t, actor, dc.Text)
+	assert.Contains(t, groupOf(t, out, "lifeline-u"), `stroke="`+th.Actor.Stroke+`"`, "the lifeline drops the actor's color")
+	it := groupOf(t, out, "interaction-1")
+	assert.Contains(t, it, `stroke="`+th.Edge.Stroke+`"`, "the red interaction drops its color")
+	assert.Contains(t, it, `marker-end="url(#diago-arrow-open)"`)
+
+	// Control: the plain render keeps the actor's outline.
+	assert.Contains(t, RenderSequence(s, th), `stroke="`+dc.Stroke+`"`)
 }

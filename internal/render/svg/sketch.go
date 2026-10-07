@@ -299,3 +299,134 @@ func sketchCylinder(cx, hw, topY, botY, ry float64, elementID string) string {
 	sb.WriteString(" Z")
 	return sb.String()
 }
+
+// Hand-drawn markers. A sketch theme's arrowheads and UML adornments keep
+// the clean markers' reference point and scale, so a tip still lands on the
+// node border and a wire still meets its adornment's base; their corners
+// are jittered, their sides bowed and their joins rounded, by an rng seeded
+// from the marker id.
+
+// An arrowhead's corner jitter, side bow and filled outline width, per px
+// of arrow size (1, 0.8 and 1 px at the usual 8).
+const (
+	sketchArrowJitter  = 0.125
+	sketchArrowBow     = 0.1
+	sketchArrowOutline = 0.125
+)
+
+// A UML adornment's corner jitter and side bow, and how far its outline
+// runs on past the corner it started from, as a pen does, in px.
+const (
+	sketchUMLJitter    = 1.0
+	sketchUMLBow       = 1.0
+	sketchUMLOvershoot = 2.0
+)
+
+// sketchJitter returns a value in [-amp, amp].
+func sketchJitter(rng *rand.Rand, amp float64) float64 {
+	return (rng.Float64()*2.0 - 1.0) * amp
+}
+
+// sketchSide writes a quadratic curve from a to b whose control point sits
+// off the side's middle by bow, along its normal. place maps marker
+// coordinates to the drawing's.
+func sketchSide(sb *strings.Builder, a, b model.Point, bow float64, place func(model.Point) model.Point) {
+	c := model.Point{X: (a.X + b.X) / 2, Y: (a.Y + b.Y) / 2}
+	if l := math.Hypot(b.X-a.X, b.Y-a.Y); l > 0 {
+		c.X -= (b.Y - a.Y) / l * bow
+		c.Y += (b.X - a.X) / l * bow
+	}
+	c, b = place(c), place(b)
+	fmt.Fprintf(sb, " Q %s %s %s %s", ff(c.X), ff(c.Y), ff(b.X), ff(b.Y))
+}
+
+// sketchClosed returns a closed outline through pts, side i (from pts[i]
+// to the next corner) bowed by bows[i]. With an overshoot the last side
+// runs that far on past pts[0] instead of closing on it, so its fill closes
+// the outline implicitly.
+func sketchClosed(pts []model.Point, bows []float64, overshoot float64, place func(model.Point) model.Point) string {
+	var sb strings.Builder
+	p0 := place(pts[0])
+	fmt.Fprintf(&sb, "M %s %s", ff(p0.X), ff(p0.Y))
+	n := len(pts)
+	for i := 0; i < n-1; i++ {
+		sketchSide(&sb, pts[i], pts[i+1], bows[i], place)
+	}
+	last, end := pts[n-1], pts[0]
+	if l := math.Hypot(end.X-last.X, end.Y-last.Y); overshoot > 0 && l > 0 {
+		end.X += (end.X - last.X) / l * overshoot
+		end.Y += (end.Y - last.Y) / l * overshoot
+		sketchSide(&sb, last, end, bows[n-1], place)
+		return sb.String()
+	}
+	sketchSide(&sb, last, end, bows[n-1], place)
+	sb.WriteString(" Z")
+	return sb.String()
+}
+
+// asDrawn places marker coordinates as they are.
+func asDrawn(p model.Point) model.Point { return p }
+
+// sketchArrowhead is the filled arrowhead of ArrowMarker drawn by hand: its
+// tip, rounded by an outline of width outline, reaches (size, size/2).
+func sketchArrowhead(id string, size, outline float64) string {
+	rng := seedRNG(id)
+	j, half := size*sketchArrowJitter, outline/2
+	tip := model.Point{X: size - half, Y: size/2 + sketchJitter(rng, j/2)}
+	top := model.Point{X: half + sketchJitter(rng, j), Y: half + sketchJitter(rng, j)}
+	bottom := model.Point{X: half + sketchJitter(rng, j), Y: size - half + sketchJitter(rng, j)}
+	bow := size * sketchArrowBow
+	bows := []float64{sketchJitter(rng, bow), sketchJitter(rng, bow), sketchJitter(rng, bow)}
+	return sketchClosed([]model.Point{top, tip, bottom}, bows, 0, asDrawn)
+}
+
+// sketchOpenArrowhead is the open arrowhead of OpenArrowMarker drawn by
+// hand: two strokes of slightly uneven length meeting at a tip that, with
+// its round cap, reaches (size, size/2).
+func sketchOpenArrowhead(id string, size, strokeWidth float64) string {
+	rng := seedRNG(id)
+	j, half := size*sketchArrowJitter, strokeWidth/2
+	tip := model.Point{X: size - half, Y: size/2 + sketchJitter(rng, j/2)}
+	top := model.Point{X: half + sketchJitter(rng, j), Y: half + sketchJitter(rng, j)}
+	bottom := model.Point{X: half + sketchJitter(rng, j), Y: size - half + sketchJitter(rng, j)}
+	bow := size * sketchArrowBow
+	var sb strings.Builder
+	for _, arm := range []model.Point{top, bottom} {
+		if sb.Len() > 0 {
+			sb.WriteString(" ")
+		}
+		fmt.Fprintf(&sb, "M %s %s", ff(arm.X), ff(arm.Y))
+		sketchSide(&sb, arm, tip, sketchJitter(rng, bow), asDrawn)
+	}
+	return sb.String()
+}
+
+// sketchTriangle is TriangleMarker's hollow triangle drawn by hand, base at
+// x = 0 on the wire's start and tip, rounded by the stroke, reaching
+// x = umlTriangleDepth on the node border; the base runs on past its top
+// corner.
+func sketchTriangle(id string, strokeWidth float64, place func(model.Point) model.Point) string {
+	rng := seedRNG(id)
+	j := sketchUMLJitter
+	top := model.Point{X: 0, Y: sketchJitter(rng, j)}
+	tip := model.Point{X: umlTriangleDepth - strokeWidth/2, Y: umlTriangleHalf + sketchJitter(rng, j/2)}
+	bottom := model.Point{X: 0, Y: 2*umlTriangleHalf + sketchJitter(rng, j)}
+	// The base bows half as far, so it still covers the wire's end.
+	bows := []float64{sketchJitter(rng, sketchUMLBow), sketchJitter(rng, sketchUMLBow), sketchJitter(rng, sketchUMLBow/2)}
+	return sketchClosed([]model.Point{top, tip, bottom}, bows, sketchUMLOvershoot, place)
+}
+
+// sketchDiamond is DiamondMarker's diamond drawn by hand, back corner at
+// x = 0 on the wire's start and tip, rounded by the stroke, reaching
+// x = umlDiamondDepth on the node border; the last side runs on past the
+// back corner.
+func sketchDiamond(id string, strokeWidth float64, place func(model.Point) model.Point) string {
+	rng := seedRNG(id)
+	j := sketchUMLJitter
+	back := model.Point{X: 0, Y: umlDiamondHalf + sketchJitter(rng, j/2)}
+	top := model.Point{X: umlDiamondDepth/2 + sketchJitter(rng, j), Y: sketchJitter(rng, j)}
+	tip := model.Point{X: umlDiamondDepth - strokeWidth/2, Y: umlDiamondHalf + sketchJitter(rng, j/2)}
+	bottom := model.Point{X: umlDiamondDepth/2 + sketchJitter(rng, j), Y: 2*umlDiamondHalf + sketchJitter(rng, j)}
+	bows := []float64{sketchJitter(rng, sketchUMLBow), sketchJitter(rng, sketchUMLBow), sketchJitter(rng, sketchUMLBow), sketchJitter(rng, sketchUMLBow)}
+	return sketchClosed([]model.Point{back, top, tip, bottom}, bows, sketchUMLOvershoot, place)
+}

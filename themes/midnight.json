@@ -12,7 +12,7 @@
     "purple": "#cc5de8",
     "gray": "#9090b0"
   },
-  "diff": { "added": "#51cf66", "changed": "#ff922b" },
+  "diff": { "added": "#51cf66", "changed": "#74c0fc", "removed": "#ff6b6b" },
   "node": {
     "fill": "#1a1a2e",
     "stroke": "#3a3a5c",

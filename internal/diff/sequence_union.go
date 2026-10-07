@@ -36,6 +36,8 @@ type SequenceDiff struct {
 	ChangedMessages                           []MessageChange
 	AddedFragments, RemovedFragments          []int
 	AddedSections, RemovedSections            []SectionRef
+	// ActorFields holds, per changed actor id, the fields that differ.
+	ActorFields map[string][]FieldChange
 }
 
 // UnionSequence is after ∪ removed-from-before with a status per element.
@@ -120,6 +122,7 @@ func BuildUnionSequence(before, after *model.SequenceDiagram) UnionSequence {
 		Actors:       map[string]Status{},
 		BeforeLabels: map[string]string{},
 		Alignment:    al,
+		Diff:         SequenceDiff{ActorFields: map[string][]FieldChange{}},
 	}
 	for _, a := range before.Actors {
 		u.BeforeLabels[a.ID] = a.Label
@@ -148,6 +151,7 @@ func BuildUnionSequence(before, after *model.SequenceDiagram) UnionSequence {
 			u.Diff.AddedActors = append(u.Diff.AddedActors, as.ID)
 		case Changed:
 			u.Diff.ChangedActors = append(u.Diff.ChangedActors, as.ID)
+			u.Diff.ActorFields[as.ID] = actorFields(beforeActor[as.ID], afterActor[as.ID])
 		}
 	}
 

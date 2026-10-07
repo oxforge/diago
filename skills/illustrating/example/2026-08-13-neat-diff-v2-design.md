@@ -1,6 +1,6 @@
 # neat diff v2 — union-layout diff, patch input, spec-anchored incremental renders
 
-_A real design spec (for neat, a sibling diagram tool) used as the worked example for the `spec-diagrams` skill: every diagram is a diago spec in `2026-08-13-neat-diff-v2-design.diagrams/`, rendered and embedded by `scripts/diago-render`. `architecture` has two versions, so the document carries its revision diff._
+_A real design spec (for neat, a sibling diagram tool) used as the worked example for the `illustrating` skill's `documents.md`: every diagram is a diago spec in `2026-08-13-neat-diff-v2-design.diagrams/`, rendered and embedded by `scripts/diago-render`. `architecture` has two versions, so the document carries its revision diff._
 
 Date: 2026-08-13. Status: approved design, pending implementation plan.
 
@@ -117,7 +117,7 @@ added: edge renderDiffSvg -> renderPng
 added: group png
 removed: node ghost overlay
 removed: edge renderDiffSvg -> ghost overlay
-changed: node after spec or patch
+changed: node after spec or patch: label "after spec" → "after spec or patch"
 ```
 [architecture.v1-v2.diff.png](2026-08-13-neat-diff-v2-design.diagrams/architecture.v1-v2.diff.png)
 <!-- diago:end architecture.diff -->

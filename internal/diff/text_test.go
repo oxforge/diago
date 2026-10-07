@@ -37,9 +37,9 @@ func TestFlowLegend_OrderAndWording(t *testing.T) {
 		"added: edge B -> D",
 		"removed: node C",
 		"removed: edge B -> C",
-		"changed: node A!",
-		"changed: edge A! -> B",
-		"changed: group G2",
+		`changed: node A!: label "A" → "A!"`,
+		`changed: edge A! -> B: label none → "now"`,
+		`changed: group G2: label "G" → "G2"`,
 	}, FlowLegend(u))
 }
 
@@ -78,4 +78,17 @@ func TestFlowLegend_SwappedRelationNamedInSpecOrientation(t *testing.T) {
 	 "relations":[{"id":"isa","from":"dog","to":"animal","kind":"inheritance"}]}`)
 	after := parseClass(t, `{"type":"class","classes":[{"id":"dog","label":"Dog"},{"id":"animal","label":"Animal"}]}`)
 	assert.Equal(t, []string{"removed: relation Dog -> Animal"}, FlowLegend(BuildUnion(before, after)))
+}
+
+func TestFlowLegend_LabelsWithNewlineAndQuote(t *testing.T) {
+	before := parse(t, `{"type":"flow","nodes":[{"id":"a","label":"Two\nLines"},{"id":"b","label":"B"}],"edges":[]}`)
+	after := parse(t, `{"type":"flow","nodes":[{"id":"a","label":"Two\nLines","color":"red"},{"id":"b","label":"Say \"hi\""}],"edges":[]}`)
+	got := FlowLegend(BuildUnion(before, after))
+	assert.Equal(t, []string{
+		`changed: node Two Lines: color none → red`,
+		`changed: node Say "hi": label "B" → "Say \"hi\""`,
+	}, got)
+	for _, l := range got {
+		assert.NotContains(t, l, "\n", "one change, one line")
+	}
 }

@@ -71,6 +71,7 @@ type jsonActivationStyle struct {
 type jsonDiffStyle struct {
 	Added   string `json:"added"`
 	Changed string `json:"changed"`
+	Removed string `json:"removed"`
 }
 
 // jsonClassStyle mirrors ClassStyle for JSON decoding.
@@ -158,16 +159,19 @@ func toFontStyle(jf jsonFontStyle) FontStyle {
 }
 
 // toDiffStyle takes the explicit diff block, falling back per field to the
-// palette's green (added) and orange (changed) so custom themes without the
-// block keep working.
+// palette's green (added), blue (changed) and red (removed) so custom
+// themes without the block keep working.
 func toDiffStyle(d *jsonDiffStyle, colors map[string]string) DiffStyle {
-	out := DiffStyle{Added: colors["green"], Changed: colors["orange"]}
+	out := DiffStyle{Added: colors["green"], Changed: colors["blue"], Removed: colors["red"]}
 	if d != nil {
 		if d.Added != "" {
 			out.Added = d.Added
 		}
 		if d.Changed != "" {
 			out.Changed = d.Changed
+		}
+		if d.Removed != "" {
+			out.Removed = d.Removed
 		}
 	}
 	return out

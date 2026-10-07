@@ -154,7 +154,10 @@ func renderFragment(idx int, f model.PositionedFragment, style theme.FragmentSty
 }
 
 // renderInteraction renders a single interaction arrow with its label.
-func renderInteraction(idx int, it model.PositionedInteraction, style theme.EdgeAppearance, background string, sketch bool, filledMarkerOverride, openMarkerOverride string) SVGGroup {
+//
+// backingClass classes the label's backing rect: "backing" in a
+// status-aware render, so the status stroke skips it; "" in a plain render.
+func renderInteraction(idx int, it model.PositionedInteraction, style theme.EdgeAppearance, background string, sketch bool, filledMarkerOverride, openMarkerOverride, backingClass string) SVGGroup {
 	strokeDash := ""
 	markerID := arrowMarkerID
 	switch it.Style {
@@ -176,7 +179,7 @@ func renderInteraction(idx int, it model.PositionedInteraction, style theme.Edge
 	if it.IsSelf {
 		children = renderSelfInteraction(it, style, background, strokeDash, markerRef, sketch)
 	} else {
-		children = renderNormalInteraction(it, style, background, strokeDash, markerRef, sketch)
+		children = renderNormalInteraction(it, style, background, strokeDash, markerRef, sketch, backingClass)
 	}
 
 	return SVGGroup{
@@ -193,6 +196,7 @@ func renderNormalInteraction(
 	strokeDash string,
 	markerRef string,
 	sketch bool,
+	backingClass string,
 ) []Element {
 	pts := []model.Point{
 		{X: it.FromX, Y: it.Y},
@@ -228,6 +232,7 @@ func renderNormalInteraction(
 		padX, padY := 4.0, 2.0
 		children = append(children,
 			Rect{
+				Class:       backingClass,
 				X:           midX - lw/2 - padX,
 				Y:           labelY - lh/2 - padY,
 				Width:       lw + padX*2,

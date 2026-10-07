@@ -308,7 +308,9 @@ func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 		svg := svgrender.RenderSequenceWithOptions(ps, th, &svgrender.RenderOptions{
 			Class:       sequenceStatusClass(u),
 			Styles:      svgrender.SequenceDiffStyles(th),
-			MarkerFills: map[string]string{string(diff.Added): th.Diff.Added, string(diff.Changed): th.Diff.Changed},
+			MarkerFills: statusFills(th),
+			StatusPaint: true,
+			Changes:     changeLines(diff.SequenceChanges(u), th),
 		})
 
 		if format == "png" {
@@ -351,7 +353,9 @@ func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 	svg := svgrender.RenderWithOptions(pg, th, &svgrender.RenderOptions{
 		Class:       statusClass(u),
 		Styles:      styles,
-		MarkerFills: map[string]string{string(diff.Added): th.Diff.Added, string(diff.Changed): th.Diff.Changed},
+		MarkerFills: statusFills(th),
+		StatusPaint: true,
+		Changes:     changeLines(diff.FlowChanges(u), th),
 	})
 
 	if format == "png" {
@@ -359,4 +363,23 @@ func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 		return png, nil, flatRanked, err
 	}
 	return []byte(svg), nil, flatRanked, nil
+}
+
+// statusFills maps each status class to its color in the theme's diff
+// palette: the markers a status edge or message takes.
+func statusFills(th theme.Theme) map[string]string {
+	return map[string]string{
+		string(diff.Added): th.Diff.Added, string(diff.Changed): th.Diff.Changed, string(diff.Removed): th.Diff.Removed,
+	}
+}
+
+// changeLines maps the diff's change list to the SVG renderer's rows,
+// colored by the theme's diff palette; a removed line's sample is dashed.
+func changeLines(changes []diff.Change, th theme.Theme) []svgrender.ChangeLine {
+	fills := statusFills(th)
+	out := make([]svgrender.ChangeLine, len(changes))
+	for i, c := range changes {
+		out[i] = svgrender.ChangeLine{Color: fills[string(c.Status)], Dashed: c.Status == diff.Removed, Wire: c.Wire, Text: c.Text}
+	}
+	return out
 }

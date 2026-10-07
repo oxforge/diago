@@ -24,7 +24,8 @@ func statusOpts(th theme.Theme, classes map[string]string) *RenderOptions {
 	return &RenderOptions{
 		Class:       func(kind, id string) string { return classes[kind+":"+id] },
 		Styles:      DiffStyles(th),
-		MarkerFills: map[string]string{"added": th.Diff.Added, "changed": th.Diff.Changed},
+		MarkerFills: map[string]string{"added": th.Diff.Added, "changed": th.Diff.Changed, "removed": th.Diff.Removed},
+		StatusPaint: true,
 	}
 }
 
@@ -48,7 +49,7 @@ func TestRenderWithOptions_ClassesAndStyle(t *testing.T) {
 	assert.Contains(t, out, `<g id="edge-label-A-B" class="changed">`, "hoisted label carries the edge class")
 	assert.Contains(t, out, `<g id="group-grp" class="changed">`)
 	assert.Contains(t, out, `<g id="group-title-grp" class="changed">`, "the title carries its group's class")
-	assert.Contains(t, out, ".added rect.backing, .changed rect.backing { stroke: none; }", "a title's backing takes no status stroke")
+	assert.Contains(t, out, ".added rect.backing, .changed rect.backing, .removed rect.backing { stroke: none; }", "a title's backing takes no status stroke")
 	assert.Contains(t, out, ".dimmed { opacity: 0.5; }")
 	assert.Contains(t, out, ".added rect, .added polygon, .added circle, .added ellipse, .added path")
 	assert.NotContains(t, out, ".added rect {", "selectors never target bare rect alone")
@@ -66,7 +67,7 @@ func TestRenderWithOptions_StatusMarkers(t *testing.T) {
 
 	assert.Contains(t, out, `id="diago-arrow-added"`)
 	assert.Contains(t, out, `marker-end="url(#diago-arrow-added)"`, "added edge uses the status marker despite its user color")
-	assert.Contains(t, out, `marker-end="url(#diago-arrow-thick)"`, "removed thick edge keeps the base thick marker")
+	assert.Contains(t, out, `marker-end="url(#diago-arrow-thick-removed)"`, "a removed thick edge takes the removed marker")
 	assert.NotContains(t, out, `id="diago-arrow-changed"`, "unused status markers are not emitted")
 }
 
@@ -83,5 +84,61 @@ func TestClassDiffStyles(t *testing.T) {
 	assert.Contains(t, out, DiffStyles(th), "class diff styles extend the flow diff styles")
 	assert.Contains(t, out, "text.member.added { fill: "+th.Diff.Added+"; font-weight: 600; }")
 	assert.Contains(t, out, "text.member.changed { fill: "+th.Diff.Changed+"; font-weight: 600; }")
-	assert.Contains(t, out, "text.member.removed { opacity: 0.35; text-decoration: line-through; }")
+	assert.Contains(t, out, "text.member.removed { fill: "+th.Diff.Removed+"; text-decoration: line-through; }")
+}
+
+// groupOf returns the markup of the first <g> whose id is id, up to its
+// first closing tag (enough for a node, an edge or a group shape).
+func groupOf(t *testing.T, out, id string) string {
+	t.Helper()
+	i := strings.Index(out, `<g id="`+id+`"`)
+	require.GreaterOrEqual(t, i, 0, "no group %s", id)
+	rest := out[i:]
+	return rest[:strings.Index(rest, "</g>")]
+}
+
+func TestRenderWithOptions_StatusPaintKeepsOnlyFills(t *testing.T) {
+	th := theme.DefaultTheme()
+	g := diffGraph()
+	g.Nodes[0].Color = "red"   // A, unchanged
+	g.Edges[0].Color = "red"   // A->B, unchanged
+	g.Groups[0].Color = "blue" // grp, unchanged
+	node := theme.DeriveColors(th.Colors["red"], th.Background, theme.ElementNode)
+	grp := theme.DeriveColors(th.Colors["blue"], th.Background, theme.ElementGroup)
+	classes := map[string]string{"node:A": "dimmed", "edge:A->B#0": "dimmed", "group:grp": "dimmed"}
+
+	out := RenderWithOptions(g, th, statusOpts(th, classes))
+	a := groupOf(t, out, "node-A")
+	assert.Contains(t, a, `fill="`+node.Fill+`"`, "the node keeps its own fill")
+	assert.Contains(t, a, `stroke="`+th.Node.Stroke+`"`, "its outline is the theme's")
+	assert.NotContains(t, a, node.Stroke)
+	assert.NotContains(t, a, node.Text, "its label is the theme's")
+	e := groupOf(t, out, "edge-A-B")
+	assert.Contains(t, e, `stroke="`+th.Edge.Stroke+`"`, "an edge drops its own color")
+	assert.Contains(t, e, `marker-end="url(#diago-arrow)"`)
+	assert.NotContains(t, out, `id="diago-arrow-`+th.Colors["red"][1:]+`"`, "no accent marker is emitted")
+	gr := groupOf(t, out, "group-grp")
+	assert.Contains(t, gr, `fill="`+grp.Fill+`"`)
+	assert.Contains(t, gr, `stroke="`+th.Group.Stroke+`"`)
+
+	// Control: without status paint the node's own outline shows.
+	opts := statusOpts(th, classes)
+	opts.StatusPaint = false
+	assert.Contains(t, groupOf(t, RenderWithOptions(g, th, opts), "node-A"), `stroke="`+node.Stroke+`"`)
+}
+
+func TestRenderWithOptions_RemovedMarkers(t *testing.T) {
+	th := theme.DefaultTheme()
+	out := RenderWithOptions(diffGraph(), th, statusOpts(th, map[string]string{"edge:A->B#0": "removed"}))
+	assert.Contains(t, out, `id="diago-arrow-removed"`)
+	assert.Contains(t, out, `marker-end="url(#diago-arrow-removed)"`)
+}
+
+func TestDiffStyles_Removed(t *testing.T) {
+	th := theme.DefaultTheme()
+	out := DiffStyles(th)
+	assert.Contains(t, out, ".removed { opacity: 0.6; }")
+	assert.Contains(t, out, ".removed rect, .removed polygon, .removed circle, .removed ellipse, .removed path, .removed polyline { stroke: "+th.Diff.Removed+"; stroke-dasharray: 6 4; }")
+	assert.Contains(t, out, ".removed text { fill: "+th.Diff.Removed+"; text-decoration: line-through; }")
+	assert.Contains(t, out, ".changed text { fill: "+th.Diff.Changed+"; font-weight: 600; }")
 }

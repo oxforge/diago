@@ -22,12 +22,16 @@ The repository has three parts:
 
 1. **The CLI** (`cmd/diago`, `internal/`): `render`, `diff`, `check`, `import`.
 2. **The README**: all usage documentation.
-3. **The plugin** (`.claude-plugin/`, `skills/`, `scripts/`):
-   `diago:diagramming` (writing specs and driving the CLI) and
-   `diago:spec-diagrams` (diagram-augmented design specs and plans with
-   revision diffs). `scripts/diago-render` does the render/lint/diff/embed
-   mechanics; `skills/spec-diagrams/example/` is the worked example,
-   regenerated with `scripts/diago-render <dir> --png --strict --embed <doc>`.
+3. **The plugin** (`.claude-plugin/`, `skills/`, `hooks/`, `scripts/`):
+   `diago:diagramming` (how to draw well, and the CLI) and
+   `diago:illustrating` (when and in which format to show a diagram while
+   presenting to a human, diff diagrams for changes, and diagram-augmented
+   documents for review in its `documents.md`); a SessionStart hook
+   (`hooks/session-start`, tested by `hooks/session_start_test.go`) puts the
+   rule in every session's context. `scripts/diago-render` does the
+   render/lint/diff/embed mechanics; `skills/illustrating/example/` is the
+   worked example, regenerated with
+   `scripts/diago-render <dir> --png --strict --embed <doc>`.
 
 ## Tech Stack
 
@@ -63,10 +67,10 @@ diago/
 │   │   ├── layered/      # The layered engine, the only flow and class engine: one package per stage (size, cycle, rank, equalize, lgraph, order, ports, place, route, nest, flat, labels, frame)
 │   │   └── sequence/     # Custom timeline layout; `LayoutWithOptions` takes an activation mask for diff renders
 │   ├── layoutdbg/        # Decision-record logging (layoutdbg.go): extend this, never fmt.Printf
-│   ├── diff/             # Structural diff and union graphs for flow, sequence and class specs, text stamping and legends, member-level class union (`members.go`), strict unified-diff applier; depends on model only
+│   ├── diff/             # Structural diff and union graphs for flow, sequence and class specs, the fields each change touched (`fields.go`), the change list both the text footer and the SVG list print (`changes.go`), text stamping, member-level class union (`members.go`), strict unified-diff applier; depends on model only
 │   ├── mermaid/          # Mermaid importer: Sniff/Parse, flowchart, sequence and class dialects → schema spec structs; depends on schema only
 │   ├── render/
-│   │   ├── svg/          # SVG rendering (flow.go, sequence.go, class.go, elements, shapes, text, sketch, arrows, hops, diffstyle, metadata)
+│   │   ├── svg/          # SVG rendering (flow.go, sequence.go, class.go, elements, shapes, text, sketch, arrows, hops, diffstyle, changelist, metadata)
 │   │   ├── png/          # SVG→PNG rasterization via resvg subprocess
 │   │   └── text/         # Unicode box-drawing text art renderer (flag-based char grid; flow, sequence, class; laid out under a text profile, always orthogonal)
 │   ├── export/
@@ -79,13 +83,14 @@ diago/
 ├── schemas/              # Generated JSON schema files
 ├── themes/               # Built-in theme JSON files (default, dark, midnight, sketch)
 ├── .claude-plugin/       # plugin.json + marketplace.json (the plugin is the repo root)
-├── skills/               # diagramming/ and spec-diagrams/ (SKILL.md + cheatsheet.md; spec-diagrams/example/ is its worked example)
-└── scripts/diago-render  # Render/lint/diff/embed a document's diagrams (used by spec-diagrams)
+├── hooks/                # The plugin's SessionStart hook: hooks.json, session-start and its Go test
+├── skills/               # diagramming/ (SKILL.md + cheatsheet.md) and illustrating/ (SKILL.md + documents.md; example/ is its worked example)
+└── scripts/diago-render  # Render/lint/diff/embed a folder of versioned diagrams (used by illustrating)
 ```
 
 Skill changes ship through the plugin cache: bump `version` in both
 `.claude-plugin/plugin.json` and `marketplace.json` whenever a skill, the
-script or the cheatsheet changes, or installed copies never see it.
+hook, the script or the cheatsheet changes, or installed copies never see it.
 
 ## Themes
 
@@ -100,7 +105,7 @@ and a font family other than `Inter` or `Pangolin`, the only two embedded
 faces. `Validate` also requires the `class` section (member font from the two
 embedded faces, positive separator width).
 
-An optional `"diff": {"added", "changed"}` block sets the diff palette; absent, it falls back to `colors.green` / `colors.orange`.
+An optional `"diff": {"added", "changed", "removed"}` block sets the diff palette; a key it leaves out falls back to `colors.green` / `colors.blue` / `colors.red`.
 
 **Built-in themes:** `default` (light), `dark` (dark neutral), `midnight` (dark vibrant), `sketch` (hand-drawn feel)
 
@@ -140,6 +145,12 @@ These were decided with evidence and are not open questions. Do not re-propose
 the rejected alternative without new information that invalidates the reason.
 
 - **CLI only.** No server, MCP server, persistence or accounts.
+- **Agents run the binary, not an MCP server.** A spec lives in a file, so a
+  revision is a small edit and `diago diff old.json new.json` costs two paths,
+  where an MCP tool takes the whole spec as arguments on every render (both
+  specs for a diff), in output tokens; images go to disk and never pass
+  through the agent's context; and every agent with a shell can run it. MCP
+  would serve only hosts without a shell.
 - **resvg over headless Chromium for PNG.** An audit of what diago actually
   emits (basic shapes, plain `<text>`, embedded `@font-face`, simple
   `<marker>`s, one `feTurbulence` filter) found all of it natively supported by

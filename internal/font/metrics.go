@@ -51,6 +51,14 @@ func resolveFont(family string) *sfnt.Font {
 	return fonts["Inter"].font
 }
 
+// HasGlyph reports whether the family's face (Inter when unknown) has a glyph
+// for r.
+func HasGlyph(family string, r rune) bool {
+	var buf sfnt.Buffer
+	gid, err := resolveFont(family).GlyphIndex(&buf, r)
+	return err == nil && gid != 0
+}
+
 // pointsToPixels converts typographic points to SVG user units (pixels at 96 dpi).
 // 1pt = 1.333...px at 96 dpi  (96/72 = 1.3333).
 func pointsToPixels(pt float64) float64 {

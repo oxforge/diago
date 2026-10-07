@@ -105,3 +105,79 @@ func DiamondMarker(id, stroke string, strokeWidth float64, filled bool) Marker {
 		}},
 	}
 }
+
+// arrowMarker is ArrowMarker, drawn by hand in a sketch theme.
+func arrowMarker(id string, size float64, color string, sketch bool) Marker {
+	if sketch {
+		return sketchArrowMarker(id, size, color)
+	}
+	return ArrowMarker(id, size, color)
+}
+
+// openArrowMarker is OpenArrowMarker, drawn by hand in a sketch theme.
+func openArrowMarker(id string, size float64, color string, sketch bool) Marker {
+	if sketch {
+		return sketchOpenArrowMarker(id, size, color)
+	}
+	return OpenArrowMarker(id, size, color)
+}
+
+// sketchMarker lays a hand-drawn marker out like its clean counterpart:
+// the same reference point and scale, the viewBox (w by h from the origin)
+// padded by pad on every side so no jittered corner is clipped.
+func sketchMarker(id string, w, h, pad, refX, refY float64, shape Path) Marker {
+	return Marker{
+		ID:      id,
+		ViewBox: fmt.Sprintf("%s %s %s %s", ff(-pad), ff(-pad), ff(w+2*pad), ff(h+2*pad)),
+		RefX:    refX, RefY: refY,
+		Width: w + 2*pad, Height: h + 2*pad,
+		Orient: "auto-start-reverse", MarkerUnits: "userSpaceOnUse",
+		Children: []Element{shape},
+	}
+}
+
+// sketchArrowMarker is ArrowMarker drawn by hand: an uneven triangle with
+// a thin rounded outline in its fill color.
+func sketchArrowMarker(id string, size float64, color string) Marker {
+	outline := size * sketchArrowOutline
+	pad := size*(sketchArrowJitter+sketchArrowBow) + outline/2
+	return sketchMarker(id, size, size, pad, size, size/2, Path{
+		D: sketchArrowhead(id, size, outline), Fill: color, Stroke: color, StrokeWidth: outline, LineJoin: "round",
+	})
+}
+
+// sketchOpenArrowMarker is OpenArrowMarker drawn by hand: two strokes with
+// round ends.
+func sketchOpenArrowMarker(id string, size float64, color string) Marker {
+	const strokeWidth = 1.5
+	pad := size*(sketchArrowJitter+sketchArrowBow) + strokeWidth/2
+	return sketchMarker(id, size, size, pad, size, size/2, Path{
+		D: sketchOpenArrowhead(id, size, strokeWidth), Fill: "none", Stroke: color, StrokeWidth: strokeWidth,
+		LineCap: "round", LineJoin: "round",
+	})
+}
+
+// sketchUMLPad is how far a hand-drawn UML adornment can reach outside the
+// clean one's box: a jittered corner, bowed or overshot, plus half the
+// stroke.
+func sketchUMLPad(strokeWidth float64) float64 {
+	return sketchUMLJitter + max(sketchUMLBow, sketchUMLOvershoot) + strokeWidth/2
+}
+
+// sketchTriangleMarker is TriangleMarker drawn by hand.
+func sketchTriangleMarker(id, stroke string, strokeWidth float64) Marker {
+	return sketchMarker(id, umlTriangleDepth, 2*umlTriangleHalf, sketchUMLPad(strokeWidth), 0, umlTriangleHalf, Path{
+		D: sketchTriangle(id, strokeWidth, asDrawn), Fill: "none", Stroke: stroke, StrokeWidth: strokeWidth, LineCap: "round", LineJoin: "round",
+	})
+}
+
+// sketchDiamondMarker is DiamondMarker drawn by hand.
+func sketchDiamondMarker(id, stroke string, strokeWidth float64, filled bool) Marker {
+	fill := "none"
+	if filled {
+		fill = stroke
+	}
+	return sketchMarker(id, umlDiamondDepth, 2*umlDiamondHalf, sketchUMLPad(strokeWidth), 0, umlDiamondHalf, Path{
+		D: sketchDiamond(id, strokeWidth, asDrawn), Fill: fill, Stroke: stroke, StrokeWidth: strokeWidth, LineCap: "round", LineJoin: "round",
+	})
+}

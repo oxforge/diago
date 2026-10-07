@@ -17,11 +17,15 @@ const (
 )
 
 // GraphDiff lists ids by change, each slice in the spec order of the side
-// it comes from (after for added/changed, before for removed).
+// it comes from (after for added/changed, before for removed). NodeFields,
+// EdgeFields and GroupFields hold, per changed id, the fields that differ in
+// the change list's order; a node changed only in its members has an empty
+// entry.
 type GraphDiff struct {
 	AddedNodes, RemovedNodes, ChangedNodes    []string
 	AddedEdges, RemovedEdges, ChangedEdges    []string
 	AddedGroups, RemovedGroups, ChangedGroups []string
+	NodeFields, EdgeFields, GroupFields       map[string][]FieldChange
 }
 
 // Empty reports whether nothing changed.
@@ -74,11 +78,19 @@ func groupByID(g *model.Graph) map[string]model.Group {
 // color differ; an edge when label, style, direction, color, relation kind,
 // cardinality, arrow direction or flat differ under the same id and
 // endpoints. An edge whose endpoints moved under the same id is removed +
-// added: the union needs one geometry per edge.
+// added: the union needs one geometry per edge. Every changed element also
+// records the fields that differ.
 func DiffGraphs(before, after *model.Graph) GraphDiff {
-	var d GraphDiff
+	d := GraphDiff{
+		NodeFields: map[string][]FieldChange{}, EdgeFields: map[string][]FieldChange{}, GroupFields: map[string][]FieldChange{},
+	}
 	bn, an := nodeByID(before), nodeByID(after)
 	bp, ap := parentOf(before), parentOf(after)
+	bg, ag := groupByID(before), groupByID(after)
+	parent := func(parents map[string]string, groups map[string]model.Group, id string) parentRef {
+		pid := parents[id]
+		return parentRef{id: pid, label: groups[pid].Label}
+	}
 	for _, n := range after.Nodes {
 		o, ok := bn[n.ID]
 		switch {
@@ -87,6 +99,7 @@ func DiffGraphs(before, after *model.Graph) GraphDiff {
 		case o.Label != n.Label || o.Shape != n.Shape || o.Color != n.Color || bp[n.ID] != ap[n.ID] ||
 			membersChanged(o.Members, n.Members):
 			d.ChangedNodes = append(d.ChangedNodes, n.ID)
+			d.NodeFields[n.ID] = nodeFields(o, n, parent(bp, bg, n.ID), parent(ap, ag, n.ID))
 		}
 	}
 	for _, n := range before.Nodes {
@@ -110,6 +123,7 @@ func DiffGraphs(before, after *model.Graph) GraphDiff {
 			o.Relation != e.Relation || o.FromCard != e.FromCard || o.ToCard != e.ToCard || o.Directed != e.Directed ||
 			o.Flat != e.Flat:
 			d.ChangedEdges = append(d.ChangedEdges, e.ID)
+			d.EdgeFields[e.ID] = edgeFields(o, e)
 		}
 	}
 	for _, e := range before.Edges {
@@ -118,7 +132,6 @@ func DiffGraphs(before, after *model.Graph) GraphDiff {
 		}
 	}
 
-	bg, ag := groupByID(before), groupByID(after)
 	for _, g := range after.Groups {
 		o, ok := bg[g.ID]
 		switch {
@@ -126,6 +139,7 @@ func DiffGraphs(before, after *model.Graph) GraphDiff {
 			d.AddedGroups = append(d.AddedGroups, g.ID)
 		case o.Label != g.Label || o.Color != g.Color:
 			d.ChangedGroups = append(d.ChangedGroups, g.ID)
+			d.GroupFields[g.ID] = groupFields(o, g)
 		}
 	}
 	for _, g := range before.Groups {

@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/oxforge/diago/internal/model"
@@ -49,22 +50,24 @@ func StampSequenceLabels(u UnionSequence) model.SequenceDiagram {
 	return d
 }
 
-// SequenceLegend lists every change, one line each, in the fixed order
+// SequenceChanges lists every change, one line each, in the fixed order
 // added / removed / changed × actor / message / fragment / section.
 // Removed actors and the endpoints of removed messages are named by their
-// before labels; changed fragments have no line of their own.
-func SequenceLegend(u UnionSequence) []string {
+// before labels; a message is named by its endpoints and, unless the label
+// is one of its changed fields, its label. A changed line names the fields
+// that differ; changed fragments have no line of their own.
+func SequenceChanges(u UnionSequence) []Change {
 	unionLabel := func(id string) string {
 		for _, a := range u.Diagram.Actors {
 			if a.ID == id {
-				return a.Label
+				return oneLine(a.Label)
 			}
 		}
 		return id
 	}
 	beforeLabel := func(id string) string {
 		if l, ok := u.BeforeLabels[id]; ok {
-			return l
+			return oneLine(l)
 		}
 		return unionLabel(id)
 	}
@@ -79,55 +82,52 @@ func SequenceLegend(u UnionSequence) []string {
 		if label == "" {
 			return ""
 		}
-		return ` "` + label + `"`
+		return " " + strconv.Quote(label)
 	}
-	var out []string
-	add := func(line string) { out = append(out, line) }
+	var out []Change
+	add := func(s Status, wire bool, rest string) {
+		out = append(out, Change{Status: s, Wire: wire, Text: string(s) + ": " + rest})
+	}
 
 	for _, id := range u.Diff.AddedActors {
-		add("added: actor " + unionLabel(id))
+		add(Added, false, "actor "+unionLabel(id))
 	}
 	for _, i := range u.Diff.AddedMessages {
 		it := u.Diagram.Interactions[i]
-		add("added: message " + endpoints(it, false) + quoted(it.Label))
+		add(Added, true, "message "+endpoints(it, false)+quoted(it.Label))
 	}
 	for _, i := range u.Diff.AddedFragments {
-		add("added: fragment " + u.Diagram.Fragments[i].Type.String())
+		add(Added, false, "fragment "+u.Diagram.Fragments[i].Type.String())
 	}
 	for _, s := range u.Diff.AddedSections {
-		add("added: section [" + s.Label + "] of " + s.Type.String())
+		add(Added, false, "section ["+oneLine(s.Label)+"] of "+s.Type.String())
 	}
 	for _, id := range u.Diff.RemovedActors {
-		add("removed: actor " + beforeLabel(id))
+		add(Removed, false, "actor "+beforeLabel(id))
 	}
 	for _, i := range u.Diff.RemovedMessages {
 		it := u.Diagram.Interactions[i]
-		add("removed: message " + endpoints(it, true) + quoted(it.Label))
+		add(Removed, true, "message "+endpoints(it, true)+quoted(it.Label))
 	}
 	for _, i := range u.Diff.RemovedFragments {
-		add("removed: fragment " + u.Diagram.Fragments[i].Type.String())
+		add(Removed, false, "fragment "+u.Diagram.Fragments[i].Type.String())
 	}
 	for _, s := range u.Diff.RemovedSections {
-		add("removed: section [" + s.Label + "] of " + s.Type.String())
+		add(Removed, false, "section ["+oneLine(s.Label)+"] of "+s.Type.String())
 	}
 	for _, id := range u.Diff.ChangedActors {
-		add("changed: actor " + unionLabel(id))
+		add(Changed, false, "actor "+unionLabel(id)+changedSuffix(u.Diff.ActorFields[id]))
 	}
 	for _, c := range u.Diff.ChangedMessages {
 		now := u.Diagram.Interactions[c.Index]
-		line := "changed: message " + endpoints(now, false)
-		switch {
-		case c.Before.Label != now.Label:
-			line += quoted(c.Before.Label) + " ->" + quoted(now.Label)
-		default:
-			line += quoted(now.Label)
+		name := endpoints(now, false)
+		if c.Before.Label == now.Label {
+			name += quoted(now.Label)
 		}
-		if c.Before.Style != now.Style {
-			line += " (" + c.Before.Style.String() + " -> " + now.Style.String() + ")"
-		} else if c.Before.Color != now.Color {
-			line += " (color)"
-		}
-		add(line)
+		add(Changed, true, "message "+name+changedSuffix(messageFields(c.Before, now)))
 	}
 	return out
 }
+
+// SequenceLegend is the text diff's footer: SequenceChanges' lines.
+func SequenceLegend(u UnionSequence) []string { return Texts(SequenceChanges(u)) }

@@ -74,27 +74,27 @@ func TestDefaultThemeHasNameAndStyle(t *testing.T) {
 }
 
 func TestTheme_DiffColors(t *testing.T) {
-	th, err := Load("default")
-	require.NoError(t, err)
-	assert.Equal(t, "#2f9e44", th.Diff.Added)
-	assert.Equal(t, "#e8590c", th.Diff.Changed)
-	for _, name := range []string{"dark", "midnight", "sketch"} {
+	for name, want := range map[string]DiffStyle{
+		"default":  {Added: "#2f9e44", Changed: "#1971c2", Removed: "#e03131"},
+		"dark":     {Added: "#51cf66", Changed: "#4dabf7", Removed: "#ff6b6b"},
+		"midnight": {Added: "#51cf66", Changed: "#74c0fc", Removed: "#ff6b6b"},
+		"sketch":   {Added: "#2b8a3e", Changed: "#1864ab", Removed: "#c92a2a"},
+	} {
 		th, err := Load(name)
 		require.NoError(t, err, name)
-		assert.NotEmpty(t, th.Diff.Added, name)
-		assert.NotEmpty(t, th.Diff.Changed, name)
+		assert.Equal(t, want, th.Diff, name)
 	}
 }
 
 func TestTheme_DiffFallbackToPalette(t *testing.T) {
-	jt := jsonTheme{Colors: map[string]string{"green": "#00ff00", "orange": "#ff8800"}}
-	th := toTheme(jt)
-	assert.Equal(t, "#00ff00", th.Diff.Added)
-	assert.Equal(t, "#ff8800", th.Diff.Changed)
-	jt.Diff = &jsonDiffStyle{Added: "#111111", Changed: "#222222"}
-	th = toTheme(jt)
-	assert.Equal(t, "#111111", th.Diff.Added)
-	assert.Equal(t, "#222222", th.Diff.Changed)
+	jt := jsonTheme{Colors: map[string]string{"green": "#00ff00", "blue": "#0000ff", "red": "#ff0000", "orange": "#ff8800"}}
+	assert.Equal(t, DiffStyle{Added: "#00ff00", Changed: "#0000ff", Removed: "#ff0000"}, toTheme(jt).Diff,
+		"no diff block: green, blue and red")
+	jt.Diff = &jsonDiffStyle{Changed: "#222222"}
+	assert.Equal(t, DiffStyle{Added: "#00ff00", Changed: "#222222", Removed: "#ff0000"}, toTheme(jt).Diff,
+		"a partial block falls back per key")
+	jt.Diff = &jsonDiffStyle{Added: "#111111", Changed: "#222222", Removed: "#333333"}
+	assert.Equal(t, DiffStyle{Added: "#111111", Changed: "#222222", Removed: "#333333"}, toTheme(jt).Diff)
 }
 
 func TestDefaultThemeHasClassStyle(t *testing.T) {

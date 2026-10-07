@@ -1,295 +1,204 @@
 ---
 name: diagramming
-description: Use when drawing an architecture, flow, sequence, class or data-model diagram, rendering a diagram to SVG, PNG, terminal text art, draw.io or Excalidraw, converting a Mermaid diagram, or showing how a diagram changed between two versions
+description: Use when drawing an architecture, flow, sequence, class, state or data-model diagram with diago, rendering one to SVG, PNG, terminal text art, draw.io or Excalidraw, converting a Mermaid diagram, or showing how a diagram changed between two versions
 ---
 
 # Diagramming with diago
 
-diago is a CLI that renders a typed JSON spec to a diagram. You describe what is
-connected to what; diago does layout and rendering. Write the spec to a file,
-run `diago`, and show the result.
+diago renders a typed JSON spec to a diagram: you say what is connected to
+what, diago lays it out and draws it. This skill is how to draw one well.
+When and where to show one is diago:illustrating; the JSON shapes and enums
+are in `cheatsheet.md` beside this file.
 
-**Prerequisite:** `command -v diago`. If missing:
-`go install github.com/oxforge/diago/cmd/diago@latest` (PNG output also needs
-`resvg` on `PATH`).
+**Prerequisite:** `command -v diago`, else
+`go install github.com/oxforge/diago/cmd/diago@latest`. PNG also needs
+`resvg` (`command -v resvg`); without it, render SVG (or text in a terminal)
+and tell the user that `brew install resvg` or `cargo install resvg` enables
+PNG. Install nothing without asking, and never fall back to Mermaid or
+hand-drawn ASCII.
 
-## Commands
+## The loop
+
+1. Write the spec to a file. Give every node and edge an explicit `id`, a
+   short kebab-case name: ids keep an element the same across versions.
+   A diagram you show in chat goes in diago:illustrating's topic folder
+   (`${TMPDIR:-/tmp}/diago/<topic>/<slug>.v1.json`), so a later change can be
+   shown as a diff.
+2. `diago check -strict spec.json`: advisories only, no layout, exit 1 on
+   any finding. Fix the spec; add a rule to the top-level `ignore` list only
+   when the finding is deliberate.
+3. `diago render -format text spec.json` and read the art yourself before
+   anyone else sees it: crossings, a label beside the wrong wire, a dropped
+   label (`text-label-dropped`), the width.
+4. Adjust (direction, fewer or shorter labels, a split) and render again.
+5. Render the final format.
+
+## Choosing the type
+
+| The reader needs to see | Type |
+|---|---|
+| Structure: components and how they connect, dependencies, task order, states, business rules and their branches | `flow` |
+| Who calls whom, in what order: a request path, a protocol, a handshake | `sequence` |
+| Types, their members and relations: a data model, a type hierarchy | `class` |
+
+When it is ambiguous, draw a reasonable first attempt rather than ask: a
+diagram the user can react to beats a question.
+
+## Size
+
+- 3 to 12 nodes in a chat reply, 5 to 15 in a document. `too-large` fires
+  above 20. Split a bigger subject into an
+  overview and one zoom-in per area, and say how they fit together.
+- Labels of 1 to 3 words, role names over identifiers ("Auth Service", not
+  `auth-svc-v2`). A word over 24 characters trips `unbreakable-token`: for
+  `internal/layout/layered/route` write `route`. A label over 60 characters
+  trips `long-label`.
+
+## Direction
+
+Flow and class diagrams take a `direction`. Pick it by the medium's tight
+axis, not by habit:
+
+| Content | Text art in a terminal (width is scarce) | Image in a document or slide (height is scarce) |
+|---|---|---|
+| A long chain: a pipeline, steps | `DOWN`: 6 steps are 18 columns wide, 114 in `RIGHT` | `RIGHT`, a banner |
+| A wide fan-out: one node, many children | `RIGHT`: 5 children are 34 columns wide, 72 in `DOWN` | `DOWN` |
+| A hierarchy, a decision tree, layers | `DOWN` | `DOWN` |
+
+Set it yourself: `AUTO` picks `DOWN` for any connected graph and `RIGHT`
+only when there are more nodes than edges plus one. `UP` fits only when the
+reader expects foundations at the bottom; `LEFT` almost never. When in doubt,
+render both and keep the one that fits and reads better.
+
+## Shapes
+
+Most nodes are `rect`. Give each other shape one role and keep it:
+
+| Shape | Role | In text art |
+|---|---|---|
+| `rect` | services, processes, steps (the default) | a box |
+| `rounded` | outside actors (users, clients, external systems); a flowchart's start and end | rounded corners |
+| `cylinder` | anything that holds state: a database, cache, queue, bucket | a double top border |
+| `diamond` | decisions only; label every exit (`unlabeled-branch`) | `◇` marks |
+| `hexagon` | gateways, proxies | a box, like `rect` |
+| `parallelogram` | input and output | a box, like `rect` |
+| `circle` | events, start and end markers, short labels | like `rounded` |
+
+At most 4 distinct shapes per diagram (`shape-soup` fires above 5). Text art
+keeps only `rect`, `rounded`, `cylinder` and `diamond` apart: when a diagram
+may be read as text, a role shown by `hexagon`, `parallelogram` or `circle`
+must also be in its label.
+
+## Edges
+
+The line style carries meaning, and it survives in text art:
+
+| Style | Meaning | In text art |
+|---|---|---|
+| `solid` | the main or synchronous path (the default) | `─ │` |
+| `dashed` | async calls, responses, events | `╌ ╎` |
+| `dotted` | optional links, monitoring, logging | `┈ ┊` |
+| `thick` | the one path the reader should follow, at most one per diagram | `━ ┃` |
+
+- `direction`: `forward` (the default), `backward`, `both` for a
+  request/response pair (one edge, not two), `none` for a peer link with no
+  flow.
+- Labels: a verb phrase (`publishes order`, not `data`: `vague-edge-label`),
+  only where the two ends do not make the meaning obvious, and always on a
+  diamond's exits. Each label is one more thing to place: fewer labels read
+  cleaner.
+- `"flat": true` marks a link that implies no order, between peers that other
+  edges already place (replication between two sites that each serve their
+  own traffic, a sync between two services at one level); diago puts its ends
+  side by side when it can. It is independent of `direction`: a flat edge
+  keeps the arrowheads its `direction` gives it. A node whose only edges are
+  flat is placed as an unconnected node, not beside its partner, so keep one
+  of its links ordinary: a standby database with nothing else attached keeps
+  its replication edge from the primary ordinary, which places it after the
+  primary in the flow's direction. Do not mark a link flat when it is part of
+  the flow (a request, a dependency, a pipeline step), and never on a
+  self-loop. With no clean side route, diago lays it out as an ordinary edge
+  and warns `flat-edge-ranked`.
+
+## Color
+
+Color is the weakest channel, since text art drops it: never let it carry
+meaning alone.
+
+- 0 to 2 accents per diagram: one for the focus (the entry point, the
+  component under discussion), `orange` for a problem. Leave the
+  rest uncolored.
+- Say what a color means in the sentence above the diagram: a flow diagram
+  has no color legend.
+- To tell domains apart, color the groups, not their nodes.
+- No `green`, `blue` or `red` in a spec you will diff: the diff draws added
+  elements green, changed ones blue and removed ones red. An element keeps
+  its own fill in a diff; its outline and label show the status.
+- Values: `red`, `green`, `blue`, `yellow`, `orange`, `purple`, `gray`, or
+  `#rrggbb`, on nodes, edges and groups, actors and interactions, classes,
+  relations and packages.
+
+## Groups and packages
+
+A group (a class diagram's package) is for a boundary that matters to the
+reader: a deployment boundary, a package, a team, a trust zone. At least 2
+members each; nesting at most 3 levels (deeper is a validation error; a group id in another
+group's `contains` nests it). In text art keep group labels to one short
+word: a long one widens the frame, and the art with it.
+
+## Sequence diagrams
+
+- The initiator leftmost, then the actors in order of first appearance,
+  named by role ("Auth Service"), not technology.
+- `solid` for calls, `dashed` for returns, `async` for fire-and-forget (an
+  open arrowhead). A self-message (the same `from` and `to`) for an internal
+  step.
+- Fragments: `alt` (if/else, a section each), `opt`, `loop`, `par`, `break`.
+  Label every section (`unlabeled-alt-section`). Sections cover interactions
+  by zero-based index, `start` to `end` inclusive.
+- At most 8 participants (`seq-too-many-participants`), about 6 when the art
+  must fit a terminal: each actor is a column.
+- `"activations": false` drops the activation bars for a lighter drawing.
+
+## Class diagrams
+
+- `inheritance` and `realization`: `from` is the subtype, `to` the supertype
+  or interface. Otherwise pick the kind by ownership: `composition` for owned
+  parts (the part cannot outlive the whole), `aggregation` for shared parts,
+  `dependency` for uses (a parameter, a call), `association` for anything
+  else.
+- Members: only the attributes and methods the reader needs (`god-class`
+  fires above 15; a member over 40 characters trips `overlong-member`).
+- `"legend": true` once 3 or more relation kinds appear.
+
+## Themes and title
+
+| Theme | For |
+|---|---|
+| `default` | light documents and READMEs, an SVG opened from a chat |
+| `dark`, `midnight` | dark pages and slides |
+| `sketch` | a draft: it says "not final" |
+
+Set it with the spec's top-level `theme` or `-theme` (the flag wins). Text
+art takes no theme. Add a `title` when the diagram stands alone in a file: a
+band above the diagram, a centered first line in text art.
+
+## CLI reference
 
 | Command | Does |
-|---------|------|
-| `diago render [flags] spec.json > out.svg` | Render (stdin when no path) |
+|---|---|
+| `diago render [flags] spec.json > out` | Render (stdin when no path) |
 | `diago check [-strict] [-json] spec.json` | Advisories only, no layout; `-strict` exits 1 on any finding |
-| `diago diff old.json new.json [flags]` | One diagram of both versions, each element marked added/removed/changed |
-| `diago import diagram.mmd > spec.json` | Mermaid (`flowchart`/`graph`, `sequenceDiagram`, `classDiagram`) to diago JSON |
-
-Render flags: `-format svg|png|text|drawio|excalidraw` (default `svg`; `txt` is
-an alias of `text`; `drawio`/`excalidraw` are flow-only; `diff` takes
-`svg|png|text`), `-theme`, `-scale n` / `-width px` (PNG),
-`-previous <old spec | old SVG | layout JSON>` (anchor the layout so unchanged
-elements keep their places), `-debug`. Every verb also accepts a `.mmd` file.
-Edges are always orthogonal.
-
-Exit codes: 0 ok, 1 validation error (structured JSON on stderr naming the
-`field`), 2 usage or internal error. Advisories print on stderr as
-`warning: <rule> <field>: <message>`: fix the spec, or add the rule name to the
-top-level `"ignore": [...]` list when the finding is deliberate.
-
-## Choosing a Diagram Type
-
-| If the user wants to see... | Use |
-|-----------------------------|-----|
-| System architecture, component relationships, data flow, decision trees | `"type": "flow"` |
-| Request/response sequences, API calls over time, protocol handshakes | `"type": "sequence"` |
-| Types, members, inheritance, composition, interfaces | `"type": "class"` |
-
-When ambiguous (e.g., "show me how auth works"), ask one question:
-"Do you want to see the system architecture or the request flow?"
-
-Prefer rendering a reasonable first attempt over asking multiple clarifying questions.
-A concrete diagram the user can react to is more useful than an interrogation.
-
-## Guidelines
-
-- **Keep it focused.** Aim for 5-12 nodes. If a diagram needs 15+, split into multiple focused diagrams and explain the split.
-- **Pick the right type.** Interactions over time = sequence. Structure and connections = flow.
-- **Use shape variety.** Databases get `cylinder`, gateways get `hexagon`, clients get `rounded`. Shape communicates role at a glance.
-- **Group when it helps.** Groups show deployment boundaries or logical domains. Don't group if every node would be alone in its group.
-- **Label concisely.** 2-3 word labels. Prefer role names ("Auth Service") over technical names ("auth-svc-v2"). Only label edges when the connection type isn't obvious.
-
-## Flow Diagrams
-
-### Direction
-
-Choose direction based on what the diagram communicates:
-
-| Direction | When to use |
-|-----------|-------------|
-| `DOWN` | Default. Hierarchies, pipelines, decision trees (top-down flow) |
-| `RIGHT` | Client-server architectures, data pipelines, request flow (left-to-right reading) |
-| `UP` | Bottom-up compositions, dependency graphs (depends-on points up) |
-| `LEFT` | Reverse flows, response paths |
-| `AUTO` | Let the layout engine choose based on graph shape (default) |
-
-### Node Shapes
-
-Pick shapes that communicate the node's role at a glance:
-
-| Shape | Semantic meaning | Examples |
-|-------|-----------------|----------|
-| `rect` | Services, processes, generic components | API Server, Worker, Processor |
-| `rounded` | User-facing entry points, clients, external systems | Web Client, Mobile App, Browser |
-| `diamond` | Decision points, conditions, branching logic | Is Valid?, Check Auth, Retry? |
-| `cylinder` | Data stores, databases, caches, queues | PostgreSQL, Redis, S3, Kafka |
-| `hexagon` | Infrastructure, middleware, proxies, gateways | Load Balancer, Reverse Proxy, API Gateway |
-| `parallelogram` | I/O operations, external interfaces, data transforms | HTTP Request, File Upload, CSV Export |
-| `circle` | Events, triggers, signals, small connectors | Start, End, Webhook, Timer |
-
-**Defaults:** Use `rect` when unsure. Don't overthink shape selection — a diagram with all `rect` nodes is fine. Shapes add clarity but aren't required.
-
-### Groups
-
-Use groups to show **deployment boundaries** or **logical domains**:
-
-```json
-"groups": [
-  {"id": "frontend", "label": "Frontend", "contains": ["web", "mobile"]},
-  {"id": "backend", "label": "Backend Services", "contains": ["api", "auth", "db"]}
-]
-```
-
-**When to group:**
-- Nodes share a deployment boundary (same server, same cluster, same VPC)
-- Nodes belong to the same team/domain
-- The boundary matters for understanding the system
-
-**When NOT to group:**
-- Every node would be in its own group (adds clutter, no information)
-- Groups would have only 1 node (use a label instead)
-- The grouping doesn't help the reader understand the system
-
-**Nesting is supported.** Diago supports up to 3 levels of group nesting. To nest groups, reference a group ID inside another group's `contains` array. Each depth level is visually differentiated with distinct fill shading.
-
-```json
-"groups": [
-  {"id": "cloud", "label": "Cloud", "contains": ["services", "db"]},
-  {"id": "services", "label": "Services", "contains": ["api", "auth"]}
-]
-```
-
-In this example, the `services` group is nested inside `cloud`. Only use nesting when the hierarchy genuinely represents containment (e.g., a cluster inside a VPC, a domain inside a bounded context). Nesting supports up to 3 levels deep — deeper nesting is visually differentiated via fill shading.
-
-### Edges
-
-**Style by meaning:**
-
-| Style | Use for |
-|-------|---------|
-| `solid` | Primary data flow, requests, main path (default) |
-| `dashed` | Responses, callbacks, async results, secondary flows |
-| `dotted` | Optional paths, monitoring, logging, weak dependencies |
-| `thick` | Critical path, high-throughput connections, emphasis |
-
-**Direction:**
-
-| Direction | Use for |
-|-----------|---------|
-| `forward` | One-way flow: requests, events, pushes (default) |
-| `backward` | Reverse flow: responses flowing "upstream" |
-| `both` | Bidirectional: request/response pairs, sync channels, two-way communication |
-| `none` | Undirected association: peers, replication pairs, any link with no flow |
-
-**Prefer `"direction": "both"`** over two separate edges when a connection is inherently bidirectional (e.g., database query/result, API request/response). It produces cleaner diagrams with fewer edge crossings.
-
-**Label edges** when the connection type isn't obvious from context. Skip labels for self-evident connections (e.g., a single edge from "Client" to "Server" probably doesn't need "request").
-
-**Mark a link `"flat": true`** when it connects peers that should sit side by side, not one implying the other comes first or last, and that other edges already place: replication between two sites that each serve their own traffic, a sync between two services at the same level. A node whose only edges are flat is laid out as an unconnected node, wherever there is room rather than beside its partner, so keep one of its links ordinary: a standby database with nothing else attached keeps its replication edge from the primary ordinary, which puts it under the primary. Don't mark a link flat when it is part of the flow itself (a request, a dependency, a pipeline step): that would just hide the order the diagram is meant to show. A flat edge that has no clean side route once the rest of the diagram is placed is laid out as an ordinary edge instead, with a warning (`flat-edge-ranked`); not allowed on a self-loop. Anchored on a previous layout (`render -previous`, or `diago diff`'s union), a flat edge that carrier already lists as fallen back stays an ordinary edge without its side route being retried, and the warning says it was kept from that earlier layout, not that no clean route exists.
-
-### Colors
-
-Optional `color` field on nodes, edges, and groups. Use color to highlight critical paths, distinguish domains, or draw attention to specific components.
-
-**Named colors:** `red`, `green`, `blue`, `yellow`, `orange`, `purple`, `gray`
-**Custom hex:** any `#rrggbb` value
-
-```json
-"nodes": [
-  {"id": "db", "label": "PostgreSQL", "shape": "cylinder", "color": "red"},
-  {"id": "cache", "label": "Redis", "shape": "cylinder", "color": "#2ecc71"}
-],
-"edges": [
-  {"from": "api", "to": "db", "label": "query", "color": "blue"}
-],
-"groups": [
-  {"id": "critical", "label": "Critical Path", "contains": ["api", "db"], "color": "orange"}
-]
-```
-
-Colors auto-derive fill, stroke, and text colors for visual consistency with the active theme. Use sparingly — one or two colored elements draw attention; coloring everything defeats the purpose.
-
-### Theme
-
-| Theme | When to use |
-|-------|-------------|
-| `default` | Light backgrounds, documents, GitHub READMEs |
-| `midnight` | Dark backgrounds, slides with dark themes |
-| `dark` | Dark mode UIs |
-| `sketch` | Hand-drawn feel, informal presentations, brainstorming |
-
-Pick one with the spec's top-level `theme` field or `-theme` (the flag wins; `diago diff` reads the new spec's field). Text art takes no theme.
-
-**Title:** optional `title` string on every diagram type, rendered as a band above the diagram (SVG/PNG) or a centered first line (text); render-time only, never in layout or the anchoring carrier.
-
-## Sequence Diagrams
-
-### Actors
-
-Name actors by their **role**, not their technology:
-
-```json
-"actors": [
-  {"id": "client", "label": "Client"},
-  {"id": "gateway", "label": "API Gateway"},
-  {"id": "auth", "label": "Auth Service"}
-]
-```
-
-Order actors left-to-right matching the primary flow direction.
-
-### Interactions
-
-**Style by meaning:**
-
-| Style | Use for |
-|-------|---------|
-| `solid` | Synchronous calls, requests |
-| `dashed` | Responses, return values |
-| `async` | Async messages, events, fire-and-forget (open arrowhead) |
-
-**Fragments** model conditional/loop logic:
-
-| Type | Use for |
-|------|---------|
-| `alt` | If/else branches (multiple sections) |
-| `opt` | Optional path (single section) |
-| `loop` | Repeated interactions |
-| `par` | Parallel execution |
-| `break` | Early exit / error handling |
-
-### Colors
-
-Optional `color` field on actors and interactions. Same named colors (`red`, `green`, `blue`, `yellow`, `orange`, `purple`, `gray`) and custom hex (`#rrggbb`) as flow diagrams.
-
-```json
-"actors": [
-  {"id": "auth", "label": "Auth Service", "color": "blue"}
-],
-"interactions": [
-  {"from": "client", "to": "auth", "label": "login", "style": "solid", "color": "red"}
-]
-```
-
-### Self-Messages
-
-When an actor sends a message to itself (e.g., internal processing, validation), use the same actor ID for `from` and `to`:
-
-```json
-{"from": "auth", "to": "auth", "label": "validate token"}
-```
-
-**Title:** optional `title` string on every diagram type, rendered as a band above the diagram (SVG/PNG) or a centered first line (text); render-time only, never in layout or the anchoring carrier.
-
-## Class Diagrams
-
-```json
-{
-  "type": "class",
-  "classes": [
-    {"id": "vehicle", "label": "Vehicle", "stereotype": "abstract",
-     "methods": [{"visibility": "+", "text": "range(): km", "abstract": true}]},
-    {"id": "truck", "label": "Truck",
-     "attributes": [{"visibility": "-", "text": "payload: t"}]},
-    {"id": "engine", "label": "Engine"}
-  ],
-  "relations": [
-    {"from": "truck", "to": "vehicle", "kind": "inheritance"},
-    {"from": "truck", "to": "engine", "kind": "composition", "from_card": "1", "to_card": "1"}
-  ],
-  "legend": true
-}
-```
-
-**Relation kinds:** for `inheritance` and `realization`, `from` is always the
-subtype and `to` the supertype or interface. Otherwise pick the kind by
-ownership: `composition` for owned parts (the part cannot outlive the
-whole), `aggregation` for shared parts (the part can outlive the whole),
-`dependency` for uses (a method parameter or a call, nothing owned).
-`association` is the plain default for everything else.
-
-**Members:** keep each class to the attributes and methods the reader
-actually needs to follow the diagram, not the whole real type. The
-`god-class` advisory warns above 15 attributes and methods combined.
-
-**Legend:** set `legend: true` once three or more relation kinds appear in
-the same diagram, so the reader doesn't have to infer the adornments.
-
-**Title:** optional `title` string on every diagram type, rendered as a band above the diagram (SVG/PNG) or a centered first line (text); render-time only, never in layout or the anchoring carrier.
-
-## Presenting Results
-
-- **In a terminal or chat** (Claude Code, Codex CLI), render `-format text` and
-  paste the art in a fenced `text` block. Text art is always laid out
-  orthogonally and works for all three types.
-- **For documents and READMEs**, render `svg` (canonical, self-contained, embeds
-  its font) or `png` (2x scale by default).
-- **For dark backgrounds**, use `-theme midnight` or `-theme dark`.
-- **When a human wants to edit it further**, render `-format drawio` (diagrams.net,
-  also importable by Lucidchart and yEd) or `-format excalidraw` (excalidraw.com,
-  Obsidian, VS Code). Flow diagrams only.
-- **When revising a diagram the user has already seen**, keep every id that still
-  names the same thing, render the new version with `-previous old.json` so the
-  layout does not reshuffle, and show `diago diff old.json new.json -format text`:
-  its footer lists what was added, removed and changed.
-- Output is deterministic: the same spec and theme give the same bytes.
-
-For diagrams inside design specs and implementation plans, use
-diago:spec-diagrams.
+| `diago diff old.json new.json [flags] > out` | One diagram of both versions, each element marked added, removed or changed, with the list of changes under it (a footer in text art) |
+| `diago import diagram.mmd > spec.json` | Mermaid (`flowchart`/`graph`, `sequenceDiagram`, `classDiagram`) to diago JSON; every verb also reads a `.mmd` file directly |
+
+Flags: `-format svg|png|text|drawio|excalidraw` (default `svg`; `txt` is an
+alias of `text`; `drawio` and `excalidraw` are flow only; `diff` takes
+`svg|png|text`), `-theme`, `-scale n` and `-width px` (PNG),
+`-previous <old spec | old SVG | layout JSON>` (anchor the layout so
+unchanged elements keep their places), `-debug`.
+
+Exit codes: 0 ok, 1 a validation error (JSON on stderr naming the `field`),
+2 a usage or internal error. Advisories print on stderr as
+`warning: <rule> <field>: <message>`; `cheatsheet.md` lists the common ones. Output is
+deterministic: the same spec and theme give the same bytes.

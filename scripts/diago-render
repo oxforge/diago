@@ -36,7 +36,7 @@ done
 [ -d "$DIR" ] || die "no such directory: $DIR"
 command -v diago >/dev/null 2>&1 || die "diago not found on PATH: go install github.com/oxforge/diago/cmd/diago@latest"
 if [ "$PNG" -eq 1 ]; then
-  command -v resvg >/dev/null 2>&1 || die "--png needs resvg on PATH"
+  command -v resvg >/dev/null 2>&1 || die "--png needs resvg on PATH: install it (brew install resvg, or cargo install resvg), or drop --png to write SVG"
 fi
 DIR="${DIR%/}"
 IMG=svg; [ "$PNG" -eq 1 ] && IMG=png
@@ -132,9 +132,13 @@ render_slug() {
   # widest art; report and check both.
   w="$(max_width "$DIR/$slug.v$n.txt")"
   summary="$summary width=$w"
-  [ "$w" -gt 120 ] && warn "$slug.v$n text art is $w columns wide; over 120 wraps badly in a terminal: shorten labels, switch direction (RIGHT narrows a long chain, DOWN a wide fan-out), or split"
+  [ "$w" -gt 120 ] && warn "$slug.v$n text art is $w columns wide; over 120 wraps badly in a terminal: shorten labels, switch direction (DOWN narrows a long chain, RIGHT a wide fan-out), or split"
   if [ -n "$p" ]; then
-    dw="$(max_width "$base.txt")"
+    # Measure the art only: the footer's change lines carry field details and
+    # are not part of the diagram's width.
+    grep -vE '^(added|removed|changed): ' "$base.txt" > "$base.art.tmp" || true
+    dw="$(max_width "$base.art.tmp")"
+    rm -f "$base.art.tmp"
     summary="$summary diff-width=$dw"
     [ "$dw" -gt 120 ] && warn "$slug.v$p-v$n diff art is $dw columns wide; over 120 wraps badly in a terminal: shorten labels or switch direction"
   fi

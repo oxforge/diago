@@ -42,8 +42,16 @@ func umlMarkerID(r model.Relation, suffix string) string {
 }
 
 // umlMarkers returns the three adornment markers for one stroke, in the
-// fixed order triangle, diamond, filled diamond.
-func umlMarkers(suffix, stroke string, strokeWidth float64) []Element {
+// fixed order triangle, diamond, filled diamond, drawn by hand in a sketch
+// theme.
+func umlMarkers(suffix, stroke string, strokeWidth float64, sketch bool) []Element {
+	if sketch {
+		return []Element{
+			sketchTriangleMarker(umlMarkerID(model.RelationInheritance, suffix), stroke, strokeWidth),
+			sketchDiamondMarker(umlMarkerID(model.RelationAggregation, suffix), stroke, strokeWidth, false),
+			sketchDiamondMarker(umlMarkerID(model.RelationComposition, suffix), stroke, strokeWidth, true),
+		}
+	}
 	return []Element{
 		TriangleMarker(umlMarkerID(model.RelationInheritance, suffix), stroke, strokeWidth),
 		DiamondMarker(umlMarkerID(model.RelationAggregation, suffix), stroke, strokeWidth, false),
@@ -231,7 +239,7 @@ func legendSize(entries []model.LegendEntry, th theme.Theme) (w, h float64) {
 	return legendLabelX + widest + legendRightPad, legendPad + float64(len(entries))*legendRow + legendPad
 }
 
-// renderLegend draws one row per entry below top.
+// renderLegend draws one row per entry below top, by hand in a sketch theme.
 func renderLegend(entries []model.LegendEntry, top float64, th theme.Theme) SVGGroup {
 	g := SVGGroup{ID: "legend"}
 	for i, e := range entries {
@@ -242,25 +250,69 @@ func renderLegend(entries []model.LegendEntry, top float64, th theme.Theme) SVGG
 			dash = "8,4"
 		}
 		x1 := legendSampleX1 + adornmentDepth(r)
-		line := Line{X1: x1, Y1: cy, X2: legendSampleX2, Y2: cy, Stroke: th.Edge.Stroke, StrokeWidth: th.Edge.StrokeWidth, StrokeDash: dash}
-		if r == model.RelationDependency {
-			line.MarkerEnd = "url(#" + arrowMarkerID + ")"
-		}
-		g.Children = append(g.Children, line)
-		switch r {
-		case model.RelationInheritance, model.RelationRealization:
-			g.Children = append(g.Children, Polygon{Points: []model.Point{{X: legendSampleX1, Y: cy}, {X: legendSampleX1 + umlTriangleDepth, Y: cy - umlTriangleHalf}, {X: legendSampleX1 + umlTriangleDepth, Y: cy + umlTriangleHalf}}, Fill: "none", Stroke: th.Edge.Stroke, StrokeWidth: th.Edge.StrokeWidth})
-		case model.RelationAggregation, model.RelationComposition:
-			fill := "none"
-			if r == model.RelationComposition {
-				fill = th.Edge.Stroke
-			}
-			mid := legendSampleX1 + umlDiamondDepth/2
-			g.Children = append(g.Children, Polygon{Points: []model.Point{{X: legendSampleX1, Y: cy}, {X: mid, Y: cy - umlDiamondHalf}, {X: legendSampleX1 + umlDiamondDepth, Y: cy}, {X: mid, Y: cy + umlDiamondHalf}}, Fill: fill, Stroke: th.Edge.Stroke, StrokeWidth: th.Edge.StrokeWidth})
+		if th.Style == "sketch" {
+			g.Children = append(g.Children, sketchLegendSample(r, e.Kind, x1, cy, dash, th)...)
+		} else {
+			g.Children = append(g.Children, legendSample(r, x1, cy, dash, th)...)
 		}
 		g.Children = append(g.Children, Text{X: legendLabelX, Y: cy, Content: e.Label, FontFamily: th.Edge.LabelFont.Family,
 			FontSize: fmt.Sprintf("%g", th.Edge.LabelFont.Size), FontWeight: fmt.Sprintf("%d", th.Edge.LabelFont.Weight),
 			Fill: th.Edge.LabelFont.Color, DominantBaseline: "central"})
 	}
 	return g
+}
+
+// legendSample draws a legend row's wire from x1 and its adornment, tip on
+// the left at legendSampleX1.
+func legendSample(r model.Relation, x1, cy float64, dash string, th theme.Theme) []Element {
+	line := Line{X1: x1, Y1: cy, X2: legendSampleX2, Y2: cy, Stroke: th.Edge.Stroke, StrokeWidth: th.Edge.StrokeWidth, StrokeDash: dash}
+	if r == model.RelationDependency {
+		line.MarkerEnd = "url(#" + arrowMarkerID + ")"
+	}
+	out := []Element{line}
+	switch r {
+	case model.RelationInheritance, model.RelationRealization:
+		out = append(out, Polygon{Points: []model.Point{{X: legendSampleX1, Y: cy}, {X: legendSampleX1 + umlTriangleDepth, Y: cy - umlTriangleHalf}, {X: legendSampleX1 + umlTriangleDepth, Y: cy + umlTriangleHalf}}, Fill: "none", Stroke: th.Edge.Stroke, StrokeWidth: th.Edge.StrokeWidth})
+	case model.RelationAggregation, model.RelationComposition:
+		fill := "none"
+		if r == model.RelationComposition {
+			fill = th.Edge.Stroke
+		}
+		mid := legendSampleX1 + umlDiamondDepth/2
+		out = append(out, Polygon{Points: []model.Point{{X: legendSampleX1, Y: cy}, {X: mid, Y: cy - umlDiamondHalf}, {X: legendSampleX1 + umlDiamondDepth, Y: cy}, {X: mid, Y: cy + umlDiamondHalf}}, Fill: fill, Stroke: th.Edge.Stroke, StrokeWidth: th.Edge.StrokeWidth})
+	}
+	return out
+}
+
+// sketchLegendSample is legendSample drawn by hand: the wire wobbles like
+// an edge's, and the adornment is its marker's own shape, mirrored so the
+// tip points left. Neither takes the distortion filter, whose turbulence
+// spans the whole canvas once per filtered element.
+func sketchLegendSample(r model.Relation, kind string, x1, cy float64, dash string, th theme.Theme) []Element {
+	wire := Path{
+		D:    sketchPolyline([]model.Point{{X: x1, Y: cy}, {X: legendSampleX2, Y: cy}}, "legend-"+kind),
+		Fill: "none", Stroke: th.Edge.Stroke, StrokeWidth: th.Edge.StrokeWidth, StrokeDash: dash,
+	}
+	if r == model.RelationDependency {
+		wire.MarkerEnd = "url(#" + arrowMarkerID + ")"
+	}
+	out := []Element{wire}
+	mirrored := func(depth, half float64) func(model.Point) model.Point {
+		return func(p model.Point) model.Point {
+			return model.Point{X: legendSampleX1 + depth - p.X, Y: cy - half + p.Y}
+		}
+	}
+	shape := Path{Fill: "none", Stroke: th.Edge.Stroke, StrokeWidth: th.Edge.StrokeWidth, LineCap: "round", LineJoin: "round"}
+	switch r {
+	case model.RelationInheritance, model.RelationRealization:
+		shape.D = sketchTriangle(umlMarkerID(r, ""), th.Edge.StrokeWidth, mirrored(umlTriangleDepth, umlTriangleHalf))
+		out = append(out, shape)
+	case model.RelationAggregation, model.RelationComposition:
+		if r == model.RelationComposition {
+			shape.Fill = th.Edge.Stroke
+		}
+		shape.D = sketchDiamond(umlMarkerID(r, ""), th.Edge.StrokeWidth, mirrored(umlDiamondDepth, umlDiamondHalf))
+		out = append(out, shape)
+	}
+	return out
 }

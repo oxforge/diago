@@ -217,6 +217,8 @@ type Path struct {
 	Fill, Stroke string
 	StrokeWidth  float64
 	StrokeDash   string
+	LineCap      string // stroke-linecap, e.g. "round"; "" = no attribute
+	LineJoin     string // stroke-linejoin, e.g. "round"; "" = no attribute
 	MarkerStart  string // e.g., "url(#arrowhead)"
 	MarkerEnd    string // e.g., "url(#arrowhead)"
 	Filter       string
@@ -236,6 +238,12 @@ func (p Path) Render(w io.Writer) {
 	}
 	if p.StrokeDash != "" {
 		fmt.Fprintf(w, ` stroke-dasharray="%s"`, escapeXML(p.StrokeDash))
+	}
+	if p.LineCap != "" {
+		fmt.Fprintf(w, ` stroke-linecap="%s"`, escapeXML(p.LineCap))
+	}
+	if p.LineJoin != "" {
+		fmt.Fprintf(w, ` stroke-linejoin="%s"`, escapeXML(p.LineJoin))
 	}
 	if p.MarkerStart != "" {
 		fmt.Fprintf(w, ` marker-start="%s"`, escapeXML(p.MarkerStart))

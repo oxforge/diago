@@ -19,9 +19,9 @@ type Theme struct {
 	Activation  ActivationStyle   // sequence diagram activation boxes
 	Class       ClassStyle        // class diagram record boxes
 	Colors      map[string]string // named color palette: "red" → "#e03131", etc.
-	// Diff holds the two accent colors a diff render uses for added and
-	// changed elements. Always populated: an explicit
-	// "diff" block in the theme file, else colors.green / colors.orange.
+	// Diff holds the accent colors a diff render uses for added, changed
+	// and removed elements. Always populated: an explicit "diff" block in
+	// the theme file, else colors.green / colors.blue / colors.red.
 	Diff DiffStyle
 }
 
@@ -90,10 +90,12 @@ type ActivationStyle struct {
 	Width       float64 // width of activation box
 }
 
-// DiffStyle is the diff palette: added and changed strokes/text.
+// DiffStyle is the diff palette: the stroke and text color of added,
+// changed and removed elements.
 type DiffStyle struct {
 	Added   string
 	Changed string
+	Removed string
 }
 
 // ClassStyle defines how class-diagram record boxes are rendered: the

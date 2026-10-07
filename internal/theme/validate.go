@@ -134,12 +134,13 @@ func Validate(th Theme) error {
 		}
 	}
 
-	// Diff palette (explicit or fallback; both must be colors).
-	if err := validateColor("diff.added", th.Diff.Added); err != nil {
-		return err
-	}
-	if err := validateColor("diff.changed", th.Diff.Changed); err != nil {
-		return err
+	// Diff palette (explicit or fallback; all three must be colors).
+	for _, c := range []struct{ field, color string }{
+		{"diff.added", th.Diff.Added}, {"diff.changed", th.Diff.Changed}, {"diff.removed", th.Diff.Removed},
+	} {
+		if err := validateColor(c.field, c.color); err != nil {
+			return err
+		}
 	}
 
 	return nil

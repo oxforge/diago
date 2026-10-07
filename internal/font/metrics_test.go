@@ -72,3 +72,9 @@ func TestFontFacesCSSOnlyRequested(t *testing.T) {
 	assert.Contains(t, css, "font-family: 'Inter'")
 	assert.NotContains(t, css, "font-family: 'Pangolin'")
 }
+
+func TestHasGlyph(t *testing.T) {
+	assert.True(t, HasGlyph("Inter", '→'))
+	assert.True(t, HasGlyph("Pangolin", 'a'))
+	assert.False(t, HasGlyph("Pangolin", '→'), "Pangolin has no arrow")
+}

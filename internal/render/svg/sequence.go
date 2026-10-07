@@ -10,11 +10,11 @@ import (
 )
 
 // lifelineLine renders an actor's dashed vertical lifeline, with its accent
-// color (if any) applied to the stroke. Shared by both the plain and the
-// status-aware render paths so they cannot silently diverge.
-func lifelineLine(a model.PositionedActor, th theme.Theme) Line {
+// color (if any, and if ownColor) applied to the stroke. Shared by both the
+// plain and the status-aware render paths so they cannot silently diverge.
+func lifelineLine(a model.PositionedActor, th theme.Theme, ownColor bool) Line {
 	lifelineStroke := th.Actor.Stroke
-	if accent := resolveAccent(a.Color, th); accent != "" {
+	if accent := resolveAccent(a.Color, th); accent != "" && ownColor {
 		dc := theme.DeriveColors(accent, th.Background, theme.ElementNode)
 		lifelineStroke = dc.Stroke
 	}
@@ -55,8 +55,9 @@ func RenderSequence(seq *model.PositionedSequence, th theme.Theme) string {
 // byte-identical output to RenderSequence.
 func RenderSequenceWithOptions(seq *model.PositionedSequence, th theme.Theme, opts *RenderOptions) string {
 	band, titleW := titleBand(seq.Title, th.Actor.Font)
-	w := max(seq.Width, titleW)
-	h := seq.Height + band
+	changesW, changesH := changeListSize(opts.changes(), th)
+	w := max(seq.Width, titleW, changesW)
+	h := seq.Height + changesH + band
 
 	doc := SVGDoc{
 		Width:    w,
@@ -68,10 +69,12 @@ func RenderSequenceWithOptions(seq *model.PositionedSequence, th theme.Theme, op
 		doc.Styles = opts.Styles
 	}
 
+	sketch := th.Style == "sketch"
+
 	// Defs: filled arrow marker + open arrow marker.
 	doc.Defs = append(doc.Defs,
-		ArrowMarker(arrowMarkerID, th.Edge.ArrowSize, th.Edge.Stroke),
-		OpenArrowMarker(openArrowMarkerID, th.Edge.ArrowSize, th.Edge.Stroke),
+		arrowMarker(arrowMarkerID, th.Edge.ArrowSize, th.Edge.Stroke, sketch),
+		openArrowMarker(openArrowMarkerID, th.Edge.ArrowSize, th.Edge.Stroke, sketch),
 	)
 
 	// Background rectangle.
@@ -97,7 +100,7 @@ func RenderSequenceWithOptions(seq *model.PositionedSequence, th theme.Theme, op
 	if opts == nil {
 		// Render lifelines (dashed vertical lines, behind interactions).
 		for _, a := range seq.Actors {
-			doc.Children = append(doc.Children, lifelineLine(a, th))
+			doc.Children = append(doc.Children, lifelineLine(a, th, true))
 		}
 
 		// Render activation boxes.
@@ -108,7 +111,7 @@ func RenderSequenceWithOptions(seq *model.PositionedSequence, th theme.Theme, op
 		// Per-actor lifeline group: the lifeline followed by that actor's
 		// activation rects, so a lifeline's status also carries its bars.
 		for _, a := range seq.Actors {
-			children := []Element{lifelineLine(a, th)}
+			children := []Element{lifelineLine(a, th, opts.ownStrokes())}
 			for _, act := range seq.Activations {
 				if act.ActorID != a.ID {
 					continue
@@ -123,18 +126,25 @@ func RenderSequenceWithOptions(seq *model.PositionedSequence, th theme.Theme, op
 		}
 	}
 
-	sketch := th.Style == "sketch"
-
 	// Add sketch distortion filter to defs if using sketch style.
 	if sketch {
 		doc.Defs = append(doc.Defs, RawXML{Content: sketchDistortionFilter()})
+	}
+
+	// itAccent is an interaction's own color, which a status-paint render
+	// drops.
+	itAccent := func(it model.PositionedInteraction) string {
+		if !opts.ownStrokes() {
+			return ""
+		}
+		return resolveAccent(it.Color, th)
 	}
 
 	// Collect unique interaction colors and create per-color arrow markers.
 	itMarkers := map[string]string{}
 	itOpenMarkers := map[string]string{}
 	for _, it := range seq.Interactions {
-		accent := resolveAccent(it.Color, th)
+		accent := itAccent(it)
 		if accent == "" {
 			continue
 		}
@@ -145,8 +155,8 @@ func RenderSequenceWithOptions(seq *model.PositionedSequence, th theme.Theme, op
 		id := fmt.Sprintf("diago-arrow-%s", accent[1:])
 		openID := fmt.Sprintf("diago-arrow-open-%s", accent[1:])
 		doc.Defs = append(doc.Defs,
-			ArrowMarker(id, th.Edge.ArrowSize, dc.Stroke),
-			OpenArrowMarker(openID, th.Edge.ArrowSize, dc.Stroke),
+			arrowMarker(id, th.Edge.ArrowSize, dc.Stroke, sketch),
+			openArrowMarker(openID, th.Edge.ArrowSize, dc.Stroke, sketch),
 		)
 		itMarkers[accent] = id
 		itOpenMarkers[accent] = openID
@@ -166,8 +176,8 @@ func RenderSequenceWithOptions(seq *model.PositionedSequence, th theme.Theme, op
 		for _, cls := range sortedKeys(needed) {
 			fill := needed[cls]
 			doc.Defs = append(doc.Defs,
-				ArrowMarker(statusMarkerID(cls, false), th.Edge.ArrowSize, fill),
-				OpenArrowMarker(openStatusMarkerID(cls), th.Edge.ArrowSize, fill),
+				arrowMarker(statusMarkerID(cls, false), th.Edge.ArrowSize, fill, sketch),
+				openArrowMarker(openStatusMarkerID(cls), th.Edge.ArrowSize, fill, sketch),
 			)
 		}
 	}
@@ -175,7 +185,7 @@ func RenderSequenceWithOptions(seq *model.PositionedSequence, th theme.Theme, op
 	// Render interactions.
 	for i, it := range seq.Interactions {
 		edgeStyle := th.Edge
-		accent := resolveAccent(it.Color, th)
+		accent := itAccent(it)
 		var filledOverride, openOverride string
 		if accent != "" {
 			dc := theme.DeriveColors(accent, th.Background, theme.ElementEdge)
@@ -184,7 +194,7 @@ func RenderSequenceWithOptions(seq *model.PositionedSequence, th theme.Theme, op
 			filledOverride = itMarkers[accent]
 			openOverride = itOpenMarkers[accent]
 		}
-		var cls string
+		var cls, backingClass string
 		if opts != nil {
 			cls = opts.class("interaction", strconv.Itoa(i))
 			if cls != "" {
@@ -193,8 +203,9 @@ func RenderSequenceWithOptions(seq *model.PositionedSequence, th theme.Theme, op
 					filledOverride, openOverride = statusMarkerID(cls, false), openStatusMarkerID(cls)
 				}
 			}
+			backingClass = "backing" // the status stroke skips the label's backing
 		}
-		grp := renderInteraction(i, it, edgeStyle, th.Background, sketch, filledOverride, openOverride)
+		grp := renderInteraction(i, it, edgeStyle, th.Background, sketch, filledOverride, openOverride, backingClass)
 		if opts != nil {
 			grp.Class = cls
 		}
@@ -207,14 +218,20 @@ func RenderSequenceWithOptions(seq *model.PositionedSequence, th theme.Theme, op
 		if accent := resolveAccent(a.Color, th); accent != "" {
 			dc := theme.DeriveColors(accent, th.Background, theme.ElementNode)
 			actorStyle.Fill = dc.Fill
-			actorStyle.Stroke = dc.Stroke
-			actorStyle.Font.Color = dc.Text
+			if opts.ownStrokes() {
+				actorStyle.Stroke = dc.Stroke
+				actorStyle.Font.Color = dc.Text
+			}
 		}
 		grp := renderActorBox(a, actorStyle, sketch)
 		if opts != nil {
 			grp.Class = opts.class("actor", a.ID)
 		}
 		doc.Children = append(doc.Children, grp)
+	}
+
+	if lines := opts.changes(); len(lines) > 0 {
+		doc.Children = append(doc.Children, renderChangeList(lines, seq.Height, th))
 	}
 
 	doc.Children = withTitleBand(doc.Children, seq.Title, w, band, th.Actor.Font)

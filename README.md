@@ -12,7 +12,8 @@ diagram types: **flow** (architecture, pipelines, decision trees, state
 machines), **sequence** and **class**. Output is deterministic: the same spec
 and theme give the same bytes on every machine.
 
-The repository also ships a Claude Code plugin with two skills, see
+The repository also ships a Claude Code plugin that teaches agents to draw with
+diago and to show a diagram wherever they present structure, see
 [Skills for Claude Code](#skills-for-claude-code).
 
 ## Install
@@ -21,9 +22,21 @@ The repository also ships a Claude Code plugin with two skills, see
 go install github.com/oxforge/diago/cmd/diago@latest
 ```
 
-Requires Go 1.26+. PNG output additionally needs
-[resvg](https://github.com/linebender/resvg) on `PATH` (`brew install resvg`);
-every other format is pure Go with embedded fonts, no system dependencies.
+Requires Go 1.26+. SVG, text art, draw.io and Excalidraw output are pure Go
+with embedded fonts and need nothing else.
+
+PNG output rasterizes the SVG with [resvg](https://github.com/linebender/resvg),
+a separate program diago runs. Without it, `-format png` fails with an install
+hint and every other format still works. Install it with one of:
+
+```bash
+brew install resvg      # macOS, or Linux with Homebrew
+cargo install resvg     # any platform with Rust
+```
+
+or download a binary for Linux x86_64 or macOS from
+[resvg's releases](https://github.com/linebender/resvg/releases), and put it on
+`PATH` or point `DIAGO_RESVG_PATH` at it.
 
 ## Usage
 
@@ -132,19 +145,35 @@ git diff v1.json > change.patch && diago diff v1.json change.patch   # the secon
 
 `-format` accepts `svg` (default), `png`, `text`; `-theme` as for `render`,
 over the new spec's `theme` field (the old spec's is not read).
+
+Color carries the status only: added elements are drawn green, changed ones
+blue, and removed ones red, dashed, faded and struck through; unchanged ones
+are faded in the theme's neutral colors. An element keeps its own fill, but
+its own `color` never reaches its outline, wire or label (an edge's color is
+dropped). The palette is the theme's `diff` block (`added`, `changed`,
+`removed`). Every diff lists its changes, one line each: under the diagram
+in SVG and PNG, each line led by a sample in its status's style, and in a
+footer in text. A changed line names the fields that differ, `old → new`, by
+their spec keys:
+
+```text
+added: node Metrics
+removed: node SMTP Relay
+changed: edge API Gateway -> Postgres: label none → "read/write", style solid → dashed
+```
+
 For sequence specs the union keeps every message row, and a removed message
 opens no activation bar. Text output stamps `+ `, `- `, `~ ` on flow node and
 group labels, and on sequence actor labels, message labels and section
-guards (an unlabeled changed message shows the bare marker); both list
-every change in a footer legend. For class specs every member line of every
-class carries a two-character status column before the visibility glyph
-(`+ `, `- `, `~ `, or two spaces when unchanged), removed members keep their
-row, and the footer adds one line per changed member (`changed: class
-Payment, removed attribute - amount: Money`); relations are named in spec
-orientation. Exit 0 on identical inputs (everything
-dimmed, no legend), 1 on a validation error (fields are prefixed `before.` /
-`after.`, a bad patch reports on `new`), 2 on usage or internal errors.
-draw.io and Excalidraw output are not available for diffs.
+guards (an unlabeled changed message shows the bare marker). For class specs
+every member line of every class carries a two-character status column
+before the visibility glyph (`+ `, `- `, `~ `, or two spaces when
+unchanged), removed members keep their row, and the list adds one line per
+changed member (`changed: class Payment, removed attribute - amount:
+Money`); relations are named in spec orientation. Exit 0 on identical inputs
+(everything dimmed, no list), 1 on a validation error (fields are prefixed
+`before.` / `after.`, a bad patch reports on `new`), 2 on usage or internal
+errors. draw.io and Excalidraw output are not available for diffs.
 
 ### diago check
 
@@ -434,18 +463,31 @@ draw.io and Excalidraw export cover flow diagrams only.
 
 ## Skills for Claude Code
 
-The repository is a Claude Code plugin (`.claude-plugin/`) with two skills:
+The repository is a Claude Code plugin (`.claude-plugin/`) with two skills and
+a session hook:
 
-- **`diago:diagramming`**: how to write good diago specs (choosing a diagram
-  type, shapes, groups, edge styles, themes) and drive the CLI.
-- **`diago:spec-diagrams`**: diagram-augmented design specs and implementation
-  plans for human review. When a superpowers brainstorming or writing-plans
-  document is written or revised, the agent draws its structure (architecture,
-  key sequences, data model, the plan's task graph), prints the text art in the
-  terminal before asking for review, embeds it in the markdown, and on every
-  revision shows a **diff diagram**: additions and removals marked, changes
-  flagged, everything else pinned in place by layout anchoring. The mechanics
-  are `scripts/diago-render`; `skills/spec-diagrams/example/` is a worked example.
+- **`diago:diagramming`**: how to draw a good diagram with diago: the diagram
+  type, size, direction, shapes, edge styles, color, groups and themes, each
+  checked against what diago renders (text art keeps fewer shapes than SVG,
+  and no color), and the CLI reference.
+- **`diago:illustrating`**: when the agent is about to present something with
+  structure (how code works, a design, a debugging finding, a plan's task
+  order), it decides whether a diagram makes it faster to grasp and shows one
+  in the format the medium can display: text art in a terminal, text art and
+  a clickable SVG in a graphical host, PNG or SVG in Markdown, SVG in HTML. A
+  change to code, architecture or business logic is shown as a **diff
+  diagram** of the before and the after. Documents written for review (design
+  specs, implementation plans) get their diagrams embedded, and each revision
+  a diff diagram, everything unchanged pinned in place by layout anchoring.
+  The mechanics are `scripts/diago-render`; `skills/illustrating/example/` is
+  a worked example.
+- **A SessionStart hook** (`hooks/session-start`) puts that rule in every
+  session's context (about 150 tokens), worded for the host: text art in a
+  terminal, text art and an SVG path elsewhere. Disable the plugin to drop it.
+
+Agents run diago as a binary rather than through an MCP server: a spec stays
+in a file, so a revision is a small edit and a diff costs two paths, and
+images go to disk without passing through the agent's context.
 
 Install from GitHub, or from a local checkout (needs `diago` on `PATH`):
 
@@ -457,7 +499,7 @@ claude plugin install diago@diago
 The install copies the repo at its current commit into Claude Code's plugin
 cache, and `claude plugin update` only refreshes that copy when the version in
 `.claude-plugin/plugin.json` and `marketplace.json` changes. After changing a
-skill, bump that version and run `claude plugin update diago@diago`.
+skill or the hook, bump that version and run `claude plugin update diago@diago`.
 
 ## Development
 
