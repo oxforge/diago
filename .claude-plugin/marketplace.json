@@ -12,7 +12,7 @@
       "source": {
         "source": "github",
         "repo": "oxforge/diago",
-        "ref": "v0.5.0"
+        "ref": "v0.6.0"
       },
       "description": "Diagrams from typed JSON specs, shown wherever an agent presents structure (two skills and a SessionStart hook)"
     }
