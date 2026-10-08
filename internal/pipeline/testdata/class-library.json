@@ -1,0 +1,29 @@
+{
+  "type": "class",
+  "legend": true,
+  "classes": [
+    {"id": "loan", "label": "Loan",
+     "attributes": [{"visibility": "-", "text": "id: string"}, {"visibility": "-", "text": "dueOn: Date"}],
+     "methods": [{"visibility": "+", "text": "overdue(): bool"}]},
+    {"id": "copy", "label": "BookCopy",
+     "attributes": [{"visibility": "-", "text": "barcode: string"}, {"visibility": "-", "text": "fee: Money"}]},
+    {"id": "work", "label": "Title",
+     "attributes": [{"visibility": "-", "text": "isbn: string"}, {"visibility": "-", "text": "name: string"}]},
+    {"id": "member", "label": "Member",
+     "attributes": [{"visibility": "-", "text": "name: string"}, {"visibility": "-", "text": "phone: string"}]},
+    {"id": "librarian", "label": "Librarian",
+     "attributes": [{"visibility": "-", "text": "desk: string"}]},
+    {"id": "card", "label": "LibraryCard",
+     "attributes": [{"visibility": "-", "text": "number: string"}, {"visibility": "-", "text": "expires: Date"}]},
+    {"id": "fine", "label": "Fine",
+     "attributes": [{"visibility": "-", "text": "reason: string"}, {"visibility": "-", "text": "amount: Money"}]}
+  ],
+  "relations": [
+    {"id": "lends", "from": "loan", "to": "copy", "kind": "composition", "from_card": "1", "to_card": "1..*", "label": "lends"},
+    {"id": "of-title", "from": "copy", "to": "work", "kind": "association", "from_card": "*", "to_card": "1", "label": "copy of"},
+    {"id": "borrows", "from": "member", "to": "loan", "kind": "aggregation", "from_card": "1", "to_card": "*", "label": "borrows"},
+    {"id": "holds-card", "from": "member", "to": "card", "kind": "composition", "from_card": "1", "to_card": "1..*", "label": "holds"},
+    {"id": "charges", "from": "loan", "to": "fine", "kind": "composition", "from_card": "1", "to_card": "1", "label": "charges"},
+    {"id": "is-member", "from": "librarian", "to": "member", "kind": "inheritance"}
+  ]
+}

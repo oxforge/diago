@@ -1,0 +1,29 @@
+{
+  "type": "flow",
+  "direction": "DOWN",
+  "nodes": [
+    {"id": "browser", "label": "Browser", "shape": "rounded"},
+    {"id": "edge", "label": "CDN Edge"},
+    {"id": "app", "label": "App Service"},
+    {"id": "sessions", "label": "Session Store", "shape": "cylinder"},
+    {"id": "orders", "label": "Orders DB", "shape": "cylinder", "color": "orange"},
+    {"id": "search", "label": "Search Index", "shape": "cylinder"},
+    {"id": "events", "label": "Event Bus"},
+    {"id": "billing", "label": "Billing Worker"},
+    {"id": "audit", "label": "Audit Trail"}
+  ],
+  "edges": [
+    {"from": "browser", "to": "edge"},
+    {"from": "edge", "to": "app"},
+    {"from": "app", "to": "sessions"},
+    {"from": "app", "to": "orders", "label": "reads, writes", "style": "dashed"},
+    {"from": "sessions", "to": "orders"},
+    {"from": "app", "to": "search"},
+    {"from": "app", "to": "events"},
+    {"from": "events", "to": "billing"},
+    {"id": "billing-out", "from": "billing", "to": "audit"}
+  ],
+  "groups": [
+    {"id": "core", "label": "Core", "contains": ["app", "sessions", "orders"]}
+  ]
+}

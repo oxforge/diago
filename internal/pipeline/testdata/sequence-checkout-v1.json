@@ -1,0 +1,29 @@
+{
+  "type": "sequence",
+  "actors": [
+    {"id": "shopper", "label": "Shopper"},
+    {"id": "store", "label": "Storefront"},
+    {"id": "pay", "label": "Payment API"},
+    {"id": "bank", "label": "Bank", "color": "orange"}
+  ],
+  "interactions": [
+    {"from": "shopper", "to": "store", "label": "checkout"},
+    {"from": "store", "to": "pay", "label": "charge card"},
+    {"from": "pay", "to": "bank", "label": "authorize"},
+    {"from": "bank", "to": "pay", "label": "approval", "style": "dashed"},
+    {"from": "pay", "to": "store", "label": "paid", "style": "dashed"},
+    {"from": "store", "to": "shopper", "label": "receipt", "style": "dashed"},
+    {"from": "pay", "to": "store", "label": "declined", "style": "dashed"},
+    {"from": "store", "to": "shopper", "label": "try again", "style": "dashed"}
+  ],
+  "fragments": [
+    {
+      "type": "alt",
+      "over": ["shopper", "store", "pay"],
+      "sections": [
+        {"label": "approved", "start": 4, "end": 5},
+        {"label": "refused", "start": 6, "end": 7}
+      ]
+    }
+  ]
+}

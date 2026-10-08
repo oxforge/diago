@@ -1,0 +1,23 @@
+{
+  "type": "flow",
+  "direction": "DOWN",
+  "nodes": [
+    {"id": "browser", "label": "Browser", "shape": "rounded"},
+    {"id": "edge", "label": "CDN Edge"},
+    {"id": "app", "label": "App Server"},
+    {"id": "sessions", "label": "Session Store", "shape": "cylinder"},
+    {"id": "orders", "label": "Orders DB", "shape": "cylinder"},
+    {"id": "notify", "label": "Notifier"}
+  ],
+  "edges": [
+    {"from": "browser", "to": "edge"},
+    {"from": "edge", "to": "app"},
+    {"from": "app", "to": "sessions"},
+    {"from": "app", "to": "orders"},
+    {"from": "sessions", "to": "orders"},
+    {"from": "app", "to": "notify"}
+  ],
+  "groups": [
+    {"id": "core", "label": "Core", "contains": ["app", "sessions", "orders"]}
+  ]
+}

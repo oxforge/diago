@@ -1,0 +1,23 @@
+{
+  "type": "sequence",
+  "title": "Message relay",
+  "actors": [
+    {"id": "producer", "label": "Producer", "color": "purple"},
+    {"id": "relay", "label": "Relay"},
+    {"id": "broker", "label": "Broker"},
+    {"id": "consumer", "label": "Consumer", "color": "orange"}
+  ],
+  "interactions": [
+    {"from": "producer", "to": "relay", "label": "publish(event)"},
+    {"from": "relay", "to": "relay", "label": "stamp offset"},
+    {"from": "relay", "to": "broker", "label": "append", "color": "orange"},
+    {"from": "broker", "to": "relay", "label": "ack", "style": "dashed"},
+    {"from": "broker", "to": "consumer", "label": "deliver", "style": "async"},
+    {"from": "consumer", "to": "broker", "label": "commit", "style": "dashed"},
+    {"from": "relay", "to": "producer", "label": "202 Accepted"}
+  ],
+  "fragments": [
+    {"type": "loop", "over": ["relay", "broker", "consumer"], "sections": [{"label": "per batch", "start": 2, "end": 5}]},
+    {"type": "opt", "over": ["broker", "consumer"], "sections": [{"label": "subscribers waiting", "start": 4, "end": 5}]}
+  ]
+}

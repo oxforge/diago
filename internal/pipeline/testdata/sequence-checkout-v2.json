@@ -1,0 +1,34 @@
+{
+  "type": "sequence",
+  "actors": [
+    {"id": "shopper", "label": "Shopper"},
+    {"id": "store", "label": "Storefront"},
+    {"id": "pay", "label": "Payment API"},
+    {"id": "bank", "label": "Bank", "color": "orange"},
+    {"id": "ledger", "label": "Ledger"}
+  ],
+  "interactions": [
+    {"from": "shopper", "to": "store", "label": "confirm checkout"},
+    {"from": "store", "to": "pay", "label": "charge card"},
+    {"from": "pay", "to": "bank", "label": "authorize"},
+    {"from": "bank", "to": "pay", "label": "approval", "style": "dashed"},
+    {"from": "pay", "to": "store", "label": "paid", "style": "dashed"},
+    {"from": "store", "to": "ledger", "label": "record sale", "style": "async"},
+    {"from": "store", "to": "shopper", "label": "receipt", "style": "dashed"},
+    {"from": "pay", "to": "store", "label": "declined", "style": "dashed"},
+    {"from": "store", "to": "shopper", "label": "try again", "style": "dashed"},
+    {"from": "pay", "to": "store", "label": "flagged", "style": "dashed"},
+    {"from": "store", "to": "shopper", "label": "card on hold", "style": "dashed"}
+  ],
+  "fragments": [
+    {
+      "type": "alt",
+      "over": ["shopper", "store", "pay"],
+      "sections": [
+        {"label": "approved", "start": 4, "end": 6},
+        {"label": "refused", "start": 7, "end": 8},
+        {"label": "flagged", "start": 9, "end": 10}
+      ]
+    }
+  ]
+}
