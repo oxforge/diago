@@ -43,7 +43,7 @@ func TestMinimize_KeepsALoopTogether(t *testing.T) {
 }
 
 // TestMinimize_PicksTheOrderingThatEnclosesNone pins S6's Loops kept
-// together on neat/incident-response's loop: Escalate -> Investigate
+// together on the corpus's incident-response loop: Escalate -> Investigate
 // closes Investigate -> Mitigate -> Resolved? -> Escalate, and Mitigate's
 // other child, Status page, is no part of it. Resolved?, Status page,
 // return dummy, and Status page, Resolved?, return dummy, both cross
@@ -125,7 +125,7 @@ func TestSided_ASideHoldsOneEnd(t *testing.T) {
 }
 
 // TestMinimize_KeepsMLTrainingsSides pins why S6 counts crossings
-// side-aware in the loop transposition, on neat/ml-training: Metrics
+// side-aware in the loop transposition, on the corpus's ml-training: Metrics
 // pass?'s upper neighbors, Evaluate and the return dummy of its "no" edge
 // back to Feature eng, enclose Hyperparam tune, which forms a two-cycle
 // with Train model. Swapping Hyperparam tune and Evaluate would free it,

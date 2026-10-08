@@ -100,6 +100,17 @@ func Validate(th Theme) error {
 		return err
 	}
 
+	// Paddings
+	if th.Node.Padding.X < 0 {
+		return fmt.Errorf("field %q: value %v must be >= 0", "node.padding.x", th.Node.Padding.X)
+	}
+	if th.Node.Padding.Y < 0 {
+		return fmt.Errorf("field %q: value %v must be >= 0", "node.padding.y", th.Node.Padding.Y)
+	}
+	if th.Group.Padding < minGroupPadding {
+		return fmt.Errorf("field %q: value %v must be >= %v, the node clearance a group's own wires keep to its border (C6.2)", "group.padding", th.Group.Padding, minGroupPadding)
+	}
+
 	// Activation
 	if err := validateColor("activation.fill", th.Activation.Fill); err != nil {
 		return err
@@ -145,6 +156,10 @@ func Validate(th Theme) error {
 
 	return nil
 }
+
+// minGroupPadding is the least group padding the layout accepts: the node
+// clearance of the screen profile (S14).
+const minGroupPadding = 12
 
 func validateColor(field, color string) error {
 	if color == "" {

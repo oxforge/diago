@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Ported from neat's sniffMermaidKind cases, plus the frontmatter and
-// comment-only forms.
+// The header forms Sniff recognizes, plus the frontmatter and comment-only
+// forms.
 func TestSniff(t *testing.T) {
 	cases := []struct {
 		src  string

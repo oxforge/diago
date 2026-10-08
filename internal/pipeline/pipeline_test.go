@@ -611,3 +611,24 @@ func TestRender_DebugResolvesAutoOnce(t *testing.T) {
 		})
 	}
 }
+
+// TestRenderWithOptions_SketchCarriesNoFilter: a sketch render of every
+// diagram type carries no SVG filter, so resvg rasterizes it as fast as
+// the clean themes.
+func TestRenderWithOptions_SketchCarriesNoFilter(t *testing.T) {
+	for typ, spec := range map[string]string{
+		"flow": `{"type":"flow","nodes":[{"id":"a","label":"A","shape":"cylinder"},{"id":"b","label":"B","shape":"diamond"},{"id":"c","label":"C","shape":"hexagon"}],` +
+			`"edges":[{"from":"a","to":"b","label":"x"},{"from":"b","to":"c"}],"groups":[{"id":"g","label":"G","contains":["b","c"]}]}`,
+		"sequence": `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"}],` +
+			`"interactions":[{"from":"a","to":"b","label":"hi"},{"from":"b","to":"b","label":"self"}]}`,
+		"class": `{"type":"class","classes":[{"id":"a","label":"A","attributes":[{"text":"x: int"}]},{"id":"b","label":"B"}],` +
+			`"relations":[{"from":"a","to":"b","kind":"inheritance"}],"legend":true}`,
+	} {
+		t.Run(typ, func(t *testing.T) {
+			out, err := RenderWithOptions(context.Background(), []byte(spec), Options{Theme: "sketch"})
+			require.NoError(t, err)
+			assert.NotContains(t, string(out), "<filter")
+			assert.NotContains(t, string(out), "filter=")
+		})
+	}
+}

@@ -142,7 +142,7 @@ func RenderClassNode(node model.PositionedNode, style theme.NodeStyle, class the
 	x0, y0 := node.X-node.Width/2, node.Y-node.Height/2
 	var shapeEl Element
 	if sketch {
-		shapeEl = Path{D: sketchRect(x0, y0, node.Width, node.Height, 0, node.ID), Fill: style.Fill, Stroke: style.Stroke, StrokeWidth: style.StrokeWidth, Filter: sketchDistortionFilterRef}
+		shapeEl = Path{D: sketchRect(x0, y0, node.Width, node.Height, 0, node.ID), Fill: style.Fill, Stroke: style.Stroke, StrokeWidth: style.StrokeWidth}
 	} else {
 		shapeEl = Rect{X: x0, Y: y0, Width: node.Width, Height: node.Height, Fill: style.Fill, Stroke: style.Stroke, StrokeWidth: style.StrokeWidth}
 	}
@@ -286,8 +286,7 @@ func legendSample(r model.Relation, x1, cy float64, dash string, th theme.Theme)
 
 // sketchLegendSample is legendSample drawn by hand: the wire wobbles like
 // an edge's, and the adornment is its marker's own shape, mirrored so the
-// tip points left. Neither takes the distortion filter, whose turbulence
-// spans the whole canvas once per filtered element.
+// tip points left.
 func sketchLegendSample(r model.Relation, kind string, x1, cy float64, dash string, th theme.Theme) []Element {
 	wire := Path{
 		D:    sketchPolyline([]model.Point{{X: x1, Y: cy}, {X: legendSampleX2, Y: cy}}, "legend-"+kind),

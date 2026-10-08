@@ -61,8 +61,9 @@ func (s Span) At(k, n int) float64 {
 // spans. Otherwise a span is the whole side, except where the drawn
 // outline's side does not run across the flow: a hexagon's flat faces
 // (the middle half) under DOWN and UP; a parallelogram's top and bottom
-// edges, each shortened by the slant at opposite ends, under DOWN and UP;
-// and a cylinder's side lines between its caps under RIGHT and LEFT, where
+// edges under DOWN and UP, where both faces take the stretch the two edges
+// share (the width less the slant at each end), so that a port on the top
+// and one on the bottom line up across the node; and a cylinder's side lines between its caps under RIGHT and LEFT, where
 // w is its drawn height. In the text profile every span is the whole side,
 // in cells.
 func Faces(s model.Shape, w, h float64, dir model.Direction, text bool) (in, out Span) {
@@ -83,12 +84,8 @@ func Faces(s model.Shape, w, h float64, dir model.Direction, text bool) (in, out
 		}
 	case model.ShapeParallelogram:
 		if vertical {
-			top := Span{Lo: -w/2 + Slant*h, Hi: w / 2}
-			bottom := Span{Lo: -w / 2, Hi: w/2 - Slant*h}
-			if dir == model.Down {
-				return top, bottom
-			}
-			return bottom, top
+			shared := Span{Lo: -w/2 + Slant*h, Hi: w/2 - Slant*h}
+			return shared, shared
 		}
 	case model.ShapeCylinder:
 		if !vertical {
@@ -108,9 +105,9 @@ func Faces(s model.Shape, w, h float64, dir model.Direction, text bool) (in, out
 // Otherwise a span is the whole side, except a cylinder's side lines
 // between its caps under DOWN and UP, and, under RIGHT and LEFT, where the
 // side faces become the drawn top and bottom, a hexagon's flat faces (the
-// middle half) and a parallelogram's top and bottom edges, each shortened
-// by the slant (0.3 times the drawn height, w) at opposite ends. In the
-// text profile every span is the whole side, in cells.
+// middle half) and the stretch a parallelogram's top and bottom edges
+// share, the drawn width less the slant (0.3 times the drawn height, w) at
+// each end. In the text profile every span is the whole side, in cells.
 func Sides(s model.Shape, w, h float64, dir model.Direction, text bool) (left, right Span) {
 	if Pinned(s, text) {
 		return Span{}, Span{}
@@ -134,16 +131,11 @@ func Sides(s model.Shape, w, h float64, dir model.Direction, text bool) (left, r
 		}
 	case model.ShapeParallelogram:
 		if !vertical {
-			// The left face is the drawn top, whose edge starts the slant
-			// in from the drawn left; the right face the drawn bottom,
-			// which stops the slant short of the drawn right. LEFT runs
-			// the flow axis against the drawn x.
-			top := Span{Lo: -h/2 + Slant*w, Hi: h / 2}
-			bottom := Span{Lo: -h / 2, Hi: h/2 - Slant*w}
-			if dir == model.Right {
-				return top, bottom
-			}
-			return bottom, top
+			// The side faces are the drawn top and bottom; both take the
+			// stretch the two edges share, so the spans are symmetric
+			// whichever way LEFT or RIGHT runs the flow axis.
+			shared := Span{Lo: -h/2 + Slant*w, Hi: h/2 - Slant*w}
+			return shared, shared
 		}
 	}
 	return full, full
@@ -165,7 +157,7 @@ func Room(s model.Shape, span, h float64, dir model.Direction) float64 {
 		}
 	case model.ShapeParallelogram:
 		if vertical {
-			return span + Slant*h
+			return span + 2*Slant*h
 		}
 	case model.ShapeCylinder:
 		if !vertical {

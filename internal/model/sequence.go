@@ -90,12 +90,27 @@ type PositionedFragment struct {
 	Width    float64                     `json:"width"`
 	Height   float64                     `json:"height"`
 	Sections []PositionedFragmentSection `json:"sections"`
+	// TabWidth and TabHeight size the operator tab, whose top-left corner
+	// is the frame's (X, Y). A screen layout sets them; text art draws its
+	// own inline tab on the frame's top row and leaves them zero.
+	TabWidth  float64 `json:"tabWidth,omitempty"`
+	TabHeight float64 `json:"tabHeight,omitempty"`
+	// TabCut is the depth of the cut across the tab's bottom-right corner,
+	// the room the layout reserved at the right end of the tab.
+	TabCut float64 `json:"tabCut,omitempty"`
 }
 
 // PositionedFragmentSection is a section within a fragment with its divider position.
 type PositionedFragmentSection struct {
 	Label string  `json:"label"`
 	Y     float64 `json:"y"` // Y of the divider line (or top of first section = fragment Y)
+	// LabelX is the left of the guard text ("[label]"), LabelY its
+	// vertical center and LabelWidth its measured width. A screen layout
+	// sets them for a section with a label; text art places its guards
+	// itself and leaves them zero.
+	LabelX     float64 `json:"labelX,omitempty"`
+	LabelY     float64 `json:"labelY,omitempty"`
+	LabelWidth float64 `json:"labelWidth,omitempty"`
 }
 
 // PositionedActivation is an activation box on an actor's lifeline.

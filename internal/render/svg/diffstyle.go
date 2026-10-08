@@ -35,6 +35,9 @@ type RenderOptions struct {
 	// Changes is the change list drawn under the diagram, one row each;
 	// none for a plain render or a diff with nothing changed.
 	Changes []ChangeLine
+	// Caption names the diff's two sides: the change list's first row, with
+	// no sample, in the label color; "" for none.
+	Caption string
 }
 
 func (o *RenderOptions) class(kind, id string) string {
@@ -54,6 +57,14 @@ func (o *RenderOptions) changes() []ChangeLine {
 		return nil
 	}
 	return o.Changes
+}
+
+// caption returns the change list's caption; "" for a plain render.
+func (o *RenderOptions) caption() string {
+	if o == nil {
+		return ""
+	}
+	return o.Caption
 }
 
 // statusMarkerID names the marker an edge of the given class references.

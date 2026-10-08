@@ -4,8 +4,8 @@
 #   diago-render <diagrams-dir> [--embed <doc.md>] [--strict] [--png]
 #
 # For every <slug>.v<N>.json in <diagrams-dir>, the highest N is rendered to
-# <slug>.v<N>.txt and .svg (anchored with -previous on the highest lower
-# version P's spec when one exists) and diffed
+# <slug>.v<N>.txt and .svg (a flow or class spec anchored with -previous on
+# the highest lower version P's spec when one exists) and diffed
 # against P into <slug>.v<P>-v<N>.diff.{txt,svg}. --png writes and links .png
 # (needs resvg) in place of the SVG, which embeds its font and runs ~500 KB. Deterministic: identical
 # inputs give byte-identical outputs. Only dependency: `diago` on PATH.
@@ -109,13 +109,18 @@ render_slug() {
 
   # A v<N> is anchored on v<P>'s spec: diago lays the old spec out fresh
   # (deterministic), so unchanged elements keep their places.
-  prev=""
+  # A sequence diagram has no layout to anchor (diago would only warn that it
+  # ignores -previous), so only a flow or class spec is anchored.
+  prev=""; anchor=""
   [ -n "$p" ] && prev="$DIR/$slug.v$p.json"
+  if [ -n "$prev" ] && ! grep -qE '"type"[[:space:]]*:[[:space:]]*"sequence"' "$src"; then
+    anchor="$prev"
+  fi
   # Every render prints the spec's advisories (what `diago check` reports)
   # plus layout-only ones such as text-label-dropped on stderr; relay the text
   # render's, once, and run the others quiet.
-  run_diago lint "$DIR/$slug.v$n.txt" "$slug.v$n" render -format text ${prev:+-previous "$prev"} "$src"
-  run_diago quiet "$DIR/$slug.v$n.$IMG" "$slug.v$n" render -format "$IMG" ${prev:+-previous "$prev"} "$src"
+  run_diago lint "$DIR/$slug.v$n.txt" "$slug.v$n" render -format text ${anchor:+-previous "$anchor"} "$src"
+  run_diago quiet "$DIR/$slug.v$n.$IMG" "$slug.v$n" render -format "$IMG" ${anchor:+-previous "$anchor"} "$src"
 
   summary="$slug v$n"
   if [ -n "$p" ]; then
@@ -134,9 +139,9 @@ render_slug() {
   summary="$summary width=$w"
   [ "$w" -gt 120 ] && warn "$slug.v$n text art is $w columns wide; over 120 wraps badly in a terminal: shorten labels, switch direction (DOWN narrows a long chain, RIGHT a wide fan-out), or split"
   if [ -n "$p" ]; then
-    # Measure the art only: the footer's change lines carry field details and
-    # are not part of the diagram's width.
-    grep -vE '^(added|removed|changed): ' "$base.txt" > "$base.art.tmp" || true
+    # Measure the art only: the footer's caption and change lines carry file
+    # names and field details and are not part of the diagram's width.
+    grep -vE '^(added|removed|changed): ' "$base.txt" | grep -vxF "$slug.v$p.json → $slug.v$n.json" > "$base.art.tmp" || true
     dw="$(max_width "$base.art.tmp")"
     rm -f "$base.art.tmp"
     summary="$summary diff-width=$dw"

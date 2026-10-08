@@ -128,9 +128,12 @@ func planLevel(ctx context.Context, lv *lgraph.Level, reversed []bool, cfg Confi
 	}
 	layers, kept := rank.AssignKept(ctx, lv, reversed, previous)
 	layers = rank.Isolated(ctx, lv, reversed, layers, kept, rank.Room{Gap: cfg.NodeGap, Dummy: cfg.DummyWidth})
+	// A stretched parallelogram widens by its slant's gain at each end, so
+	// the stretch its top and bottom edges share, its faces' usable span
+	// (S8), keeps its width.
 	slant := 0.0
 	if !cfg.Text && (dir == model.Down || dir == model.Up) {
-		slant = ports.Slant
+		slant = 2 * ports.Slant
 	}
 	lv = equalize.Apply(ctx, lv, layers, slant)
 	lg, err := lgraph.Build(lv, layers, reversed, cfg.DummyWidth)

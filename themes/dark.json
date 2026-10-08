@@ -33,7 +33,7 @@
     "stroke_width": 1.5,
     "stroke_dash": "6,3",
     "label_font": { "family": "Inter", "size": 12, "weight": 600, "color": "#888888" },
-    "padding": 24
+    "padding": 12
   },
   "actor": {
     "fill": "#1e1e1e",

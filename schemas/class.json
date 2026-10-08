@@ -143,8 +143,7 @@
       "type": "object",
       "required": [
         "id",
-        "label",
-        "contains"
+        "label"
       ]
     },
     "MemberSpec": {

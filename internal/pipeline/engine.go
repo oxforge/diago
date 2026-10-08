@@ -18,7 +18,16 @@ func layoutWith(ctx context.Context, g model.Graph, th theme.Theme, text bool, p
 		tg, cfg := layered.ForText(ctx, g)
 		return layered.Layout(ctx, tg, cfg, previous)
 	}
+	return layered.Layout(ctx, g, screenConfig(th), previous)
+}
+
+// screenConfig is the layered engine's screen Config (S14) for th: its
+// fonts, its node padding as the label padding, and its group padding on
+// both axes.
+func screenConfig(th theme.Theme) layered.Config {
 	fontOf := func(f theme.FontStyle) size.Font { return size.Font{Family: f.Family, Size: f.Size} }
 	cfg := layered.ScreenConfig(fontOf(th.Node.Font), fontOf(th.Class.MemberFont), fontOf(th.Edge.LabelFont), fontOf(th.Group.LabelFont))
-	return layered.Layout(ctx, g, cfg, previous)
+	cfg.Size.PadX, cfg.Size.PadY = th.Node.Padding.X, th.Node.Padding.Y
+	cfg.GroupPadX, cfg.GroupPadY = th.Group.Padding, th.Group.Padding
+	return cfg
 }

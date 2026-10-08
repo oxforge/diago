@@ -244,3 +244,92 @@ func TestRenderSequence_InteractionWithColor(t *testing.T) {
 	// Should contain a custom arrow marker for the color.
 	assert.Contains(t, svg, "diago-arrow-e74c3c", "colored interaction should have a custom arrow marker")
 }
+
+// svgNode is a generic XML element, enough to walk a rendered SVG.
+type svgNode struct {
+	XMLName  xml.Name
+	Attrs    []xml.Attr `xml:",any,attr"`
+	Content  string     `xml:",chardata"`
+	Children []svgNode  `xml:",any"`
+}
+
+func (n svgNode) attr(name string) string {
+	for _, a := range n.Attrs {
+		if a.Name.Local == name {
+			return a.Value
+		}
+	}
+	return ""
+}
+
+// findByID returns the element whose id attribute is id.
+func (n svgNode) findByID(id string) (svgNode, bool) {
+	if n.attr("id") == id {
+		return n, true
+	}
+	for _, c := range n.Children {
+		if got, ok := c.findByID(id); ok {
+			return got, true
+		}
+	}
+	return svgNode{}, false
+}
+
+func parseSVG(t *testing.T, out string) svgNode {
+	t.Helper()
+	var root svgNode
+	require.NoError(t, xml.Unmarshal([]byte(out), &root))
+	return root
+}
+
+// The fragment group itself, never a section group, holds a solid
+// pentagon tab at the frame's top-left with the operator inside it, and
+// the guards sit where the layout put them.
+func TestRenderSequence_FragmentTabHoldsItsOperator(t *testing.T) {
+	th := theme.DefaultTheme()
+	for _, typ := range []model.FragmentType{model.FragmentAlt, model.FragmentOpt, model.FragmentLoop, model.FragmentPar, model.FragmentBreak} {
+		for _, diff := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/diff=%v", typ, diff), func(t *testing.T) {
+				seq := basicSequence()
+				seq.Fragments = []model.PositionedFragment{{
+					Type: typ, X: 30, Y: 90, Width: 380, Height: 120, TabWidth: 40, TabHeight: 24, TabCut: 6,
+					Sections: []model.PositionedFragmentSection{
+						{Label: "ready", Y: 90, LabelX: 78, LabelY: 102, LabelWidth: 44},
+						{Label: "late", Y: 150, LabelX: 38, LabelY: 162, LabelWidth: 36},
+					},
+				}}
+				var out string
+				if diff {
+					out = RenderSequenceWithOptions(seq, th, seqStatusOpts(th, map[string]string{"fragment:0": "changed", "section:0/1": "added"}))
+				} else {
+					out = RenderSequence(seq, th)
+				}
+				frag, ok := parseSVG(t, out).findByID("fragment-0")
+				require.True(t, ok, "a fragment-0 group")
+
+				var tab, op *svgNode
+				for i, c := range frag.Children {
+					switch {
+					case c.XMLName.Local == "path" && tab == nil:
+						tab = &frag.Children[i]
+					case c.XMLName.Local == "text" && c.Content == typ.String():
+						op = &frag.Children[i]
+					}
+				}
+				require.NotNil(t, tab, "a tab path directly in the fragment group")
+				assert.True(t, strings.HasPrefix(tab.attr("d"), "M 30 90 L 70 90 L 70 "), "the tab starts at the frame's top-left and spans its width: %q", tab.attr("d"))
+				assert.Contains(t, tab.attr("d"), " L 30 114 Z", "the tab closes along the frame's left side at its height")
+				assert.Empty(t, tab.attr("stroke-dasharray"), "the tab is drawn solid")
+				assert.Equal(t, th.Fragment.Stroke, tab.attr("stroke"))
+				require.NotNil(t, op, "the operator %q as text directly in the fragment group", typ)
+				assert.Equal(t, "102", op.attr("y"), "the operator sits on the tab's middle row")
+				assert.Equal(t, fmt.Sprint(th.Fragment.LabelFont.Weight), op.attr("font-weight"))
+
+				for k, want := range [][2]string{{"78", "102"}, {"38", "162"}} {
+					guard := "[" + seq.Fragments[0].Sections[k].Label + "]"
+					assert.Contains(t, out, fmt.Sprintf(`<text x="%s" y="%s"`, want[0], want[1]), "guard %s at the layout's position", guard)
+				}
+			})
+		}
+	}
+}

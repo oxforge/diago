@@ -16,19 +16,26 @@ import (
 // by content: an SVG diago rendered (its metadata is the exact anchor; one
 // golayout rendered before the cutover to the layered engine anchors as a
 // best effort), a carrier JSON, or a spec of the same type as the diagram
-// being rendered (specType, "flow" or "class"). A spec is laid out fresh
+// being rendered (specType). A flow or class spec is laid out fresh
 // as the render anchored on it lays out its own spec (S13): under the text
 // profile when format is text ("text" or "txt"), else under the screen
 // profile of the theme themeName ("" for the default), the render's
 // -format and the theme it uses (RenderTheme of the render's spec and
 // -theme, never the previous spec's field); so it is exact for one step,
 // since layout is deterministic. An SVG or a carrier is what it is,
-// whatever the format and the theme. Every failure of the file itself is
-// a schema.ValidationErrors on field "previous".
+// whatever the format and the theme. A sequence render discards its
+// previous (sequence diagrams have no layout freedom), so for specType
+// "sequence" the file is only checked to be what -previous accepts, any
+// SVG, a carrier or a valid sequence spec, and an empty carrier stands for
+// it. Every failure of the file itself is a schema.ValidationErrors on
+// field "previous".
 func ParsePrevious(ctx context.Context, data []byte, specType, format, themeName string) (*model.LayoutHints, error) {
 	trimmed := bytes.TrimSpace(data)
 	switch {
 	case bytes.HasPrefix(trimmed, []byte("<?xml")) || bytes.HasPrefix(trimmed, []byte("<svg")):
+		if specType == "sequence" {
+			return model.NewLayoutHints(), nil
+		}
 		h, err := svgrender.ExtractLayoutHints(string(trimmed))
 		if err != nil {
 			return nil, previousError(err.Error())
@@ -58,6 +65,12 @@ func ParsePrevious(ctx context.Context, data []byte, specType, format, themeName
 		}
 		if probe.Type != specType {
 			return nil, previousError(fmt.Sprintf("a previous spec must be a %s diagram, got type %q", specType, probe.Type))
+		}
+		if specType == "sequence" {
+			if _, err := schema.ParseSequence(trimmed); err != nil {
+				return nil, previousError("previous spec: " + err.Error())
+			}
+			return model.NewLayoutHints(), nil
 		}
 		return previousFromSpec(ctx, trimmed, specType, format, themeName)
 	default:

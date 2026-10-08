@@ -1,5 +1,5 @@
 // Package layered is the layered layout engine (Part 2 of the layout rules
-// spec), a Go port of neat's Sugiyama pipeline. Each stage lives in its
+// spec), a Sugiyama pipeline in pure Go. Each stage lives in its
 // own package; this one holds the Config and assembles the stages.
 package layered
 

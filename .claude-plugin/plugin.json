@@ -1,7 +1,7 @@
 {
   "name": "diago",
   "description": "Diagrams from typed JSON specs with the diago CLI: how to draw them well, and showing them wherever an agent presents structure, with diff diagrams for changes and diagram-augmented specs and plans, and a SessionStart hook that adds the rule to every session",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "author": { "name": "oxforge" },
   "keywords": ["diagrams", "architecture", "sequence", "class", "diff", "specs", "plans", "review", "superpowers"]
 }

@@ -53,8 +53,14 @@ func LayoutWithOptions(diagram model.SequenceDiagram, p Profile, opts LayoutOpti
 		return &model.PositionedSequence{}
 	}
 
+	actorIndex := make(map[string]int, len(diagram.Actors))
+	for i, a := range diagram.Actors {
+		actorIndex[a.ID] = i
+	}
+	plans := planFragments(diagram.Fragments, diagram.Interactions, actorIndex, p)
+
 	// 1. Position actors.
-	posActors, actorIndex, centerX, actorBoxWidths, maxHeaderH := layoutActors(diagram, p)
+	posActors, centerX, actorBoxWidths, maxHeaderH := layoutActors(diagram, actorIndex, plans, p)
 
 	// 2. Position interactions vertically and route them.
 	posInteractions, interactionY := layoutInteractions(diagram, actorIndex, centerX, maxHeaderH, p)
@@ -66,7 +72,7 @@ func LayoutWithOptions(diagram model.SequenceDiagram, p Profile, opts LayoutOpti
 	}
 
 	// 4. Compute fragment bounds.
-	posFragments := computeFragments(diagram.Fragments, interactionY, actorIndex, centerX, posActors, p)
+	posFragments := computeFragments(plans, diagram.Interactions, interactionY, actorIndex, centerX, posActors, p)
 
 	// 5. Finalize dimensions and lifelines.
 	width, height := calculateDimensions(
@@ -90,11 +96,15 @@ type actorSize struct {
 	w, h float64
 }
 
-// layoutActors computes the header box sizes and X-coordinates for each actor.
+// layoutActors computes the header box sizes and X-coordinates for each
+// actor: far enough apart for their boxes, the labels of the messages
+// between neighbors and, on screen, the fragment headers (plans).
 func layoutActors(
 	diagram model.SequenceDiagram,
+	actorIndex map[string]int,
+	plans []fragmentPlan,
 	p Profile,
-) ([]model.PositionedActor, map[string]int, []float64, []float64, float64) {
+) ([]model.PositionedActor, []float64, []float64, float64) {
 	sizes := make([]actorSize, len(diagram.Actors))
 	maxHeaderH := 0.0
 	for i, a := range diagram.Actors {
@@ -132,11 +142,6 @@ func layoutActors(
 		centerX[i] = centerX[i-1] + minGap
 	}
 
-	actorIndex := make(map[string]int, len(diagram.Actors))
-	for i, a := range diagram.Actors {
-		actorIndex[a.ID] = i
-	}
-
 	maxLabelW := make([]float64, len(diagram.Actors))
 	for _, it := range diagram.Interactions {
 		if it.From == it.To {
@@ -163,6 +168,12 @@ func layoutActors(
 		}
 	}
 
+	boxW := make([]float64, len(sizes))
+	for i, sz := range sizes {
+		boxW[i] = sz.w
+	}
+	spaceForFragmentHeaders(plans, diagram.Interactions, actorIndex, boxW, centerX, p)
+
 	actorBoxY := p.TopMargin
 	posActors := make([]model.PositionedActor, len(diagram.Actors))
 	actorBoxWidths := make([]float64, len(diagram.Actors))
@@ -184,7 +195,7 @@ func layoutActors(
 		actorBoxWidths[i] = bw
 	}
 
-	return posActors, actorIndex, centerX, actorBoxWidths, maxHeaderH
+	return posActors, centerX, actorBoxWidths, maxHeaderH
 }
 
 // layoutInteractions computes the vertical positions and point coordinates for interactions.
@@ -195,14 +206,18 @@ func layoutInteractions(
 	maxHeaderH float64,
 	p Profile,
 ) ([]model.PositionedInteraction, []float64) {
-	fragmentSectionStarts := make(map[int]bool)
+	// fragmentSectionStarts counts the sections that start at each
+	// interaction, over every fragment: each one draws its own header row
+	// (a frame top or a divider) above that message, so frames opening on
+	// the same message each reserve their room.
+	fragmentSectionStarts := make(map[int]int)
 	// fragmentEnds counts the fragments whose last section ends at each
 	// interaction: every one of them closes a frame below that message, and
 	// nested frames close on successive rows.
 	fragmentEnds := make(map[int]int)
 	for _, f := range diagram.Fragments {
 		for _, sec := range f.Sections {
-			fragmentSectionStarts[sec.Start] = true
+			fragmentSectionStarts[sec.Start]++
 		}
 		if len(f.Sections) > 0 {
 			fragmentEnds[f.Sections[len(f.Sections)-1].End]++
@@ -213,9 +228,7 @@ func layoutInteractions(
 	interactionY := make([]float64, len(diagram.Interactions))
 	currentY := firstInteractionY
 	for i, it := range diagram.Interactions {
-		if fragmentSectionStarts[i] {
-			currentY += p.FragmentHeaderHeight
-		}
+		currentY += float64(fragmentSectionStarts[i]) * p.FragmentHeaderHeight
 		interactionY[i] = currentY
 		if it.From == it.To {
 			currentY += p.SelfLoopHeight + p.InteractionSpacingY
@@ -305,14 +318,7 @@ func calculateDimensions(
 	rightmostX := centerX[len(centerX)-1] + actorBoxWidths[len(actorBoxWidths)-1]/2
 	for _, it := range diagram.Interactions {
 		if it.From == it.To {
-			loopRight := centerX[actorIndex[it.From]] + p.SelfLoopWidth
-			if it.Label != "" {
-				lw, _ := p.MeasureText(it.Label, p.Fonts.LabelSize, p.Fonts.Family)
-				loopRight += p.SelfLabelGap + lw
-			}
-			if loopRight > rightmostX {
-				rightmostX = loopRight
-			}
+			rightmostX = max(rightmostX, selfMessageRight(it, centerX[actorIndex[it.From]], p))
 		}
 	}
 

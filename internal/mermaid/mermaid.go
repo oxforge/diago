@@ -7,7 +7,7 @@
 // and ClassSpec, so the CLI validates the translation like any JSON. An
 // unclosed block reports the line after the last statement in the
 // flowchart and class dialects and the block's opening line in the
-// sequence dialect, each mirroring the neat baseline.
+// sequence dialect.
 package mermaid
 
 import (
@@ -81,8 +81,8 @@ func splitLines(src []byte) []line {
 	return out
 }
 
-// unquote strips one pair of surrounding double quotes, as neat does for
-// labels and titles, after trimming whitespace.
+// unquote strips one pair of surrounding double quotes from a label or a
+// title, after trimming whitespace.
 func unquote(s string) string {
 	t := strings.TrimSpace(s)
 	if len(t) >= 2 && strings.HasPrefix(t, `"`) && strings.HasSuffix(t, `"`) {

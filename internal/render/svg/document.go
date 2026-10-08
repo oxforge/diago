@@ -83,16 +83,6 @@ func (m Marker) Render(w io.Writer) {
 	io.WriteString(w, "</marker>")
 }
 
-// RawXML is an element that writes pre-formed XML content verbatim.
-type RawXML struct {
-	Content string
-}
-
-// Render writes the raw XML content to w.
-func (r RawXML) Render(w io.Writer) {
-	io.WriteString(w, r.Content)
-}
-
 // SVGDoc is a complete SVG document.
 type SVGDoc struct {
 	Width, Height float64

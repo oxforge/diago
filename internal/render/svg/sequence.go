@@ -55,7 +55,7 @@ func RenderSequence(seq *model.PositionedSequence, th theme.Theme) string {
 // byte-identical output to RenderSequence.
 func RenderSequenceWithOptions(seq *model.PositionedSequence, th theme.Theme, opts *RenderOptions) string {
 	band, titleW := titleBand(seq.Title, th.Actor.Font)
-	changesW, changesH := changeListSize(opts.changes(), th)
+	changesW, changesH := changeListSize(opts.caption(), opts.changes(), th)
 	w := max(seq.Width, titleW, changesW)
 	h := seq.Height + changesH + band
 
@@ -90,7 +90,7 @@ func RenderSequenceWithOptions(seq *model.PositionedSequence, th theme.Theme, op
 			idx := i
 			sectionClass = func(k int) string { return opts.class("section", fmt.Sprintf("%d/%d", idx, k)) }
 		}
-		grp := renderFragment(i, f, th.Fragment, th.Background, sectionClass)
+		grp := renderFragment(i, f, th.Fragment, sectionClass)
 		if opts != nil {
 			grp.Class = opts.class("fragment", strconv.Itoa(i))
 		}
@@ -124,11 +124,6 @@ func RenderSequenceWithOptions(seq *model.PositionedSequence, th theme.Theme, op
 				Children: children,
 			})
 		}
-	}
-
-	// Add sketch distortion filter to defs if using sketch style.
-	if sketch {
-		doc.Defs = append(doc.Defs, RawXML{Content: sketchDistortionFilter()})
 	}
 
 	// itAccent is an interaction's own color, which a status-paint render
@@ -230,8 +225,8 @@ func RenderSequenceWithOptions(seq *model.PositionedSequence, th theme.Theme, op
 		doc.Children = append(doc.Children, grp)
 	}
 
-	if lines := opts.changes(); len(lines) > 0 {
-		doc.Children = append(doc.Children, renderChangeList(lines, seq.Height, th))
+	if caption, lines := opts.caption(), opts.changes(); caption != "" || len(lines) > 0 {
+		doc.Children = append(doc.Children, renderChangeList(caption, lines, seq.Height, th))
 	}
 
 	doc.Children = withTitleBand(doc.Children, seq.Title, w, band, th.Actor.Font)

@@ -209,7 +209,7 @@ func TestArrange_DeterministicPackedParts(t *testing.T) {
 	}
 }
 
-// dependencyGraph is the corpus's neat/dependency-graph in direction dir:
+// dependencyGraph is the corpus's dependency-graph in direction dir:
 // under RIGHT, S8's give-way moves pkg-0a's exit to pkg-1b past its exit to
 // pkg-1f, and the face's ports then take their positions in their order.
 func dependencyGraph(t *testing.T, dir model.Direction) model.Graph {
@@ -234,7 +234,7 @@ func dependencyGraph(t *testing.T, dir model.Direction) model.Graph {
 // that passes no other end of the node wins over an earlier one that
 // does, in the order the spots are tried, and when every clear spot
 // passes one, the face's ports share out their positions in the order
-// they held, ties by edge order (neat/dependency-graph). It confirms that
+// they held, ties by edge order (dependency-graph). It confirms that
 // a face is reordered (a port_gave_way decision) before checking that
 // the arrangement repeats byte-identically, 50 times, under RIGHT and
 // DOWN, in both profiles.
@@ -271,7 +271,7 @@ func TestArrange_DeterministicPortOrder(t *testing.T) {
 // TestArrange_DeterministicLoops is C1 for S6's Loops kept together: the
 // loop transposition's swaps, in layer and pair order, and its side-aware
 // count, sides held in edge order (flow-loop, where End leaves the loop,
-// and neat/ml-training, whose two-cycle beside a longer loop has the
+// and ml-training, whose two-cycle beside a longer loop has the
 // side-aware count keep a swap out). It confirms the transposition swaps
 // (a loops_kept decision) before checking that the arrangement repeats
 // byte-identically, 50 times, under DOWN and RIGHT, in both profiles.

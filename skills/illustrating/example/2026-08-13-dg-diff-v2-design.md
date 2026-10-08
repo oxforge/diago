@@ -1,6 +1,6 @@
-# neat diff v2 — union-layout diff, patch input, spec-anchored incremental renders
+# dg diff v2 — union-layout diff, patch input, spec-anchored incremental renders
 
-_A real design spec (for neat, a sibling diagram tool) used as the worked example for the `illustrating` skill's `documents.md`: every diagram is a diago spec in `2026-08-13-neat-diff-v2-design.diagrams/`, rendered and embedded by `scripts/diago-render`. `architecture` has two versions, so the document carries its revision diff._
+_A real design spec (for a sibling diagram tool, called dg here) used as the worked example for the `illustrating` skill's `documents.md`: every diagram is a diago spec in `2026-08-13-dg-diff-v2-design.diagrams/`, rendered and embedded by `scripts/diago-render`. `architecture` has two versions, so the document carries its revision diff._
 
 Date: 2026-08-13. Status: approved design, pending implementation plan.
 
@@ -11,12 +11,12 @@ as the service evolves, the user wants (1) to re-render the updated spec without
 reshuffling the layout, so old and new renders are easy to compare, and (2) to
 render the *change itself* — what was added, removed, changed.
 
-Both workflows already exist (`neat render --previous`, `neat diff`). A road
+Both workflows already exist (`dg render --previous`, `dg diff`). A road
 test against the use case (small web-service diagram, one evolution step with
 adds + a removal + a rename) confirmed they work and found these gaps, all in
 scope for this design:
 
-1. **Bug:** `neat render -f text` silently ignores `--previous` — the CLI's
+1. **Bug:** `dg render -f text` silently ignores `--previous` — the CLI's
    text branch never threads the layout options through.
 2. **Ghost overlap:** `renderDiffSvg` overlays removed elements at their old
    positions on top of the *new* layout; a new node placed where a removed node
@@ -26,89 +26,90 @@ scope for this design:
    are unmarked.
 4. **Shallow change detection:** node changes = label/shape only; edge changes
    (label, style, class) are not detected at all.
-5. **No PNG output** for `neat diff`.
+5. **No PNG output** for `dg diff`.
 6. **`--previous` requires the rendered SVG**; users who think in specs want to
    anchor on the previous *spec* file.
 
 Additionally, users may have only the old spec plus a textual diff of the spec
-(e.g. from `git diff`) — `neat diff` should accept that directly.
+(e.g. from `git diff`) — `dg diff` should accept that directly.
 
 ## Changes since v1
 
 - The ghost overlay path in the SVG renderer is gone; removed elements now
   occupy real space in a single union layout.
-- `neat diff` accepts a unified diff as its second argument
-  (`applyUnifiedDiff`), and gains PNG output via `@neatdiag/png`.
+- `dg diff` accepts a unified diff as its second argument
+  (`applyUnifiedDiff`), and gains PNG output via `@dg/png`.
 
 <!-- diago:begin architecture.diff -->
 ```text
-  ┌──────────────┐     ┌─ cli ────────────┐     ┌────────────────────────┐
-  │ before spec  │     │                  │     │ ~ after spec or patch  │
-  └──────────────┘     │  ╭────────────╮  │     └────────────────────────┘
-          │            │  │ neat diff  │  │               │      │
-          │            │  ╰────────────╯  │               │      │
-          │            └─────────┼────────┘               │      │ if unified diff
-          │                      │                        │      │
-          │                      │                        │      │
-          └────────────────┐     │     ┌──────────────────┘      │
-                           │     │     │                ┌────────┘
-                           │     │     │                │
-         ┌─ core ──────────┼─────┼─────┼────────────────┼────────────┐
-         │                 │     │     │                ▼            │
-         │                 │     │     │     ┌────────────────────┐  │
-         │                 │     │     │     │ + applyUnifiedDiff │  │
-         │                 │     │     │     └────────────────────┘  │
-         │                 │     │     │  new spec text │            │
-         │                 │     │     │                │            │
-         │                 │     └──┐  │  ┌─────────────┘            │
-         │                 └───────┐│  │  │                          │
-         │                         ▼▼  ▼  ▼                          │
-         │                   ┌────────────────┐                      │
-         │                   │ decodeDocument │                      │
-         │                   └────────────────┘                      │
-         │          reads old + new   │                              │
-         │                            │ IR graphs                    │
-         │                            ▼                              │
-         │                   ┌────────────────┐                      │
-         │                   │ diffGraphs v2  │                      │
-         │                   └────────────────┘                      │
-         │                            │                              │
-         │                            │ GraphDiff                    │
-         │                            ▼                              │
-         │                  ┌──────────────────┐                     │
-         │                  │ buildUnionGraph  │                     │
-         │                  └──────────────────┘                     │
-         │                            │                              │
-         │                            │ union + status               │
-         │                            ▼                              │
-         │                ┌──────────────────────┐                   │
-         │                │ layout (incremental) │                   │
-         │                └──────────────────────┘                   │
-         │                       │        │                          │
-         │                       │        │                          │
-         │           ┌───────────┘        └─────┐                    │
-         │           ▼                          ▼                    │
-         │  ┌────────────────┐         ┌────────────────┐            │
-         │  │ renderDiffSvg  │         │ renderDiffText │            │
-         │  └────────────────┘         └────────────────┘            │
-         │       ╎      ╎ overlays removed                           │
-         │       ╎      ╎                                            │
-         │       ╎      └╌╌╌╌╌╌╌╌┐                                   │
-         │       ╎               ▼                                   │
-         │       ╎     ┌──────────────────┐                          │
-         │       ╎     │ - ghost overlay  │                          │
-         │       ╎     └──────────────────┘                          │
-         └───────┼───────────────────────────────────────────────────┘
-                 ╎ rasterizes
-                 ╎
-                 ╎
-      ┌─ + png ──┼─────────┐
-      │          ▼         │
-      │  ┌──────────────┐  │
-      │  │ + renderPng  │  │
-      │  └──────────────┘  │
-      └────────────────────┘
+  ┌──────────────┐     ┌─ cli ──────────┐      ┌────────────────────────┐
+  │ before spec  │     │                │      │ ~ after spec or patch  │
+  └──────────────┘     │  ╭──────────╮  │      └────────────────────────┘
+          │            │  │ dg diff  │  │                │      │
+          │            │  ╰──────────╯  │                │      │
+          │            └────────┼───────┘                │      │ if unified diff
+          │                     │                        │      │
+          │                     │                        │      │
+          └───────────────┐     │     ┌──────────────────┘      │
+                          │     │     │                ┌────────┘
+                          │     │     │                │
+        ┌─ core ──────────┼─────┼─────┼────────────────┼────────────┐
+        │                 │     │     │                ▼            │
+        │                 │     │     │     ┌────────────────────┐  │
+        │                 │     │     │     │ + applyUnifiedDiff │  │
+        │                 │     │     │     └────────────────────┘  │
+        │                 │     │     │  new spec text │            │
+        │                 │     │     │                │            │
+        │                 │     └──┐  │  ┌─────────────┘            │
+        │                 └───────┐│  │  │                          │
+        │                         ▼▼  ▼  ▼                          │
+        │                   ┌────────────────┐                      │
+        │                   │ decodeDocument │                      │
+        │                   └────────────────┘                      │
+        │          reads old + new   │                              │
+        │                            │ IR graphs                    │
+        │                            ▼                              │
+        │                   ┌────────────────┐                      │
+        │                   │ diffGraphs v2  │                      │
+        │                   └────────────────┘                      │
+        │                            │                              │
+        │                            │ GraphDiff                    │
+        │                            ▼                              │
+        │                  ┌──────────────────┐                     │
+        │                  │ buildUnionGraph  │                     │
+        │                  └──────────────────┘                     │
+        │                            │                              │
+        │                            │ union + status               │
+        │                            ▼                              │
+        │                ┌──────────────────────┐                   │
+        │                │ layout (incremental) │                   │
+        │                └──────────────────────┘                   │
+        │                       │        │                          │
+        │                       │        │                          │
+        │           ┌───────────┘        └─────┐                    │
+        │           ▼                          ▼                    │
+        │  ┌────────────────┐         ┌────────────────┐            │
+        │  │ renderDiffSvg  │         │ renderDiffText │            │
+        │  └────────────────┘         └────────────────┘            │
+        │       ╎      ╎ overlays removed                           │
+        │       ╎      ╎                                            │
+        │       ╎      └╌╌╌╌╌╌╌╌┐                                   │
+        │       ╎               ▼                                   │
+        │       ╎     ┌──────────────────┐                          │
+        │       ╎     │ - ghost overlay  │                          │
+        │       ╎     └──────────────────┘                          │
+        └───────┼───────────────────────────────────────────────────┘
+                ╎ rasterizes
+                ╎
+                ╎
+     ┌─ + png ──┼─────────┐
+     │          ▼         │
+     │  ┌──────────────┐  │
+     │  │ + renderPng  │  │
+     │  └──────────────┘  │
+     └────────────────────┘
 
+architecture.v1.json → architecture.v2.json
 added: node applyUnifiedDiff
 added: node renderPng
 added: edge after spec or patch -> applyUnifiedDiff
@@ -119,7 +120,7 @@ removed: node ghost overlay
 removed: edge renderDiffSvg -> ghost overlay
 changed: node after spec or patch: label "after spec" → "after spec or patch"
 ```
-[architecture.v1-v2.diff.png](2026-08-13-neat-diff-v2-design.diagrams/architecture.v1-v2.diff.png)
+[architecture.v1-v2.diff.png](2026-08-13-dg-diff-v2-design.diagrams/architecture.v1-v2.diff.png)
 <!-- diago:end architecture.diff -->
 
 ## Design
@@ -160,7 +161,7 @@ changed: node after spec or patch: label "after spec" → "after spec or patch"
 ◆── composition
 ╌╌► dependency
 ```
-[data-model.v1.png](2026-08-13-neat-diff-v2-design.diagrams/data-model.v1.png)
+[data-model.v1.png](2026-08-13-dg-diff-v2-design.diagrams/data-model.v1.png)
 <!-- diago:end data-model -->
 
 Identity is the stable id (nodes: explicit; edges: explicit or derived
@@ -177,67 +178,67 @@ Identity is the stable id (nodes: explicit; edges: explicit or derived
 
 <!-- diago:begin architecture -->
 ```text
-  ┌──────────────┐     ┌─ cli ────────────┐     ┌──────────────────────┐
-  │ before spec  │     │                  │     │ after spec or patch  │
-  └──────────────┘     │  ╭────────────╮  │     └──────────────────────┘
-          │            │  │ neat diff  │  │              │      │
-          │            │  ╰────────────╯  │              │      │
-          │            └─────────┼────────┘              │      │ if unified diff
-          │                      │                       │      │
-          │                      │                       │      │
-          └────────────────┐     │     ┌─────────────────┘      │
-                           │     │     │               ┌────────┘
-                           │     │     │               │
-             ┌─ core ──────┼─────┼─────┼───────────────┼───────────┐
-             │             │     │     │               ▼           │
-             │             │     │     │     ┌──────────────────┐  │
-             │             │     │     │     │ applyUnifiedDiff │  │
-             │             │     │     │     └──────────────────┘  │
-             │             │     │     │ new spec text │           │
-             │             │     │     │               │           │
-             │             │     └──┐  │  ┌────────────┘           │
-             │             └───────┐│  │  │                        │
-             │                     ▼▼  ▼  ▼                        │
-             │               ┌────────────────┐                    │
-             │               │ decodeDocument │                    │
-             │               └────────────────┘                    │
-             │      reads old + new   │                            │
-             │                        │ IR graphs                  │
-             │                        ▼                            │
-             │               ┌────────────────┐                    │
-             │               │ diffGraphs v2  │                    │
-             │               └────────────────┘                    │
-             │                        │                            │
-             │                        │ GraphDiff                  │
-             │                        ▼                            │
-             │              ┌──────────────────┐                   │
-             │              │ buildUnionGraph  │                   │
-             │              └──────────────────┘                   │
-             │                        │                            │
-             │                        │ union + status             │
-             │                        ▼                            │
-             │            ┌──────────────────────┐                 │
-             │            │ layout (incremental) │                 │
-             │            └──────────────────────┘                 │
-             │                   │        │                        │
-             │                   │        │                        │
-             │           ┌───────┘        └─────┐                  │
-             │           ▼                      ▼                  │
-             │  ┌────────────────┐     ┌────────────────┐          │
-             │  │ renderDiffSvg  │     │ renderDiffText │          │
-             │  └────────────────┘     └────────────────┘          │
-             └───────────┼─────────────────────────────────────────┘
-                         ╎
-                         ╎ rasterizes
-                         ╎
-               ┌─ png ───┼────────┐
-               │         ▼        │
-               │  ┌────────────┐  │
-               │  │ renderPng  │  │
-               │  └────────────┘  │
-               └──────────────────┘
+  ┌──────────────┐     ┌─ cli ──────────┐      ┌──────────────────────┐
+  │ before spec  │     │                │      │ after spec or patch  │
+  └──────────────┘     │  ╭──────────╮  │      └──────────────────────┘
+          │            │  │ dg diff  │  │               │      │
+          │            │  ╰──────────╯  │               │      │
+          │            └────────┼───────┘               │      │ if unified diff
+          │                     │                       │      │
+          │                     │                       │      │
+          └───────────────┐     │     ┌─────────────────┘      │
+                          │     │     │               ┌────────┘
+                          │     │     │               │
+            ┌─ core ──────┼─────┼─────┼───────────────┼───────────┐
+            │             │     │     │               ▼           │
+            │             │     │     │     ┌──────────────────┐  │
+            │             │     │     │     │ applyUnifiedDiff │  │
+            │             │     │     │     └──────────────────┘  │
+            │             │     │     │ new spec text │           │
+            │             │     │     │               │           │
+            │             │     └──┐  │  ┌────────────┘           │
+            │             └───────┐│  │  │                        │
+            │                     ▼▼  ▼  ▼                        │
+            │               ┌────────────────┐                    │
+            │               │ decodeDocument │                    │
+            │               └────────────────┘                    │
+            │      reads old + new   │                            │
+            │                        │ IR graphs                  │
+            │                        ▼                            │
+            │               ┌────────────────┐                    │
+            │               │ diffGraphs v2  │                    │
+            │               └────────────────┘                    │
+            │                        │                            │
+            │                        │ GraphDiff                  │
+            │                        ▼                            │
+            │              ┌──────────────────┐                   │
+            │              │ buildUnionGraph  │                   │
+            │              └──────────────────┘                   │
+            │                        │                            │
+            │                        │ union + status             │
+            │                        ▼                            │
+            │            ┌──────────────────────┐                 │
+            │            │ layout (incremental) │                 │
+            │            └──────────────────────┘                 │
+            │                   │        │                        │
+            │                   │        │                        │
+            │           ┌───────┘        └─────┐                  │
+            │           ▼                      ▼                  │
+            │  ┌────────────────┐     ┌────────────────┐          │
+            │  │ renderDiffSvg  │     │ renderDiffText │          │
+            │  └────────────────┘     └────────────────┘          │
+            └───────────┼─────────────────────────────────────────┘
+                        ╎
+                        ╎ rasterizes
+                        ╎
+              ┌─ png ───┼────────┐
+              │         ▼        │
+              │  ┌────────────┐  │
+              │  │ renderPng  │  │
+              │  └────────────┘  │
+              └──────────────────┘
 ```
-[architecture.v2.png](2026-08-13-neat-diff-v2-design.diagrams/architecture.v2.png)
+[architecture.v2.png](2026-08-13-dg-diff-v2-design.diagrams/architecture.v2.png)
 <!-- diago:end architecture -->
 
 Build one IR graph: everything from *after*, plus the removed nodes/edges from
@@ -270,7 +271,7 @@ All three formats consume the same union layout + status map.
   the existing legend footer listing every change including edge changes
   (edges cannot carry marks in text art). Dashed borders for removed nodes are
   a stretch goal, not core.
-- **PNG:** the CLI rasterizes the diff SVG via `@neatdiag/png` (native dep
+- **PNG:** the CLI rasterizes the diff SVG via `@dg/png` (native dep
   stays out of core).
 
 ### 4. Patch input (unified diff)
@@ -313,10 +314,10 @@ All three formats consume the same union layout + status map.
                │ User │             │ cli  │      │ patch  │   │ core │             │ layout │         │ render │
                └──────┘             └──────┘      └────────┘   └──────┘             └────────┘         └────────┘
 ```
-[diff-run.v1.png](2026-08-13-neat-diff-v2-design.diagrams/diff-run.v1.png)
+[diff-run.v1.png](2026-08-13-dg-diff-v2-design.diagrams/diff-run.v1.png)
 <!-- diago:end diff-run -->
 
-`neat diff` accepts as its second argument either a new spec **or a unified
+`dg diff` accepts as its second argument either a new spec **or a unified
 diff** of the spec file (`git diff` / `diff -u` output). Recognition: extension
 `.patch`/`.diff`, or content starting with `diff `, `--- `, or `@@`; anything
 else is treated as a spec.
@@ -334,12 +335,12 @@ as-is regardless of its paths.
 
 ```sh
 # diff: two specs (JSON or Mermaid, mixable) or spec + unified patch
-neat diff <old> <new-or-patch> [-f svg|png|text] [-o out] [--theme light|dark]
+dg diff <old> <new-or-patch> [-f svg|png|text] [-o out] [--theme light|dark]
 
 # incremental render: --previous accepts a SPEC or a rendered SVG / layout JSON
-neat render new.mmd --previous old.mmd  -o new.svg   # spec → fresh deterministic anchor
-neat render new.mmd --previous old.svg  -o new.svg   # SVG → exact anchor from metadata
-neat render new.mmd -f text --previous old.mmd       # NEW: works for text (see below)
+dg render new.mmd --previous old.mmd  -o new.svg   # spec → fresh deterministic anchor
+dg render new.mmd --previous old.svg  -o new.svg   # SVG → exact anchor from metadata
+dg render new.mmd -f text --previous old.mmd       # NEW: works for text (see below)
 ```
 
 - `--previous` input kind is sniffed the same way `readDocument` sniffs specs:
@@ -348,7 +349,7 @@ neat render new.mmd -f text --previous old.mmd       # NEW: works for text (see 
   Mermaid) and lay it out fresh. A spec anchor is exact for the first update; for chained updates the
   rendered SVG remains the exact carrier (replaying anchor chains from specs
   alone is out of scope here).
-- `neat diff` takes **no** `--previous`: it always anchors on the old spec's
+- `dg diff` takes **no** `--previous`: it always anchors on the old spec's
   own fresh layout — deterministic, no external state.
 - PNG output is binary: `-f png` requires `-o` (same rule as `render`).
 
@@ -387,12 +388,12 @@ dodging the unit-corruption gotcha that has bitten twice before.
 Three JSON specs of the same web service, committed under `examples/`, each
 evolution step exercising a distinct slice of the diff feature:
 
-- `service-v1.neat.json` — client, load balancer, API server, auth service,
+- `service-v1.dg.json` — client, load balancer, API server, auth service,
   Postgres, mail sender (the road-test baseline).
-- `service-v2.neat.json` — v1 plus: **added** Redis cache, job queue, email
+- `service-v2.dg.json` — v1 plus: **added** Redis cache, job queue, email
   worker (+ their edges); **removed** mail sender (+ its edge); **changed**
   node (API server relabeled "API Gateway").
-- `service-v3.neat.json` — v2 plus: **changed edge** (api→db gains a label and
+- `service-v3.dg.json` — v2 plus: **changed edge** (api→db gains a label and
   `dashed` style); **changed node class** (Postgres gains `danger` or similar);
   **endpoint move** (worker→db becomes worker→cache, rendering as removed +
   added); one **added** node (metrics) to keep growth visible.
@@ -418,28 +419,28 @@ generator documents this distinction.
 
 ```sh
 # Day 0
-neat render service.mmd -o service.svg
+dg render service.mmd -o service.svg
 
 # Service evolved: update the render without reshuffling
-neat render service.mmd --previous service-v1.mmd -o service.svg   # from old spec
-neat render service.mmd --previous service.svg    -o service.svg   # or old render
+dg render service.mmd --previous service-v1.mmd -o service.svg   # from old spec
+dg render service.mmd --previous service.svg    -o service.svg   # or old render
 
 # Show the change
-neat diff service-v1.mmd service.mmd -o changes.svg
-neat diff service-v1.mmd service.mmd -f text
-neat diff service-v1.mmd service.mmd -f png -o changes.png
+dg diff service-v1.mmd service.mmd -o changes.svg
+dg diff service-v1.mmd service.mmd -f text
+dg diff service-v1.mmd service.mmd -f png -o changes.png
 
 # Only have the old spec and a git patch of it
 git diff HEAD~3 -- diagrams/service.mmd > service.patch
-neat diff service-old.mmd service.patch -f png -o pr-diff.png
+dg diff service-old.mmd service.patch -f png -o pr-diff.png
 ```
 
 ## Out of scope
 
-- `--previous` on `neat diff` (ruled out 2026-08-13: diff is self-contained
+- `--previous` on `dg diff` (ruled out 2026-08-13: diff is self-contained
   over specs).
 - Replaying incremental anchor chains from specs / git revisions (a later
   change).
-- A neat-specific structured changeset format (unified diff chosen instead).
+- A dg-specific structured changeset format (unified diff chosen instead).
 - Side-by-side diff panes (union-in-place chosen instead).
 - Dashed text-art borders for removed nodes (stretch goal only).

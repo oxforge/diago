@@ -30,6 +30,39 @@ func TestParsePrevious_Errors(t *testing.T) {
 	}
 }
 
+// TestParsePrevious_ASequenceRender: a sequence render discards its
+// previous, so ParsePrevious only checks the file's kind for it: an SVG,
+// a carrier or a valid sequence spec; anything else, a spec of another
+// type or an invalid sequence spec, is an error on field "previous".
+func TestParsePrevious_ASequenceRender(t *testing.T) {
+	ctx := context.Background()
+	seq := `{"type":"sequence","actors":[{"id":"a","label":"A"}],"interactions":[]}`
+	for name, data := range map[string]string{
+		"sequence spec":    seq,
+		"svg without meta": `<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg"></svg>`,
+		"carrier":          `{"version":1,"scopes":{},"reversed":[]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			h, err := ParsePrevious(ctx, []byte(data), "sequence", "", "")
+			require.NoError(t, err)
+			assert.NotNil(t, h)
+		})
+	}
+	for name, data := range map[string]string{
+		"garbage":          "hello",
+		"flow spec":        `{"type":"flow","nodes":[{"id":"a","label":"A"}],"edges":[]}`,
+		"invalid sequence": `{"type":"sequence","actors":[]}`,
+		"wrong version":    `{"version":7,"scopes":{},"reversed":[]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := ParsePrevious(ctx, []byte(data), "sequence", "", "")
+			var ve schema.ValidationErrors
+			require.True(t, errors.As(err, &ve), "want ValidationErrors, got %v", err)
+			assert.Equal(t, "previous", ve[0].Field)
+		})
+	}
+}
+
 // flatByProfileSpec has a flat edge, e6 (edges[6]), that the screen
 // layout ranks and the text layout routes (S9, Flat edges).
 const flatByProfileSpec = `{"type":"flow","direction":"DOWN","nodes":[{"id":"start","label":"Start","shape":"circle"},` +

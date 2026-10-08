@@ -295,39 +295,20 @@ func extractEdgeGroups(t *testing.T, svgStr string) []edgeGroupInfo {
 	return results
 }
 
-func TestRenderSketchHasDistortionFilter(t *testing.T) {
+// TestRenderSketch_NoFilter: the sketch style draws by hand through its
+// paths alone. No element carries an SVG filter, which resvg would run
+// once per element over the whole canvas.
+func TestRenderSketch_NoFilter(t *testing.T) {
+	for _, style := range []string{"sketch", "clean"} {
+		th := theme.DefaultTheme()
+		th.Style = style
+		out := Render(twoNodeGraph(), th)
+		assert.NotContains(t, out, "<filter", style)
+		assert.NotContains(t, out, "filter=", style)
+	}
 	th := theme.DefaultTheme()
 	th.Style = "sketch"
-	out := Render(twoNodeGraph(), th)
-
-	// Filter definition should be in defs.
-	assert.Contains(t, out, `<filter id="sketch-distortion"`)
-	assert.Contains(t, out, `<feTurbulence`)
-	assert.Contains(t, out, `<feDisplacementMap`)
-
-	// Shape paths should have the filter applied.
-	assert.Contains(t, out, `filter="url(#sketch-distortion)"`)
-
-	// Text elements should NOT have the filter.
-	// Split on "<text " and check none contain "filter="
-	textParts := strings.Split(out, "<text ")
-	require.Greater(t, len(textParts), 1, "should have at least one text element")
-	for i := 1; i < len(textParts); i++ {
-		endIdx := strings.Index(textParts[i], ">")
-		if endIdx > 0 {
-			attrs := textParts[i][:endIdx]
-			assert.NotContains(t, attrs, "filter=",
-				"text element should not have filter attribute")
-		}
-	}
-}
-
-func TestRenderCleanNoDistortionFilter(t *testing.T) {
-	th := theme.DefaultTheme()
-	th.Style = "clean"
-	out := Render(twoNodeGraph(), th)
-	assert.NotContains(t, out, "sketch-distortion",
-		"clean style should not include sketch distortion filter")
+	assert.Contains(t, Render(twoNodeGraph(), th), "<path", "sketch shapes are hand-drawn paths")
 }
 
 func attrMap(attrs []xml.Attr) map[string]string {

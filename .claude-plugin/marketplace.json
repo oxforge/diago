@@ -1,13 +1,13 @@
 {
   "name": "diago",
   "owner": { "name": "oxforge" },
-  "metadata": { "description": "diago local marketplace", "version": "0.3.1" },
+  "metadata": { "description": "diago local marketplace", "version": "0.4.0" },
   "plugins": [
     {
       "name": "diago",
       "source": "./",
       "description": "Diagrams from typed JSON specs, shown wherever an agent presents structure (two skills and a SessionStart hook)",
-      "version": "0.3.1"
+      "version": "0.4.0"
     }
   ]
 }

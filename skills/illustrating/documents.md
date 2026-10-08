@@ -120,8 +120,9 @@ spec with `architecture` v1→v2, `diff-run`, `data-model`).
 2. For each diagram whose *structure* changed: copy `<slug>.v<N>.json` to
    `<slug>.v<N+1>.json` and edit it, keeping ids for things that are the same.
    Unchanged diagrams are not bumped.
-3. Run `diago-render <diagrams-dir>` (fix lint), then `--embed`. The new version
-   is laid out anchored on the old one, so unchanged boxes stay put.
+3. Run `diago-render <diagrams-dir>` (fix lint), then `--embed`. A flow or class
+   diagram's new version is laid out anchored on the old one, so unchanged
+   boxes stay put.
 4. Add or update a `## Changes since v<N>` section directly under the
    document's title block (before its first section): one line of prose per
    change, then a `<slug>.diff` marker pair per changed diagram:

@@ -23,21 +23,6 @@ const sketchSegSize = 20.0
 // sketchWobble is the maximum perpendicular displacement (px) for each subdivision point.
 const sketchWobble = 0.75
 
-// sketchDistortionFilterID is the SVG filter ID for the sketch distortion effect.
-
-// sketchDistortionFilterRef is the filter attribute value referencing the sketch distortion filter.
-const sketchDistortionFilterRef = "url(#sketch-distortion)"
-
-// sketchDistortionFilter returns the SVG filter definition XML for a subtle
-// hand-drawn distortion effect using feTurbulence + feDisplacementMap.
-// The seed is fixed for deterministic SVG output.
-func sketchDistortionFilter() string {
-	return `<filter id="sketch-distortion" filterUnits="userSpaceOnUse" x="-5%" y="-5%" width="110%" height="110%">` +
-		`<feTurbulence type="turbulence" baseFrequency="0.03" numOctaves="2" seed="42" result="noise"/>` +
-		`<feDisplacementMap in="SourceGraphic" in2="noise" scale="1" xChannelSelector="R" yChannelSelector="G"/>` +
-		`</filter>`
-}
-
 // sketchLine writes subdivided line commands from (x0,y0) to (x1,y1) with subtle
 // perpendicular perturbation at each subdivision point, giving a hand-drawn tremor.
 // The start point is assumed to already be the current path position (not emitted).

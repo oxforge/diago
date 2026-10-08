@@ -106,8 +106,7 @@ var retiredRules = map[string]bool{
 	"hint-no-effect": true,
 }
 
-// Advisory thresholds. They are neat's, so the two tools agree on what
-// "too big" means.
+// Advisory thresholds: what "too big" means for a label and a diagram.
 const (
 	MaxLabelRunes   = 60
 	MaxTokenRunes   = 24

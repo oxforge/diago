@@ -187,16 +187,20 @@ band above the diagram, a centered first line in text art.
 
 | Command | Does |
 |---|---|
-| `diago render [flags] spec.json > out` | Render (stdin when no path) |
-| `diago check [-strict] [-json] spec.json` | Advisories only, no layout; `-strict` exits 1 on any finding |
-| `diago diff old.json new.json [flags] > out` | One diagram of both versions, each element marked added, removed or changed, with the list of changes under it (a footer in text art) |
-| `diago import diagram.mmd > spec.json` | Mermaid (`flowchart`/`graph`, `sequenceDiagram`, `classDiagram`) to diago JSON; every verb also reads a `.mmd` file directly |
+| `diago render [flags] SPEC > out` | Render. SPEC is a JSON spec, a Mermaid file (`.mmd`, rendered as it is), `REV:PATH` (the file at a git revision, `HEAD~1:spec.json`), or stdin when omitted |
+| `diago check [-strict] [-json] SPEC` | Advisories only, no layout; `-strict` exits 1 on any finding |
+| `diago diff old.json new.json [flags] > out` | One diagram of both versions, each element marked added, removed or changed, with the list of changes under it (a footer in text art) and a first line naming both sides; either side may be `REV:PATH`, and `diago diff spec.json` alone draws a git-tracked spec's latest change |
+| `diago import diagram.mmd > spec.json` | Mermaid (`flowchart`/`graph`, `sequenceDiagram`, `classDiagram`) to diago JSON, only to keep editing it as JSON: every verb reads a `.mmd` file directly |
+
+Always name the verb: `diago spec.json` and `diago -format text spec.json` are errors.
 
 Flags: `-format svg|png|text|drawio|excalidraw` (default `svg`; `txt` is an
-alias of `text`; `drawio` and `excalidraw` are flow only; `diff` takes
+alias of `text`; `drawio` and `excalidraw` are flow only and in beta, so
+check the file they write; `diff` takes
 `svg|png|text`), `-theme`, `-scale n` and `-width px` (PNG),
-`-previous <old spec | old SVG | layout JSON>` (anchor the layout so
-unchanged elements keep their places), `-debug`.
+`-previous <old spec | old SVG | layout JSON, any of them as a path or REV:PATH>` (anchor a flow or class
+layout so unchanged elements keep their places; a sequence render ignores
+it with a warning), `-debug`.
 
 Exit codes: 0 ok, 1 a validation error (JSON on stderr naming the `field`),
 2 a usage or internal error. Advisories print on stderr as

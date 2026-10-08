@@ -52,7 +52,6 @@ func RenderRect(node model.PositionedNode, style theme.NodeStyle, sketch bool) S
 			Fill:        style.Fill,
 			Stroke:      style.Stroke,
 			StrokeWidth: style.StrokeWidth,
-			Filter:      sketchDistortionFilterRef,
 		}
 	} else {
 		shapeEl = Rect{
@@ -81,7 +80,6 @@ func RenderRounded(node model.PositionedNode, style theme.NodeStyle, sketch bool
 			Fill:        style.Fill,
 			Stroke:      style.Stroke,
 			StrokeWidth: style.StrokeWidth,
-			Filter:      sketchDistortionFilterRef,
 		}
 	} else {
 		shapeEl = Rect{
@@ -111,7 +109,6 @@ func RenderCircle(node model.PositionedNode, style theme.NodeStyle, sketch bool)
 			Fill:        style.Fill,
 			Stroke:      style.Stroke,
 			StrokeWidth: style.StrokeWidth,
-			Filter:      sketchDistortionFilterRef,
 		}
 	} else {
 		shapeEl = Circle{
@@ -146,7 +143,6 @@ func RenderDiamond(node model.PositionedNode, style theme.NodeStyle, sketch bool
 			Fill:        style.Fill,
 			Stroke:      style.Stroke,
 			StrokeWidth: style.StrokeWidth,
-			Filter:      sketchDistortionFilterRef,
 		}
 	} else {
 		shapeEl = Polygon{
@@ -182,14 +178,12 @@ func RenderCylinder(node model.PositionedNode, style theme.NodeStyle, sketch boo
 			Fill:        style.Fill,
 			Stroke:      style.Stroke,
 			StrokeWidth: style.StrokeWidth,
-			Filter:      sketchDistortionFilterRef,
 		}
 		capEl = Path{
 			D:           sketchEllipse(node.X, topY, hw, ry, node.ID+"-cap"),
 			Fill:        style.Fill,
 			Stroke:      style.Stroke,
 			StrokeWidth: style.StrokeWidth,
-			Filter:      sketchDistortionFilterRef,
 		}
 	} else {
 		// The cylinder path: left side down, bottom arc, right side up, top arc.
@@ -254,7 +248,6 @@ func RenderHexagon(node model.PositionedNode, style theme.NodeStyle, sketch bool
 			Fill:        style.Fill,
 			Stroke:      style.Stroke,
 			StrokeWidth: style.StrokeWidth,
-			Filter:      sketchDistortionFilterRef,
 		}
 	} else {
 		shapeEl = Polygon{
@@ -301,7 +294,6 @@ func RenderParallelogram(node model.PositionedNode, style theme.NodeStyle, sketc
 			Fill:        style.Fill,
 			Stroke:      style.Stroke,
 			StrokeWidth: style.StrokeWidth,
-			Filter:      sketchDistortionFilterRef,
 		}
 	} else {
 		shapeEl = Polygon{

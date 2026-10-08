@@ -37,29 +37,47 @@ func changeText(text string, th theme.Theme) string {
 }
 
 // changeListSize returns the change list's required width and height, with
-// the class legend's metrics: one row per line.
-func changeListSize(lines []ChangeLine, th theme.Theme) (w, h float64) {
-	if len(lines) == 0 {
+// the class legend's metrics: a row for the caption when there is one, then
+// one per line. Without a caption the width is the widest line's, exactly as
+// before captions existed.
+func changeListSize(caption string, lines []ChangeLine, th theme.Theme) (w, h float64) {
+	rows := len(lines)
+	if caption != "" {
+		rows++
+	}
+	if rows == 0 {
 		return 0, 0
 	}
-	widest := 0.0
+	right := 0.0
+	if caption != "" {
+		cw, _ := font.MeasureText(changeText(caption, th), th.Edge.LabelFont.Size, th.Edge.LabelFont.Family)
+		right = legendSampleX1 + cw
+	}
 	for _, l := range lines {
 		lw, _ := font.MeasureText(changeText(l.Text, th), th.Edge.LabelFont.Size, th.Edge.LabelFont.Family)
-		widest = max(widest, lw)
+		right = max(right, legendLabelX+lw)
 	}
-	return legendLabelX + widest + legendRightPad, legendPad + float64(len(lines))*legendRow + legendPad
+	return right + legendRightPad, legendPad + float64(rows)*legendRow + legendPad
 }
 
-// renderChangeList draws one row per line below top: a sample in the line's
-// color (a box, or a wire for a connection), dashed for a removed element
-// and drawn by hand in a sketch theme, then the text in the same color. It
-// carries no status class, so the diff styles never fade or dash it, and
-// takes no distortion filter, as the legend's samples.
-func renderChangeList(lines []ChangeLine, top float64, th theme.Theme) SVGGroup {
+// renderChangeList draws the caption, when there is one, as the first row:
+// text in the label color from the samples' left edge, with no sample. Then
+// one row per line below it: a sample in the line's color (a box, or a wire
+// for a connection), dashed for a removed element and drawn by hand in a
+// sketch theme, then the text in the same color. It carries no status class,
+// so the diff styles never fade or dash it.
+func renderChangeList(caption string, lines []ChangeLine, top float64, th theme.Theme) SVGGroup {
 	g := SVGGroup{ID: "changes"}
 	sketch := th.Style == "sketch"
+	first := 0
+	if caption != "" {
+		g.Children = append(g.Children, Text{X: legendSampleX1, Y: top + legendPad + legendRow/2, Content: changeText(caption, th),
+			FontFamily: th.Edge.LabelFont.Family, FontSize: fmt.Sprintf("%g", th.Edge.LabelFont.Size),
+			FontWeight: fmt.Sprintf("%d", th.Edge.LabelFont.Weight), Fill: th.Edge.LabelFont.Color, DominantBaseline: "central"})
+		first = 1
+	}
 	for i, l := range lines {
-		cy := top + legendPad + float64(i)*legendRow + legendRow/2
+		cy := top + legendPad + float64(first+i)*legendRow + legendRow/2
 		dash := ""
 		if l.Dashed {
 			dash = "4,3"

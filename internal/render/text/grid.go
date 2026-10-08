@@ -44,7 +44,7 @@ type boxFrame struct {
 }
 
 // charGrid is a character grid with NESW line flags per cell, glyph
-// overrides, and style bits (a port of neat's CharGrid). Lines OR their
+// overrides, and style bits. Lines OR their
 // direction flags into cells so junctions and crossings resolve from the
 // table; glyphs (borders, labels, arrowheads) always win over flags.
 type charGrid struct {

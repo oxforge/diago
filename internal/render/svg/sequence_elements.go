@@ -21,7 +21,6 @@ func renderActorBox(a model.PositionedActor, style theme.ActorStyle, sketch bool
 			Fill:        style.Fill,
 			Stroke:      style.Stroke,
 			StrokeWidth: style.StrokeWidth,
-			Filter:      sketchDistortionFilterRef,
 		}
 	} else {
 		shapeEl = Rect{
@@ -55,10 +54,11 @@ func renderActorBox(a model.PositionedActor, style theme.ActorStyle, sketch bool
 	}
 }
 
-// renderFragment renders a fragment bounding box with section labels and
-// dividers. sectionClass returns the CSS class for section k; nil keeps
+// renderFragment renders a fragment's frame, its operator tab, its section
+// dividers and its guards, at the positions the layout gave them.
+// sectionClass returns the CSS class for section k; nil keeps
 // today's output unchanged (no per-section wrapper groups).
-func renderFragment(idx int, f model.PositionedFragment, style theme.FragmentStyle, background string, sectionClass func(k int) string) SVGGroup {
+func renderFragment(idx int, f model.PositionedFragment, style theme.FragmentStyle, sectionClass func(k int) string) SVGGroup {
 	children := []Element{
 		// Background fill rect.
 		Rect{
@@ -73,45 +73,30 @@ func renderFragment(idx int, f model.PositionedFragment, style theme.FragmentSty
 			Rx:          2,
 		},
 	}
+	if f.TabWidth > 0 && f.TabHeight > 0 {
+		children = append(children, fragmentTab(f, style)...)
+	}
 
-	const labelPadX = 8.0
-	_, labelH := font.MeasureText("X", style.LabelFont.Size, style.LabelFont.Family)
-
-	// First section label — positioned just inside the top of the fragment box.
-	if len(f.Sections) > 0 {
-		var sectionChildren []Element
-		if f.Sections[0].Label != "" {
-			labelX := f.X + labelPadX
-			labelY := f.Y + labelH/2 + 6 // 6px below the top border
-			sectionChildren = append(sectionChildren, Text{
-				X:                labelX,
-				Y:                labelY,
-				Content:          "[" + f.Sections[0].Label + "]",
-				FontFamily:       style.LabelFont.Family,
-				FontSize:         fmt.Sprintf("%g", style.LabelFont.Size),
-				FontWeight:       fmt.Sprintf("%d", style.LabelFont.Weight),
-				Fill:             style.LabelFont.Color,
-				Anchor:           "start",
-				DominantBaseline: "central",
-			})
-		}
-		if sectionClass != nil {
-			children = append(children, SVGGroup{
-				ID:       fmt.Sprintf("fragment-%d-section-0", idx),
-				Class:    sectionClass(0),
-				Children: sectionChildren,
-			})
-		} else {
-			children = append(children, sectionChildren...)
+	guard := func(sec model.PositionedFragmentSection) Element {
+		return Text{
+			X:                sec.LabelX,
+			Y:                sec.LabelY,
+			Content:          "[" + sec.Label + "]",
+			FontFamily:       style.LabelFont.Family,
+			FontSize:         fmt.Sprintf("%g", style.LabelFont.Size),
+			FontWeight:       fmt.Sprintf("%d", style.LabelFont.Weight),
+			Fill:             style.LabelFont.Color,
+			Anchor:           "start",
+			DominantBaseline: "central",
 		}
 	}
 
-	// Subsequent sections: dashed divider line + label below the divider.
-	for i := 1; i < len(f.Sections); i++ {
-		sec := f.Sections[i]
+	// Every section: a dashed divider for each after the first, and the
+	// guard.
+	for i, sec := range f.Sections {
 		var sectionChildren []Element
-		sectionChildren = append(sectionChildren,
-			Line{
+		if i > 0 {
+			sectionChildren = append(sectionChildren, Line{
 				X1:          f.X,
 				Y1:          sec.Y,
 				X2:          f.X + f.Width,
@@ -119,22 +104,10 @@ func renderFragment(idx int, f model.PositionedFragment, style theme.FragmentSty
 				Stroke:      style.Stroke,
 				StrokeWidth: style.StrokeWidth,
 				StrokeDash:  "4,3",
-			},
-		)
-		if sec.Label != "" {
-			labelX := f.X + labelPadX
-			labelY := sec.Y + labelH/2 + 6 // 6px below the divider line
-			sectionChildren = append(sectionChildren, Text{
-				X:                labelX,
-				Y:                labelY,
-				Content:          "[" + sec.Label + "]",
-				FontFamily:       style.LabelFont.Family,
-				FontSize:         fmt.Sprintf("%g", style.LabelFont.Size),
-				FontWeight:       fmt.Sprintf("%d", style.LabelFont.Weight),
-				Fill:             style.LabelFont.Color,
-				Anchor:           "start",
-				DominantBaseline: "central",
 			})
+		}
+		if sec.Label != "" {
+			sectionChildren = append(sectionChildren, guard(sec))
 		}
 		if sectionClass != nil {
 			children = append(children, SVGGroup{
@@ -150,6 +123,34 @@ func renderFragment(idx int, f model.PositionedFragment, style theme.FragmentSty
 	return SVGGroup{
 		ID:       fmt.Sprintf("fragment-%d", idx),
 		Children: children,
+	}
+}
+
+// fragmentTab renders the operator tab at a frame's top-left: a pentagon,
+// solid in the frame's stroke and fill, its bottom-right corner cut, with
+// the operator (alt, opt, loop, par, break) centered left of the cut.
+func fragmentTab(f model.PositionedFragment, style theme.FragmentStyle) []Element {
+	x, y, w, h := f.X, f.Y, f.TabWidth, f.TabHeight
+	cut := min(f.TabCut, w/2, h/2)
+	return []Element{
+		Path{
+			D: fmt.Sprintf("M %s %s L %s %s L %s %s L %s %s L %s %s Z",
+				ff(x), ff(y), ff(x+w), ff(y), ff(x+w), ff(y+h-cut), ff(x+w-cut), ff(y+h), ff(x), ff(y+h)),
+			Fill:        style.Fill,
+			Stroke:      style.Stroke,
+			StrokeWidth: style.StrokeWidth,
+		},
+		Text{
+			X:                x + (w-cut)/2,
+			Y:                y + h/2,
+			Content:          f.Type.String(),
+			FontFamily:       style.LabelFont.Family,
+			FontSize:         fmt.Sprintf("%g", style.LabelFont.Size),
+			FontWeight:       fmt.Sprintf("%d", style.LabelFont.Weight),
+			Fill:             style.LabelFont.Color,
+			Anchor:           "middle",
+			DominantBaseline: "central",
+		},
 	}
 }
 
@@ -212,7 +213,6 @@ func renderNormalInteraction(
 			StrokeWidth: style.StrokeWidth,
 			StrokeDash:  strokeDash,
 			MarkerEnd:   markerRef,
-			Filter:      sketchDistortionFilterRef,
 		}
 	} else {
 		arrowEl = Polyline{
@@ -278,7 +278,6 @@ func renderSelfInteraction(
 			StrokeWidth: style.StrokeWidth,
 			StrokeDash:  strokeDash,
 			MarkerEnd:   markerRef,
-			Filter:      sketchDistortionFilterRef,
 		}
 	} else {
 		arrowEl = Polyline{

@@ -3,29 +3,33 @@
   "direction": "DOWN",
   "nodes": [
     { "id": "before", "label": "before spec", "shape": "parallelogram" },
-    { "id": "after", "label": "after spec", "shape": "parallelogram" },
-    { "id": "cmd", "label": "neat diff", "shape": "rounded" },
+    { "id": "after", "label": "after spec or patch", "shape": "parallelogram" },
+    { "id": "cmd", "label": "dg diff", "shape": "rounded" },
+    { "id": "patch", "label": "applyUnifiedDiff" },
     { "id": "decode", "label": "decodeDocument" },
     { "id": "diff", "label": "diffGraphs v2", "color": "purple" },
     { "id": "union", "label": "buildUnionGraph" },
     { "id": "layout", "label": "layout (incremental)" },
     { "id": "svg", "label": "renderDiffSvg" },
-    { "id": "ghost", "label": "ghost overlay", "color": "orange" },
-    { "id": "text", "label": "renderDiffText" }
+    { "id": "text", "label": "renderDiffText" },
+    { "id": "raster", "label": "renderPng" }
   ],
   "edges": [
     { "id": "e-cmd-decode", "from": "cmd", "to": "decode", "label": "reads old + new" },
     { "id": "e-before-decode", "from": "before", "to": "decode" },
+    { "id": "e-after-patch", "from": "after", "to": "patch", "label": "if unified diff" },
+    { "id": "e-patch-decode", "from": "patch", "to": "decode", "label": "new spec text" },
     { "id": "e-after-decode", "from": "after", "to": "decode" },
     { "id": "e-decode-diff", "from": "decode", "to": "diff", "label": "IR graphs" },
     { "id": "e-diff-union", "from": "diff", "to": "union", "label": "GraphDiff" },
     { "id": "e-union-layout", "from": "union", "to": "layout", "label": "union + status" },
     { "id": "e-layout-svg", "from": "layout", "to": "svg" },
     { "id": "e-layout-text", "from": "layout", "to": "text" },
-    { "id": "e-svg-ghost", "from": "svg", "to": "ghost", "label": "overlays removed", "style": "dashed" }
+    { "id": "e-svg-raster", "from": "svg", "to": "raster", "label": "rasterizes", "style": "dashed" }
   ],
   "groups": [
-    { "id": "core", "label": "core", "contains": ["decode", "diff", "union", "layout", "svg", "ghost", "text"] },
-    { "id": "cli", "label": "cli", "contains": ["cmd"] }
+    { "id": "core", "label": "core", "contains": ["patch", "decode", "diff", "union", "layout", "svg", "text"] },
+    { "id": "cli", "label": "cli", "contains": ["cmd"] },
+    { "id": "png", "label": "png", "contains": ["raster"] }
   ]
 }

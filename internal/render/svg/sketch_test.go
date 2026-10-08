@@ -75,16 +75,6 @@ func TestSketchWobbleIsHalf(t *testing.T) {
 	assert.Equal(t, 0.75, sketchWobble)
 }
 
-func TestSketchDistortionFilterDef(t *testing.T) {
-	// The sketch distortion filter should produce valid SVG filter XML
-	// with feTurbulence and feDisplacementMap elements.
-	filterXML := sketchDistortionFilter()
-	assert.Contains(t, filterXML, `<filter id="sketch-distortion"`)
-	assert.Contains(t, filterXML, `<feTurbulence`)
-	assert.Contains(t, filterXML, `<feDisplacementMap`)
-	assert.Contains(t, filterXML, `scale="1"`)
-}
-
 func TestSeedRNGDeterministic(t *testing.T) {
 	r1 := seedRNG("test-id")
 	r2 := seedRNG("test-id")

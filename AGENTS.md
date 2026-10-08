@@ -10,7 +10,8 @@ Diago is a command-line tool that renders diagrams from structured JSON specs,
 plus a Claude Code plugin of skills that use it. The primary consumer is AI
 agents (Claude Code, Codex, Cursor, etc.) that write a typed JSON spec
 describing *what's connected to what*; diago handles layout and rendering and
-writes SVG, PNG, Unicode text art, draw.io XML or Excalidraw JSON to stdout.
+writes SVG, PNG, Unicode text art, draw.io XML or Excalidraw JSON (the last two
+in beta) to stdout.
 
 The core thesis: AI agents produce valid JSON far more reliably than valid DSL
 syntax (Mermaid, D2, PlantUML). By accepting typed JSON per diagram type, diago
@@ -20,7 +21,7 @@ configuration required.
 
 The repository has three parts:
 
-1. **The CLI** (`cmd/diago`, `internal/`): `render`, `diff`, `check`, `import`.
+1. **The CLI** (`cmd/diago`, `internal/`): `render`, `diff`, `check`, `import`; a verb is always required.
 2. **The README**: all usage documentation.
 3. **The plugin** (`.claude-plugin/`, `skills/`, `hooks/`, `scripts/`):
    `diago:diagramming` (how to draw well, and the CLI) and
@@ -36,10 +37,11 @@ The repository has three parts:
 ## Tech Stack
 
 - **Go 1.26+**. Dependencies: `golang.org/x/image` (font metrics), `github.com/invopop/jsonschema` (generating `schemas/*.json` in `internal/schema/jsonschema.go`) and testify for tests; nothing else, and no runtime service.
-- **Layout engines**: the layered engine (`internal/layout/layered/`, a pure Go port of neat's Sugiyama pipeline) for flow and class diagrams; a custom timeline engine (`internal/layout/sequence/`) for sequence diagrams. See *Where layout code lives* below.
+- **Layout engines**: the layered engine (`internal/layout/layered/`, a Sugiyama pipeline in pure Go) for flow and class diagrams; a custom timeline engine (`internal/layout/sequence/`) for sequence diagrams. See *Where layout code lives* below.
 - **SVG rendering**: Go-native SVG generation (structured types, no string concatenation).
 - **PNG export**: resvg subprocess rasterizing the SVG (`internal/render/png`).
-- **Export formats**: draw.io XML and Excalidraw JSON (`internal/export/`), flow diagrams only, derived from the laid-out model, never from the SVG.
+- **Git**: `REV:PATH` spec arguments and the one-path `diago diff` run the `git` binary as a subprocess (`internal/source`); nothing else needs it.
+- **Export formats** (beta, not fully tested and reviewed yet): draw.io XML and Excalidraw JSON (`internal/export/`), flow diagrams only, derived from the laid-out model, never from the SVG.
 - **Font metrics**: embedded TTF files (Inter, Pangolin) + `golang.org/x/image/font/sfnt` (no system font dependency).
 - **Themes**: JSON-defined theme files (colors, typography, spacing, strokes), embedded.
 
@@ -57,7 +59,7 @@ The repository has three parts:
 ```
 diago/
 ├── cmd/
-│   ├── diago/            # CLI entrypoint (verbs: render, diff, check, import; every verb also accepts a Mermaid source by .mmd extension or header; stdin or a spec path → stdout; advisories and import reports on stderr)
+│   ├── diago/            # CLI entrypoint (verbs: render, diff, check, import; a verb is required; every spec argument is a path, stdin or REV:PATH, and may be Mermaid by .mmd extension or header; output on stdout; advisories and import reports on stderr)
 │   └── generate-enums/   # Codegen for internal/model/enums_gen.go ("DO NOT EDIT": change the generator, not the output)
 ├── internal/
 │   ├── schema/           # JSON schema definitions and validation per diagram type (flow, sequence, class), plus the advisory checker (schema.Check, the ignore list, rule constants)
@@ -67,8 +69,9 @@ diago/
 │   │   ├── layered/      # The layered engine, the only flow and class engine: one package per stage (size, cycle, rank, equalize, lgraph, order, ports, place, route, nest, flat, labels, frame)
 │   │   └── sequence/     # Custom timeline layout; `LayoutWithOptions` takes an activation mask for diff renders
 │   ├── layoutdbg/        # Decision-record logging (layoutdbg.go): extend this, never fmt.Printf
-│   ├── diff/             # Structural diff and union graphs for flow, sequence and class specs, the fields each change touched (`fields.go`), the change list both the text footer and the SVG list print (`changes.go`), text stamping, member-level class union (`members.go`), strict unified-diff applier; depends on model only
+│   ├── diff/             # Structural diff and union graphs for flow, sequence and class specs, the fields each change touched (`fields.go`), the change list both the text footer and the SVG list print (`changes.go`), text stamping, member-level class union (`members.go`); depends on model only
 │   ├── mermaid/          # Mermaid importer: Sniff/Parse, flowchart, sequence and class dialects → schema spec structs; depends on schema only
+│   ├── source/           # Spec arguments: stdin, a file, or REV:PATH read with the git binary; Latest, a file's latest change for diago diff PATH; sourcetest/ builds test repositories
 │   ├── render/
 │   │   ├── svg/          # SVG rendering (flow.go, sequence.go, class.go, elements, shapes, text, sketch, arrows, hops, diffstyle, changelist, metadata)
 │   │   ├── png/          # SVG→PNG rasterization via resvg subprocess
@@ -85,7 +88,7 @@ diago/
 ├── .claude-plugin/       # plugin.json + marketplace.json (the plugin is the repo root)
 ├── hooks/                # The plugin's SessionStart hook: hooks.json, session-start and its Go test
 ├── skills/               # diagramming/ (SKILL.md + cheatsheet.md) and illustrating/ (SKILL.md + documents.md; example/ is its worked example)
-└── scripts/diago-render  # Render/lint/diff/embed a folder of versioned diagrams (used by illustrating)
+└── scripts/diago-render  # Render/lint/diff/embed a folder of versioned diagrams (used by illustrating); its Go test is scripts/diago_render_test.go
 ```
 
 Skill changes ship through the plugin cache: bump `version` in both
@@ -103,7 +106,9 @@ Two things `internal/theme/validate.go` **rejects**: a `style` other than
 `clean` or `sketch` (the field is required: it selects the sketch renderer),
 and a font family other than `Inter` or `Pangolin`, the only two embedded
 faces. `Validate` also requires the `class` section (member font from the two
-embedded faces, positive separator width).
+embedded faces, positive separator width). It also bounds the paddings:
+`node.padding` x and y at least 0, `group.padding` at least 12 (the node
+clearance a group's own wires keep to its border).
 
 An optional `"diff": {"added", "changed", "removed"}` block sets the diff palette; a key it leaves out falls back to `colors.green` / `colors.blue` / `colors.red`.
 
@@ -151,14 +156,20 @@ the rejected alternative without new information that invalidates the reason.
   specs for a diff), in output tokens; images go to disk and never pass
   through the agent's context; and every agent with a shell can run it. MCP
   would serve only hosts without a shell.
+- **Git revisions go through the git binary.** `REV:PATH` and `diago diff
+  PATH` run `git` as a subprocess, as PNG runs resvg: go-git is a large
+  dependency against stdlib-first, and reading `.git` directly means packfiles
+  and worktrees.
+- **A verb is always required.** The verbless form (`diago < spec.json`) was
+  removed, so a first argument is never both a verb and a path.
 - **resvg over headless Chromium for PNG.** An audit of what diago actually
   emits (basic shapes, plain `<text>`, embedded `@font-face`, simple
-  `<marker>`s, one `feTurbulence` filter) found all of it natively supported by
-  resvg. resvg is ~10–20× faster per render and needs no browser management.
+  `<marker>`s) found all of it natively supported by resvg. resvg is ~10–20×
+  faster per render and needs no browser management.
   Pure-Go rasterizers (`oksvg` + `rasterx`) were rejected in the same audit: no
   `@font-face`, no `<marker>`, no `<style>` blocks, no filters.
-- **The layered engine is the only flow and class engine**: neat's design,
-  global placement and routing inside the layered structure. An elkjs
+- **The layered engine is the only flow and class engine**: a Sugiyama
+  design, global placement and routing inside the layered structure. An elkjs
   fallback (a Node.js subprocess) was removed: it was flaky under golden
   comparison and kept the stack from being pure Go.
 - **Font metrics are embedded, never system-derived and never hardcoded width

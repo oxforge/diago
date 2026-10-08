@@ -14,8 +14,9 @@ import (
 // nodes take the largest flow-axis extent (H) among them (S4). Diamonds,
 // circles, hexagons and record boxes are not stretchable: they neither
 // grow nor count. slant widens a stretched parallelogram by slant times
-// its height gain: the 0.3 slant in a DOWN or UP screen layout, where the
-// parallelogram's sides lean with its height, and 0 otherwise. The edges
+// its height gain: twice the 0.3 slant in a DOWN or UP screen layout,
+// where the parallelogram's sides lean with its height and the stretch its
+// top and bottom edges share keeps its width, and 0 otherwise. The edges
 // are shared with lv; the nodes are copied.
 func Apply(ctx context.Context, lv *lgraph.Level, layers []int, slant float64) *lgraph.Level {
 	out := &lgraph.Level{Nodes: slices.Clone(lv.Nodes), Edges: lv.Edges}

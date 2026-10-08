@@ -50,7 +50,7 @@ inferred.
 | A Markdown file tracked by git | A PNG beside it (`-format png`; SVG when `resvg` is missing) with alt text, and its spec JSON beside it so it can be regenerated |
 | A Markdown file written for review (a spec, a plan, a design note) | `documents.md` beside this file: text art and an image link, versions, diffs |
 | An HTML page or artifact | SVG files beside the page, shown with `<img>`; for a page that follows light and dark mode, a `<picture>` with a `prefers-color-scheme: dark` source for the `dark` theme. When the page must be one file, use `data:image/svg+xml;base64,` sources. Never paste SVG markup inline: diagrams share ids, and a diff's styles would apply to the whole page |
-| A diagram the user will edit by hand | `-format drawio` (diagrams.net) or `-format excalidraw`, flow only |
+| A diagram the user will edit by hand | `-format drawio` (diagrams.net) or `-format excalidraw`, flow only, in beta: say so, and check the file |
 
 The session's start says whether you run in a terminal; when nothing says,
 treat the host as graphical.
@@ -73,8 +73,9 @@ treat the host as graphical.
    `.svg` path on the line after it.
 4. When the user asks to change a diagram they have seen, copy
    `<slug>.v<N>.json` to `<slug>.v<N+1>.json`, edit it keeping the id of
-   everything that is the same, and re-run: the new version is laid out
-   anchored on the old one, and `<slug>.v<N>-v<N+1>.diff.txt` shows what
+   everything that is the same, and re-run: a flow or class diagram's new
+   version is laid out anchored on the old one (a sequence diagram follows
+   its message order anyway), and `<slug>.v<N>-v<N+1>.diff.txt` shows what
    changed. Show the diff art; its `added:` / `removed:` / `changed:` footer
    is the change list.
 
@@ -118,6 +119,12 @@ inside one function's body that alters nothing structural.
    added elements green, changed ones blue and removed ones red.
 4. Run `diago-render <topic-dir>` as in *Diagrams in chat*. It writes
    `<slug>.v2.txt` and the diff `<slug>.v1-v2.diff.txt` (and their `.svg`).
+
+**A spec tracked by git.** When the diagram's spec is itself a file in the
+repository (`docs/arch.json`), do not write v1 and v2 by hand:
+`diago diff docs/arch.json -format text` draws its latest change (uncommitted
+edits against HEAD, or what its last commit did), and
+`diago diff <base>:docs/arch.json docs/arch.json` draws it against a base.
 
 **Showing it:** one line on what changed, the diff art
 (`<slug>.v1-v2.diff.txt`) in a fenced `text` block, and in a graphical host

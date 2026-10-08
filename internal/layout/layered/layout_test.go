@@ -9,6 +9,7 @@ import (
 	"math"
 	"math/rand"
 	"slices"
+	"sort"
 	"strings"
 	"testing"
 
@@ -330,7 +331,7 @@ func TestLayout_FlowLoopTakesTwoAdjacentVertices(t *testing.T) {
 	}
 }
 
-// lrPipeline is neat's lr-pipeline in direction dir.
+// lrPipeline is the corpus's lr-pipeline in direction dir.
 func lrPipeline(dir model.Direction) model.Graph {
 	return model.Graph{
 		Direction: dir,
@@ -351,7 +352,7 @@ func lrPipeline(dir model.Direction) model.Graph {
 }
 
 // TestLayout_LRPipelineKeepsItsMainLineStraight pins S7's act 1 and
-// side-exit forcing on neat's lr-pipeline, in every direction: the back
+// side-exit forcing on the corpus's lr-pipeline, in every direction: the back
 // edge errors->extract does not pull Extract (a node with faces), and
 // Valid?'s "yes" exit is its primary (Transform leads on to Warehouse,
 // Error log only back), so the main line Source -> Extract -> Valid? ->
@@ -1135,9 +1136,11 @@ func TestLayout_FlowNetworksSpineRunsMidCanvas(t *testing.T) {
 	for _, id := range []string{"api->auth#0", "api->cache#0", "api->queue#0", "api->db#0"} {
 		fan = append(fan, xAt(t, edge(t, pg, id).Points, row))
 	}
-	assert.LessOrEqual(t, math.Abs(api.X-mid(fan...)), 30.0, "API over its fan: %v", fan)
+	// Measured 33.0 and 35.2 px since a parallelogram's ports take the
+	// stretch its top and bottom edges share (S8, Shape ports).
+	assert.LessOrEqual(t, math.Abs(api.X-mid(fan...)), 34.0, "API over its fan: %v", fan)
 	parents := mid(edge(t, pg, "cache->db#0").Points[0].X, edge(t, pg, "queue->db#0").Points[0].X, column)
-	assert.LessOrEqual(t, math.Abs(db.X-parents), 32.0, "Database under its parents")
+	assert.LessOrEqual(t, math.Abs(db.X-parents), 36.0, "Database under its parents")
 }
 
 // ecommerceCheckout is the ecommerce-checkout spec: Clients
@@ -1313,7 +1316,7 @@ func TestLayout_ASideColumnKeepsItsReach(t *testing.T) {
 	// dummy would leave a 19.80 px stub (C7), so the dummy moves to the
 	// column instead (S8, Stops). (A random graph, found by a search with
 	// the column's give-way undone; it needs every node and edge. The
-	// fixtures before it lost the case: neat's m-deploy when its diamond's
+	// fixtures before it lost the case: the corpus's m-deploy when its diamond's
 	// label went onto two lines (S1, Compact labels), and another random
 	// graph when S7 stopped letting a back edge pull a node with faces.)
 	g := graph(t, map[string]string{"n0": "staging Deploy", "n1": "Rollback", "n2": "Typecheck", "n3": "Fix Deploy"},
@@ -2334,3 +2337,59 @@ func TestLayout_TextALabelLeavesAGroupTooNarrowForIt(t *testing.T) {
 		}
 	}
 }
+
+// TestLayout_AParallelogramsTopAndBottomPortsLineUp pins S8's Shape ports
+// for a parallelogram under DOWN and UP: both faces take the stretch its
+// top and bottom edges share, so a lone port on each lies on the node's
+// center line, and two ports on each line up across the node.
+func TestLayout_AParallelogramsTopAndBottomPortsLineUp(t *testing.T) {
+	positioned := func(pg *model.PositionedGraph, id string) model.PositionedNode {
+		for _, n := range pg.Nodes {
+			if n.ID == id {
+				return n
+			}
+		}
+		t.Fatalf("no node %s", id)
+		return model.PositionedNode{}
+	}
+	for _, dir := range []model.Direction{model.Down, model.Up} {
+		t.Run("one in, one out, "+dir.String(), func(t *testing.T) {
+			g := model.Graph{
+				Direction: dir,
+				Nodes: []model.Node{
+					{ID: "start", Label: "Start", Shape: model.ShapeRounded},
+					{ID: "input", Label: "Read input", Shape: model.ShapeParallelogram},
+					{ID: "check", Label: "Check", Shape: model.ShapeRect},
+				},
+				Edges: []model.Edge{{ID: "in", From: "start", To: "input"}, {ID: "out", From: "input", To: "check"}},
+			}
+			pg := lay(t, g, screen(), dir)
+			p := positioned(pg, "input")
+			in, out := edge(t, pg, "in").Points, edge(t, pg, "out").Points
+			assert.InDelta(t, p.X, in[len(in)-1].X, 1e-6, "the in-port is on the center line")
+			assert.InDelta(t, p.X, out[0].X, 1e-6, "the out-port is on the center line")
+		})
+		t.Run("two in, two out, "+dir.String(), func(t *testing.T) {
+			g := model.Graph{
+				Direction: dir,
+				Nodes: []model.Node{
+					{ID: "a", Label: "Alpha", Shape: model.ShapeRect}, {ID: "b", Label: "Beta", Shape: model.ShapeRect},
+					{ID: "p", Label: "A wide parallelogram", Shape: model.ShapeParallelogram},
+					{ID: "c", Label: "Gamma", Shape: model.ShapeRect}, {ID: "d", Label: "Delta", Shape: model.ShapeRect},
+				},
+				Edges: []model.Edge{
+					{ID: "ap", From: "a", To: "p"}, {ID: "bp", From: "b", To: "p"},
+					{ID: "pc", From: "p", To: "c"}, {ID: "pd", From: "p", To: "d"},
+				},
+			}
+			pg := lay(t, g, screen(), dir)
+			ins := []float64{last(edge(t, pg, "ap").Points).X, last(edge(t, pg, "bp").Points).X}
+			outs := []float64{edge(t, pg, "pc").Points[0].X, edge(t, pg, "pd").Points[0].X}
+			sort.Float64s(ins)
+			sort.Float64s(outs)
+			assert.InDeltaSlice(t, ins, outs, 1e-6, "the in-ports and the out-ports line up")
+		})
+	}
+}
+
+func last(ps []model.Point) model.Point { return ps[len(ps)-1] }

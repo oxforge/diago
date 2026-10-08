@@ -80,8 +80,8 @@ func TestFaces(t *testing.T) {
 		{"circle", model.ShapeCircle, model.Right, false, Span{}, Span{}},
 		{"hexagon flat faces", model.ShapeHexagon, model.Up, false, Span{Lo: -30, Hi: 30}, Span{Lo: -30, Hi: 30}},
 		{"hexagon angled sides", model.ShapeHexagon, model.Right, false, full, full},
-		{"parallelogram down", model.ShapeParallelogram, model.Down, false, Span{Lo: -42, Hi: 60}, Span{Lo: -60, Hi: 42}},
-		{"parallelogram up", model.ShapeParallelogram, model.Up, false, Span{Lo: -60, Hi: 42}, Span{Lo: -42, Hi: 60}},
+		{"parallelogram down", model.ShapeParallelogram, model.Down, false, Span{Lo: -42, Hi: 42}, Span{Lo: -42, Hi: 42}},
+		{"parallelogram up", model.ShapeParallelogram, model.Up, false, Span{Lo: -42, Hi: 42}, Span{Lo: -42, Hi: 42}},
 		{"parallelogram slanted sides", model.ShapeParallelogram, model.Left, false, full, full},
 		{"cylinder caps", model.ShapeCylinder, model.Down, false, full, full},
 		{"cylinder side lines", model.ShapeCylinder, model.Right, false, Span{Lo: -38.4, Hi: 38.4}, Span{Lo: -38.4, Hi: 38.4}},
@@ -121,7 +121,8 @@ func TestRoom_GivesEveryFaceItsSpan(t *testing.T) {
 // not the box's side (C7), which S8's self-loops and S9's flat edges keep
 // to: a cylinder's side lines between its caps under DOWN and UP, and,
 // where the side faces turn into the drawn top and bottom under RIGHT and
-// LEFT, a hexagon's flat faces and a parallelogram's shortened edges.
+// LEFT, a hexagon's flat faces and the stretch a parallelogram's top and
+// bottom edges share.
 func TestSides(t *testing.T) {
 	const w, h = 40.0, 120.0 // on its side under RIGHT and LEFT: drawn 120 wide and 40 tall, slant 12
 	full := Span{Lo: -60, Hi: 60}
@@ -142,8 +143,8 @@ func TestSides(t *testing.T) {
 		{"hexagon angled sides", model.ShapeHexagon, model.Down, false, full, full},
 		{"hexagon flat faces", model.ShapeHexagon, model.Left, false, Span{Lo: -30, Hi: 30}, Span{Lo: -30, Hi: 30}},
 		{"parallelogram slanted sides", model.ShapeParallelogram, model.Up, false, full, full},
-		{"parallelogram right", model.ShapeParallelogram, model.Right, false, Span{Lo: -48, Hi: 60}, Span{Lo: -60, Hi: 48}},
-		{"parallelogram left", model.ShapeParallelogram, model.Left, false, Span{Lo: -60, Hi: 48}, Span{Lo: -48, Hi: 60}},
+		{"parallelogram right", model.ShapeParallelogram, model.Right, false, Span{Lo: -48, Hi: 48}, Span{Lo: -48, Hi: 48}},
+		{"parallelogram left", model.ShapeParallelogram, model.Left, false, Span{Lo: -48, Hi: 48}, Span{Lo: -48, Hi: 48}},
 		{"text diamond", model.ShapeDiamond, model.Down, true, cells, cells},
 		{"text cylinder", model.ShapeCylinder, model.Down, true, cells, cells},
 	} {

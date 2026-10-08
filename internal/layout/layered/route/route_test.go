@@ -1790,9 +1790,9 @@ func TestRoute_ASideAttachmentMeetsASlantedSide(t *testing.T) {
 	_, route := twice(t, g, screen, map[string]float64{"a": 200, "p": 200})
 	// the parallelogram's left side leans in by half its slant (0.3 x 40)
 	// at mid-height; a->p shares no bundle with the side-attached p->a: it
-	// keeps its in-port at the middle of p's shortened top span (206), and
-	// a's out-port slides onto it (Stops)
-	assertRoute(t, pts(206, 40, 206, 80), route("a->p#0"))
+	// keeps its in-port at the middle of the stretch p's top and bottom
+	// edges share, p's center line (200), under a's out-port
+	assertRoute(t, pts(200, 40, 200, 80), route("a->p#0"))
 	assertRoute(t, pts(166, 100, 140, 100, 140, 20, 160, 20), route("p->a#0"))
 }
 

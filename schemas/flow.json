@@ -112,8 +112,7 @@
       "type": "object",
       "required": [
         "type",
-        "nodes",
-        "edges"
+        "nodes"
       ]
     },
     "GroupSpec": {
@@ -139,8 +138,7 @@
       "type": "object",
       "required": [
         "id",
-        "label",
-        "contains"
+        "label"
       ]
     },
     "NodeSpec": {

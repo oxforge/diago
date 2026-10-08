@@ -54,7 +54,7 @@ func TestMinimize_UntanglesACrossing(t *testing.T) {
 
 func TestMinimize_KeepsTheSeedAmongEqualCrossings(t *testing.T) {
 	// Every ordering of this K2,2 has one crossing. The seed (declaration
-	// order: b before a, d before c) is nearest to itself and wins; neat's
+	// order: b before a, d before c) is nearest to itself and wins; a
 	// lexicographic tie-break would have reordered it to a b / c d.
 	g := graph(t, "b", "a", "d", "c", "b->d", "b->c", "a->d", "a->c")
 	g.Layers = Minimize(context.Background(), g, false)

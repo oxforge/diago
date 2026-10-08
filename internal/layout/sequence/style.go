@@ -117,7 +117,12 @@ func NormalizeSequenceWithProfile(ps *model.PositionedSequence, p Profile) {
 		ps.Fragments[i].X += dx
 		ps.Fragments[i].Y += dy
 		for j := range ps.Fragments[i].Sections {
-			ps.Fragments[i].Sections[j].Y += dy
+			s := &ps.Fragments[i].Sections[j]
+			s.Y += dy
+			if s.LabelWidth > 0 { // a placed guard; text art leaves it zero
+				s.LabelX += dx
+				s.LabelY += dy
+			}
 		}
 	}
 

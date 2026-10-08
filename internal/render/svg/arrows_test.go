@@ -234,7 +234,6 @@ func TestRenderClass_SketchLegend(t *testing.T) {
 	assert.NotContains(t, legend, "<line", "wires drawn by hand")
 	assert.Equal(t, 3, strings.Count(legend, `stroke-linejoin="round"`), "one hand-drawn adornment per adorned row")
 	assert.Contains(t, legend, `marker-end="url(#diago-arrow)"`, "the dependency keeps its arrowhead")
-	assert.NotContains(t, legend, "filter=", "no full-canvas turbulence per sample")
 
 	// The sample is the marker's own geometry, mirrored: its tip on the
 	// left at the sample's start.

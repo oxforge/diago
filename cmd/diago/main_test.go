@@ -22,24 +22,56 @@ func runCLI(t *testing.T, stdin string, args ...string) (code int, stdout, stder
 	return code, out.String(), errb.String()
 }
 
-func TestRun_BareFormIsRender(t *testing.T) {
-	code, out, _ := runCLI(t, twoNodeSpec)
-	require.Equal(t, 0, code)
-	assert.True(t, strings.HasPrefix(out, "<?xml"))
-	code, out2, _ := runCLI(t, twoNodeSpec, "-format", "svg")
-	require.Equal(t, 0, code)
-	assert.Equal(t, out, out2, "bare and flagged bare forms agree")
-	code, out3, _ := runCLI(t, twoNodeSpec, "render")
-	require.Equal(t, 0, code)
-	assert.Equal(t, out, out3, "explicit render agrees")
+func TestRun_VerbRequired(t *testing.T) {
+	code, out, stderr := runCLI(t, twoNodeSpec)
+	assert.Equal(t, 2, code)
+	assert.Empty(t, out, "no verb draws nothing")
+	assert.True(t, strings.HasPrefix(stderr, "usage: diago <verb>"), stderr)
+
+	code, out, stderr = runCLI(t, twoNodeSpec, "-format", "text")
+	assert.Equal(t, 2, code)
+	assert.Empty(t, out)
+	assert.True(t, strings.HasPrefix(stderr, "diago: a verb is required\nusage: diago <verb>"), stderr)
+
+	for _, h := range []string{"-h", "--help", "help"} {
+		code, out, stderr = runCLI(t, "", h)
+		assert.Equal(t, 0, code, h)
+		assert.True(t, strings.HasPrefix(out, "usage: diago <verb>"), h)
+		assert.Empty(t, stderr, h)
+	}
 }
 
 func TestRun_UnknownVerb(t *testing.T) {
 	code, _, stderr := runCLI(t, "", "frobnicate")
 	assert.Equal(t, 2, code)
-	assert.Contains(t, stderr, "unknown command")
-	assert.Contains(t, stderr, "diago render [flags] [spec.json]")
-	assert.Contains(t, stderr, "diago import [diagram.mmd]")
+	assert.True(t, strings.HasPrefix(stderr, "diago: unknown command \"frobnicate\"\nusage: diago <verb>"), stderr)
+	assert.Contains(t, stderr, "diago render [flags] [SPEC]")
+	assert.Contains(t, stderr, "diago import [SPEC]")
+
+	existing := writeTemp(t, "spec", twoNodeSpec)
+	for _, arg := range []string{"x.json", "x.mmd", "x.MERMAID", existing} {
+		code, _, stderr = runCLI(t, "", arg)
+		assert.Equal(t, 2, code, arg)
+		assert.Contains(t, stderr, "did you mean: diago render "+arg+"\n", arg)
+	}
+}
+
+func TestRun_UsageNamesMermaidAndRevisions(t *testing.T) {
+	_, out, _ := runCLI(t, "", "help")
+	for _, want := range []string{"Mermaid", ".mmd", "REV:PATH", "diago diff [flags] PATH", "diago diff [flags] OLD NEW"} {
+		assert.Contains(t, out, want)
+	}
+	for verb, want := range map[string][]string{
+		"render": {"usage: diago render [flags] [SPEC]", "Mermaid", "REV:PATH", "  -format string", "  -previous string"},
+		"diff":   {"usage: diago diff [flags] PATH | OLD NEW", "Mermaid", "REV:PATH", "  -format string"},
+		"check":  {"usage: diago check [flags] [SPEC]", "Mermaid", "REV:PATH", "  -strict"},
+		"import": {"usage: diago import [SPEC]", "REV:PATH"},
+	} {
+		_, _, stderr := runCLI(t, "", verb, "-h")
+		for _, w := range want {
+			assert.Contains(t, stderr, w, verb)
+		}
+	}
 }
 
 const mmdFlow = "---\ntitle: Hello\n---\ngraph TD\n  a[Start] --> b([Stop])\n  a --- c\n"
@@ -74,7 +106,7 @@ func TestRun_ImportVerb(t *testing.T) {
 	// usage
 	code, _, stderr = runCLI(t, "", "import", "a.mmd", "b.mmd")
 	assert.Equal(t, 2, code)
-	assert.Contains(t, stderr, "usage: diago import [diagram.mmd]")
+	assert.Contains(t, stderr, "usage: diago import [SPEC]")
 }
 
 func TestRun_RenderMermaid(t *testing.T) {
@@ -98,8 +130,8 @@ func TestRun_RenderMermaid(t *testing.T) {
 	assert.Equal(t, 1, code)
 	assert.Equal(t, "diago render: line 1: not a Mermaid source\n", stderr)
 
-	// a parse error from render, bare form included
-	code, _, stderr = runCLI(t, "graph TD\n  a --> b\n  ???\n", "-format", "svg")
+	// a parse error from render
+	code, _, stderr = runCLI(t, "graph TD\n  a --> b\n  ???\n", "render", "-format", "svg")
 	assert.Equal(t, 1, code)
 	assert.Equal(t, "diago render: line 3: expected a node reference near \"???\"\n", stderr)
 
@@ -117,12 +149,6 @@ func TestRun_DiffMermaid(t *testing.T) {
 	require.Equal(t, 0, code, stderr)
 	assert.Contains(t, out, "added: node C")
 	assert.Contains(t, stderr, "warning: import (after) line 2: stadium \"c\" rendered as rounded\n")
-
-	// a patch of a .mmd
-	patch := writeTemp(t, "change.patch", "--- a/old.mmd\n+++ b/old.mmd\n@@ -2,1 +2,1 @@\n-  a --> b\n+  a --> b --> c\n")
-	code, out, stderr = runCLI(t, "", "diff", old, patch, "-format", "text")
-	require.Equal(t, 0, code, stderr)
-	assert.Contains(t, out, "added: node c")
 
 	// a parse error on the before side
 	broken := writeTemp(t, "broken.mmd", "graph TD\n  ???\n")
@@ -205,13 +231,13 @@ func TestRun_CheckErrors(t *testing.T) {
 }
 
 func TestRun_RenderPrintsAdvisories(t *testing.T) {
-	for _, args := range [][]string{{}, {"render"}, {"-format", "text"}} {
+	for _, args := range [][]string{{"render"}, {"render", "-format", "text"}} {
 		code, out, stderr := runCLI(t, vagueSpec, args...)
 		require.Equal(t, 0, code)
 		assert.NotEmpty(t, out)
 		assert.Contains(t, stderr, "warning: vague-edge-label edges[0]: edge a->b label \"uses\" says little")
 	}
-	_, _, stderr := runCLI(t, twoNodeSpec)
+	_, _, stderr := runCLI(t, twoNodeSpec, "render")
 	assert.Empty(t, stderr)
 }
 
@@ -234,23 +260,48 @@ func TestRun_PositionalSpecPath(t *testing.T) {
 	code, _, stderr := runCLI(t, "", "render", path, "extra")
 	assert.Equal(t, 2, code)
 	assert.Contains(t, stderr, "at most one spec path")
+	code, _, stderr = runCLI(t, "", "render", path, "-format", "text", "extra")
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "at most one spec path")
 }
 
-// TestRun_BareFormWithFlagAndPath verifies the corrected usage-text claim:
-// the bare form (first argument is a flag) accepts the same optional
-// positional spec path as the "render" verb — it does not read from stdin
-// once a flag leads the argument list. This is the counter-example that
-// invalidated the earlier "bare form is stdin-only" doc wording.
-func TestRun_BareFormWithFlagAndPath(t *testing.T) {
-	path := t.TempDir() + "/spec.json"
-	require.NoError(t, os.WriteFile(path, []byte(twoNodeSpec), 0o644))
-	code, out, _ := runCLI(t, "", "-theme", "midnight", path)
-	require.Equal(t, 0, code)
-	assert.True(t, strings.HasPrefix(out, "<?xml"))
+// TestRun_FlagsAnywhere: every verb takes its flags before, between or
+// after its paths, "-" is stdin wherever it stands, and "--" ends the
+// flags.
+func TestRun_FlagsAnywhere(t *testing.T) {
+	path := writeTemp(t, "spec.json", twoNodeSpec)
+	_, want, _ := runCLI(t, "", "render", "-format", "text", path)
+	for name, args := range map[string][]string{
+		"render, flag after":   {"render", path, "-format", "text"},
+		"render, flags around": {"render", "-format", "text", path, "-theme", "dark"},
+		"render, stdin first":  {"render", "-", "-format", "text"},
+		"render, after --":     {"render", "-format", "text", "--", path},
+	} {
+		t.Run(name, func(t *testing.T) {
+			code, out, stderr := runCLI(t, twoNodeSpec, args...)
+			require.Equal(t, 0, code, stderr)
+			assert.Equal(t, want, out)
+		})
+	}
+
+	old, neu := writeTemp(t, "old.json", twoNodeSpec), writeTemp(t, "new.json", diffNew)
+	code, out, stderr := runCLI(t, "", "diff", old, "-format", "text", neu)
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, out, "added: node C")
+
+	vague := writeTemp(t, "v.json", vagueSpec)
+	code, out, _ = runCLI(t, "", "check", "-json", vague, "-strict")
+	assert.Equal(t, 1, code)
+	assert.Contains(t, out, `"warnings"`)
+
+	mmd := writeTemp(t, "d.mmd", "graph TD\n  a --> b\n")
+	code, out, stderr = runCLI(t, "", "import", mmd, "--")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, out, `"type": "flow"`)
 }
 
 func TestRun_Previous(t *testing.T) {
-	_, first, _ := runCLI(t, twoNodeSpec)
+	_, first, _ := runCLI(t, twoNodeSpec, "render")
 	prevPath := t.TempDir() + "/v1.svg"
 	require.NoError(t, os.WriteFile(prevPath, []byte(first), 0o644))
 	code, second, stderr := runCLI(t, twoNodeSpec, "render", "-previous", prevPath)
@@ -277,6 +328,30 @@ func TestRun_Previous(t *testing.T) {
 	code, _, stderr = runCLI(t, seq, "render", "-previous", prevPath)
 	assert.Equal(t, 0, code)
 	assert.Contains(t, stderr, "warning: -previous ignored")
+}
+
+// TestRun_PreviousOnASequence: a sequence render discards its -previous
+// with a warning whether it is the previous sequence spec or its SVG, in
+// every format; a file that is neither is still a validation error.
+func TestRun_PreviousOnASequence(t *testing.T) {
+	seq := `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"interactions":[{"from":"a","to":"b","label":"hi"}]}`
+	_, seqSVG, _ := runCLI(t, seq, "render")
+	dir := t.TempDir()
+	specPath, svgPath, badPath := dir+"/v1.json", dir+"/v1.svg", dir+"/bad.json"
+	require.NoError(t, os.WriteFile(specPath, []byte(seq), 0o644))
+	require.NoError(t, os.WriteFile(svgPath, []byte(seqSVG), 0o644))
+	require.NoError(t, os.WriteFile(badPath, []byte(`{"type":"sequence","actors":[]}`), 0o644))
+	for _, prev := range []string{specPath, svgPath} {
+		for _, format := range []string{"svg", "text"} {
+			code, out, stderr := runCLI(t, seq, "render", "-format", format, "-previous", prev)
+			require.Equal(t, 0, code, "%s %s: %s", prev, format, stderr)
+			assert.NotEmpty(t, out)
+			assert.Equal(t, "warning: -previous ignored: sequence diagrams have no layout freedom\n", stderr)
+		}
+	}
+	code, _, stderr := runCLI(t, seq, "render", "-previous", badPath)
+	assert.Equal(t, 1, code)
+	assert.Contains(t, stderr, `"field": "previous"`)
 }
 
 // flatByProfileSpec has a flat edge, e6 (edges[6]), that the screen
@@ -399,7 +474,7 @@ func TestCLIValidInput(t *testing.T) {
 		"edges": [{"from": "a", "to": "b"}]
 	}`
 
-	cmd := exec.Command(bin)
+	cmd := exec.Command(bin, "render")
 	cmd.Stdin = strings.NewReader(input)
 	out, err := cmd.Output()
 	require.NoError(t, err, "CLI should exit 0 for valid input")
@@ -417,7 +492,7 @@ func TestCLIInvalidInput(t *testing.T) {
 		"nodes": [{"id": "a", "label": "A", "shape": "octagon"}]
 	}`
 
-	cmd := exec.Command(bin)
+	cmd := exec.Command(bin, "render")
 	cmd.Stdin = strings.NewReader(input)
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
@@ -454,7 +529,7 @@ func TestCLIFlatSelfLoopValidationError(t *testing.T) {
 		"edges": [{"from": "a", "to": "a", "flat": true}]
 	}`
 
-	cmd := exec.Command(bin)
+	cmd := exec.Command(bin, "render")
 	cmd.Stdin = strings.NewReader(input)
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
@@ -489,7 +564,7 @@ func TestCLIFlatSelfLoopValidationError(t *testing.T) {
 func TestCLIInvalidJSON(t *testing.T) {
 	bin := buildCLI(t)
 
-	cmd := exec.Command(bin)
+	cmd := exec.Command(bin, "render")
 	cmd.Stdin = strings.NewReader("not json at all")
 	err := cmd.Run()
 	require.Error(t, err)
@@ -501,7 +576,7 @@ func TestCLIInvalidJSON(t *testing.T) {
 func TestCLIEmptyStdin(t *testing.T) {
 	bin := buildCLI(t)
 
-	cmd := exec.Command(bin)
+	cmd := exec.Command(bin, "render")
 	cmd.Stdin = strings.NewReader("")
 	err := cmd.Run()
 	require.Error(t, err, "empty stdin should fail")
@@ -522,7 +597,7 @@ func TestCLISequenceDiagram(t *testing.T) {
 		]
 	}`
 
-	cmd := exec.Command(bin)
+	cmd := exec.Command(bin, "render")
 	cmd.Stdin = strings.NewReader(input)
 	out, err := cmd.Output()
 	require.NoError(t, err, "CLI should exit 0 for valid sequence diagram")
@@ -545,7 +620,7 @@ func TestCLISequenceValidationError(t *testing.T) {
 		"interactions": [{"from": "a", "to": "unknown_actor", "label": "msg"}]
 	}`
 
-	cmd := exec.Command(bin)
+	cmd := exec.Command(bin, "render")
 	cmd.Stdin = strings.NewReader(input)
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
@@ -594,29 +669,16 @@ func TestRun_DiffSVGAndText(t *testing.T) {
 	assert.Contains(t, out, "added: node C")
 }
 
-func TestRun_DiffPatchArgument(t *testing.T) {
-	old := writeTemp(t, "spec.json", diffOld)
-	patch := writeTemp(t, "change.patch", "--- a/spec.json\n+++ b/spec.json\n@@ -1,1 +1,1 @@\n-"+strings.TrimSuffix(diffOld, "\n")+"\n+"+strings.TrimSuffix(diffNew, "\n")+"\n")
-	code, out, stderr := runCLI(t, "", "diff", old, patch, "-format", "text")
-	require.Equal(t, 0, code, stderr)
-	assert.Contains(t, out, "added: node C")
-
-	bad := writeTemp(t, "bad.diff", "@@ -1,1 +1,1 @@\n-nope\n+x\n")
-	code, _, stderr = runCLI(t, "", "diff", old, bad)
-	assert.Equal(t, 1, code)
-	assert.Contains(t, stderr, `"field": "new"`)
-	assert.Contains(t, stderr, "expected line 1")
-}
-
 func TestRun_DiffErrors(t *testing.T) {
 	old := writeTemp(t, "old.json", diffOld)
 	seq := writeTemp(t, "seq.json", `{"type":"sequence","actors":[{"id":"a","label":"A"}],"interactions":[]}`)
 	code, _, stderr := runCLI(t, "", "diff", old, seq)
 	assert.Equal(t, 1, code)
 	assert.Contains(t, stderr, `"field": "after.type"`)
+	// One path is its latest change in git; outside a repository that fails.
 	code, _, stderr = runCLI(t, "", "diff", old)
 	assert.Equal(t, 2, code)
-	assert.Contains(t, stderr, "usage: diago diff")
+	assert.True(t, strings.HasPrefix(stderr, "error: "), stderr)
 	code, _, stderr = runCLI(t, "", "diff", old, "-")
 	assert.Equal(t, 2, code)
 	assert.Contains(t, stderr, "stdin")
@@ -635,24 +697,10 @@ func TestRun_DiffErrors(t *testing.T) {
 	assert.Equal(t, 2, code)
 	assert.Contains(t, stderr, "usage: diago diff")
 
-	// An interleaved flag misparsed as a positional is rejected too.
-	code, _, stderr = runCLI(t, "", "diff", old, "-format", "text", old)
-	assert.Equal(t, 2, code)
-	assert.Contains(t, stderr, "usage: diago diff")
-
 	// A bad flag after both paths prints the positional usage line.
 	code, _, stderr = runCLI(t, "", "diff", old, neu, "-bogus")
 	assert.Equal(t, 2, code)
 	assert.Contains(t, stderr, "usage: diago diff")
-}
-
-func TestIsPatch(t *testing.T) {
-	assert.True(t, isPatch("x.patch", []byte("{}")))
-	assert.True(t, isPatch("x.diff", []byte("{}")))
-	assert.True(t, isPatch("x.json", []byte("diff --git a/x b/x\n")))
-	assert.True(t, isPatch("x.json", []byte("--- a/x\n")))
-	assert.True(t, isPatch("x.json", []byte("@@ -1 +1 @@\n")))
-	assert.False(t, isPatch("x.json", []byte("{\"type\":\"flow\"}")))
 }
 
 func TestRun_ClassRenderCheckAndPrevious(t *testing.T) {

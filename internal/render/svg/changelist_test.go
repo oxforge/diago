@@ -106,7 +106,6 @@ func TestChangeList_SketchSamplesByHand(t *testing.T) {
 	require.NoError(t, err)
 	g := changesGroup(t, RenderWithOptions(diffGraph(), th, &RenderOptions{Changes: sampleLines(th)}))
 	assert.Equal(t, 3, strings.Count(g, "<path"), "every sample is drawn by hand")
-	assert.NotContains(t, g, "filter=", "no distortion filter: it costs a full-canvas pass each")
 }
 
 func TestChangeList_Sequence(t *testing.T) {
@@ -132,7 +131,55 @@ func TestChangeList_ValueArrowFollowsTheFont(t *testing.T) {
 
 	// The width is measured on the text as drawn.
 	lines := sampleLines(sketch)
-	w, _ := changeListSize(lines, sketch)
+	w, _ := changeListSize("", lines, sketch)
 	drawn, _ := font.MeasureText("changed: edge A -> B: style solid -> dashed", sketch.Edge.LabelFont.Size, sketch.Edge.LabelFont.Family)
 	assert.InDelta(t, legendLabelX+drawn+legendRightPad, w, 1e-6)
+}
+
+func TestChangeList_CaptionFirst(t *testing.T) {
+	th := theme.DefaultTheme()
+	g := diffGraph()
+	_, plainH := svgSize(t, RenderWithOptions(g, th, &RenderOptions{}))
+	out := RenderWithOptions(g, th, &RenderOptions{Caption: "v1.json → v2.json", Changes: sampleLines(th)})
+	list := changesGroup(t, out)
+	caption := `<text x="` + ff(legendSampleX1) + `" y="` + ff(g.Height+legendPad+legendRow/2) + `"`
+	require.Contains(t, list, caption, "the caption is the first row, at the samples' left edge")
+	assert.Less(t, strings.Index(list, "v1.json → v2.json"), strings.Index(list, "added: node B"))
+	assert.Contains(t, list, `fill="`+th.Edge.LabelFont.Color+`"`, "in the label color, not a status color")
+	assert.Equal(t, 1, strings.Count(list, "<rect"), "the caption has no sample")
+	assert.Equal(t, 2, strings.Count(list, "<line"))
+	_, h := svgSize(t, out)
+	assert.InDelta(t, plainH+2*legendPad+4*legendRow, h, 1e-6, "one row for the caption, one per line")
+}
+
+func TestChangeList_CaptionAlone(t *testing.T) {
+	th := theme.DefaultTheme()
+	g := diffGraph()
+	out := RenderWithOptions(g, th, &RenderOptions{Caption: "v1.json → v1.json"})
+	list := changesGroup(t, out)
+	assert.Contains(t, list, "v1.json → v1.json")
+	assert.NotContains(t, list, "<rect")
+	assert.NotContains(t, list, "<line")
+	_, h := svgSize(t, out)
+	assert.InDelta(t, g.Height+2*legendPad+legendRow, h, 1e-6)
+}
+
+func TestChangeList_CaptionWidensTheCanvas(t *testing.T) {
+	th := theme.DefaultTheme()
+	long := "a-diagram-with-a-long-name.v1.json @ HEAD~12 (a1b2c3d) → a-diagram-with-a-long-name.v1.json"
+	g := diffGraph()
+	w, _ := svgSize(t, RenderWithOptions(g, th, &RenderOptions{Caption: long}))
+	cw, _ := font.MeasureText(long, th.Edge.LabelFont.Size, th.Edge.LabelFont.Family)
+	require.Greater(t, legendSampleX1+cw+legendRightPad, g.Width, "the caption must be wider than the graph for this test")
+	assert.InDelta(t, legendSampleX1+cw+legendRightPad, w, 1e-3, "the SVG rounds its size to 4 decimals")
+}
+
+func TestChangeList_SequenceCaption(t *testing.T) {
+	th := theme.DefaultTheme()
+	s := diffSequence()
+	_, plainH := svgSize(t, RenderSequenceWithOptions(s, th, &RenderOptions{}))
+	out := RenderSequenceWithOptions(s, th, &RenderOptions{Caption: "a.json → b.json", Changes: sampleLines(th)})
+	_, h := svgSize(t, out)
+	assert.InDelta(t, plainH+2*legendPad+4*legendRow, h, 1e-6)
+	assert.Contains(t, changesGroup(t, out), "a.json → b.json")
 }

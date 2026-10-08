@@ -678,9 +678,12 @@ func TestAnchoring_TheCarrierKeepsAFallback(t *testing.T) {
 // seed41 is the random-graph probe's graph of seed 41 under DOWN with
 // its flat-edges mode (-probe.flatedges): a group g0 and a flat edge
 // n6 -> n4 from a circle to a hexagon. Fresh, the router routes it; with
-// n0 deleted and anchored on the fresh carrier, it falls back.
+// n0 deleted and anchored on the fresh carrier, it falls back. n2, a
+// diamond in the probe's graph, is a box here: since a parallelogram's
+// ports take the stretch its edges share (S8, Shape ports), the fresh
+// screen layout of the probe's graph ranks the edge from the start.
 func seed41(t *testing.T) model.Graph {
-	g := graph(t, nil, "n0:parallelogram", "n1", "n2:diamond", "n3:diamond", "n4:hexagon", "n5:rounded", "n6:circle",
+	g := graph(t, nil, "n0:parallelogram", "n1", "n2", "n3:diamond", "n4:hexagon", "n5:rounded", "n6:circle",
 		"n0->n5", "n2->n6", "n5->n0", "n1->n2", "n1->n2", "n0->n1", "n3->n0", "n4->n3", "n6->n4")
 	return grouped(flatten(g, "n6->n4#0"), model.Group{ID: "g0", Contains: []string{"n0", "n2", "n6"}})
 }

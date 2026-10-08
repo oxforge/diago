@@ -58,6 +58,14 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 	if err := json.Unmarshal(data, &spec); err != nil {
 		return nil, fmt.Errorf("parse sequence: %w", err)
 	}
+	// The keys each section gives: decoded into an int, a missing start or
+	// end would read as 0. The decode above succeeded, so this one does.
+	var given struct {
+		Fragments []struct {
+			Sections []map[string]json.RawMessage `json:"sections"`
+		} `json:"fragments"`
+	}
+	_ = json.Unmarshal(data, &given)
 
 	var errs ValidationErrors
 
@@ -208,6 +216,16 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 
 		for j, sec := range f.Sections {
 			secField := fmt.Sprintf("%s.sections[%d]", field, j)
+			missing := false
+			for _, bound := range []string{"start", "end"} {
+				if _, ok := given.Fragments[i].Sections[j][bound]; !ok {
+					errs = append(errs, ValidationError{Field: secField + "." + bound, Message: "must be given"})
+					missing = true
+				}
+			}
+			if missing {
+				continue
+			}
 
 			if interactionCount == 0 {
 				errs = append(errs, ValidationError{

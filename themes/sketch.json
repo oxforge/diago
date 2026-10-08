@@ -33,7 +33,7 @@
     "stroke_width": 1.5,
     "stroke_dash": "6,3",
     "label_font": { "family": "Pangolin", "size": 12, "weight": 400, "color": "#6c6c6c" },
-    "padding": 24
+    "padding": 12
   },
   "actor": {
     "fill": "#fff8f0",

@@ -46,7 +46,6 @@ type Rect struct {
 	FillOpacity         float64 // 0 means default (fully opaque); 0 < v <= 1 sets fill-opacity
 	StrokeWidth         float64
 	StrokeDash          string
-	Filter              string // e.g., "url(#sketch-wobble)"
 }
 
 // Render writes the <rect> element to w.
@@ -75,9 +74,6 @@ func (r Rect) Render(w io.Writer) {
 	if r.StrokeDash != "" {
 		fmt.Fprintf(w, ` stroke-dasharray="%s"`, escapeXML(r.StrokeDash))
 	}
-	if r.Filter != "" {
-		fmt.Fprintf(w, ` filter="%s"`, escapeXML(r.Filter))
-	}
 	io.WriteString(w, `/>`)
 }
 
@@ -86,7 +82,6 @@ type Circle struct {
 	CX, CY, R    float64
 	Fill, Stroke string
 	StrokeWidth  float64
-	Filter       string
 }
 
 // Render writes the <circle> element to w.
@@ -101,9 +96,6 @@ func (c Circle) Render(w io.Writer) {
 	if c.StrokeWidth > 0 {
 		fmt.Fprintf(w, ` stroke-width="%s"`, ff(c.StrokeWidth))
 	}
-	if c.Filter != "" {
-		fmt.Fprintf(w, ` filter="%s"`, escapeXML(c.Filter))
-	}
 	io.WriteString(w, `/>`)
 }
 
@@ -112,7 +104,6 @@ type Ellipse struct {
 	CX, CY, RX, RY float64
 	Fill, Stroke   string
 	StrokeWidth    float64
-	Filter         string
 }
 
 // Render writes the <ellipse> element to w.
@@ -128,9 +119,6 @@ func (e Ellipse) Render(w io.Writer) {
 	if e.StrokeWidth > 0 {
 		fmt.Fprintf(w, ` stroke-width="%s"`, ff(e.StrokeWidth))
 	}
-	if e.Filter != "" {
-		fmt.Fprintf(w, ` filter="%s"`, escapeXML(e.Filter))
-	}
 	io.WriteString(w, `/>`)
 }
 
@@ -141,7 +129,6 @@ type Line struct {
 	StrokeWidth    float64
 	StrokeDash     string
 	MarkerEnd      string // e.g., "url(#arrowhead)"
-	Filter         string
 }
 
 // Render writes the <line> element to w.
@@ -160,9 +147,6 @@ func (l Line) Render(w io.Writer) {
 	if l.MarkerEnd != "" {
 		fmt.Fprintf(w, ` marker-end="%s"`, escapeXML(l.MarkerEnd))
 	}
-	if l.Filter != "" {
-		fmt.Fprintf(w, ` filter="%s"`, escapeXML(l.Filter))
-	}
 	io.WriteString(w, `/>`)
 }
 
@@ -174,7 +158,6 @@ type Polyline struct {
 	StrokeDash  string
 	MarkerStart string // e.g., "url(#arrowhead)"
 	MarkerEnd   string // e.g., "url(#arrowhead)"
-	Filter      string
 }
 
 // Render writes the <polyline> element to w.
@@ -205,9 +188,6 @@ func (p Polyline) Render(w io.Writer) {
 	if p.MarkerEnd != "" {
 		fmt.Fprintf(w, ` marker-end="%s"`, escapeXML(p.MarkerEnd))
 	}
-	if p.Filter != "" {
-		fmt.Fprintf(w, ` filter="%s"`, escapeXML(p.Filter))
-	}
 	io.WriteString(w, `/>`)
 }
 
@@ -221,7 +201,6 @@ type Path struct {
 	LineJoin     string // stroke-linejoin, e.g. "round"; "" = no attribute
 	MarkerStart  string // e.g., "url(#arrowhead)"
 	MarkerEnd    string // e.g., "url(#arrowhead)"
-	Filter       string
 }
 
 // Render writes the <path> element to w.
@@ -251,9 +230,6 @@ func (p Path) Render(w io.Writer) {
 	if p.MarkerEnd != "" {
 		fmt.Fprintf(w, ` marker-end="%s"`, escapeXML(p.MarkerEnd))
 	}
-	if p.Filter != "" {
-		fmt.Fprintf(w, ` filter="%s"`, escapeXML(p.Filter))
-	}
 	io.WriteString(w, `/>`)
 }
 
@@ -262,7 +238,6 @@ type Polygon struct {
 	Points       []model.Point
 	Fill, Stroke string
 	StrokeWidth  float64
-	Filter       string
 }
 
 // Render writes the <polygon> element to w.
@@ -283,9 +258,6 @@ func (p Polygon) Render(w io.Writer) {
 	}
 	if p.StrokeWidth > 0 {
 		fmt.Fprintf(w, ` stroke-width="%s"`, ff(p.StrokeWidth))
-	}
-	if p.Filter != "" {
-		fmt.Fprintf(w, ` filter="%s"`, escapeXML(p.Filter))
 	}
 	io.WriteString(w, `/>`)
 }

@@ -2,7 +2,8 @@
 
 Diago is a command-line tool that renders diagrams from structured JSON specs.
 Describe *what's connected to what* in typed JSON; diago handles layout and
-rendering and writes SVG, PNG, Unicode text art, draw.io XML or Excalidraw JSON.
+rendering and writes SVG, PNG, Unicode text art, draw.io XML or Excalidraw JSON
+(the last two in beta).
 
 It is built for AI agents (Claude Code, Codex, Cursor and the like) as much as
 for people: agents produce valid JSON far more reliably than valid DSL syntax
@@ -40,28 +41,34 @@ or download a binary for Linux x86_64 or macOS from
 
 ## Usage
 
-`diago render [flags] [spec.json]` reads a JSON spec and writes the
-rendered diagram to stdout. The spec path is optional (`-` also means stdin);
-when omitted, the spec is read from stdin. The bare form (no verb, or a
-first argument starting with `-`) is kept as an implicit `render`, so
-`diago < spec.json` still works. `diago diff` (below) renders what
-changed between two flow, sequence or class specs. A CLI render is subject to a
-10 second timeout, including flagless invocations such as
-`diago render spec.json` and `diago < spec.json`.
+`diago <verb> [flags] [args]`: every call names its verb, one of `render`,
+`diff`, `check` and `import`, and `diago -h` lists them. `diago render
+spec.json` draws a spec to stdout; `diago diff` (below) draws what changed
+between two versions; `diago check` (below) prints advisories without drawing;
+`diago import` (below) translates Mermaid into a diago JSON spec. Every verb
+takes its flags before, between or after its arguments, and `--` ends the
+flags. A `render` or `diff` is subject to a 10 second timeout.
 
-`diago check` (below) prints advisories without rendering. `diago import`
-(below) translates a Mermaid source into a diago JSON spec.
+**Specs.** Wherever a verb takes a SPEC it accepts:
 
-**Mermaid sources.** Every spec argument, and stdin, may be a Mermaid
-`flowchart`/`graph`, `sequenceDiagram` or `classDiagram` instead of JSON: a
-path ending in `.mmd` or `.mermaid`, or a body whose first meaningful line is
-one of those headers, is translated before parsing. This holds for `render`,
-`check`, both `diff` arguments (a `git diff` of a `.mmd` is still a valid
-second argument) and `-previous`. Constructs diago cannot carry are
-translated to their nearest form and reported on stderr as
-`warning: import line <n>: <message>`; statements with no meaning in diago
-fail with `diago <verb>: line <n>: <message>` and exit 1. The mapping tables
-are under `diago import` below.
+- a path to a JSON spec, or to a Mermaid source (below);
+- `-`, or nothing, for stdin (`render`, `check` and `import`; `diff` reads
+  files only);
+- `REV:PATH`, the file as it was at a git revision: `HEAD~1:arch.json`,
+  `v1.2:docs/arch.mmd`, a branch or a commit hash. PATH is relative to the
+  current directory, like any path, and the repository is the one that
+  contains it. A name that exists on disk is always read as a file. Reading a
+  revision needs `git` on `PATH`.
+
+**Mermaid sources.** `diago render diagram.mmd` draws a Mermaid diagram as it
+is, with no import step. Every SPEC may be a Mermaid `flowchart`/`graph`,
+`sequenceDiagram` or `classDiagram` instead of JSON: a path ending in `.mmd` or
+`.mermaid`, or a body whose first meaningful line is one of those headers, is
+translated before parsing, in `render`, `check`, both `diff` arguments and
+`-previous`. Constructs diago cannot carry are translated to their nearest
+form and reported on stderr as `warning: import line <n>: <message>`;
+statements with no meaning in diago fail with `diago <verb>: line <n>:
+<message>` and exit 1. The mapping tables are under `diago import` below.
 
 ```bash
 echo '{
@@ -71,7 +78,7 @@ echo '{
     {"id": "b", "label": "World"}
   ],
   "edges": [{"from": "a", "to": "b"}]
-}' | diago > hello.svg
+}' | diago render > hello.svg
 
 # A spec from a file (any flow, sequence or class spec, see the JSON Spec
 # Reference below), with a theme override
@@ -80,6 +87,9 @@ diago render -theme midnight spec.json > output.svg
 # PNG at 3x, and Unicode text art
 diago render -format png -scale 3 spec.json > output.png
 diago render -format text spec.json
+
+# A Mermaid file, as it is
+diago render diagram.mmd > diagram.svg
 
 # Anchor a second render on the first, so unrelated nodes don't reshuffle
 diago render -previous v1.svg v2.json > v2.svg
@@ -90,10 +100,10 @@ diago render -previous v1.svg v2.json > v2.svg
 | Flag | Default | Notes |
 |------|---------|-------|
 | `-theme` | spec value, else `default` | `default`, `dark`, `midnight`, `sketch` |
-| `-format` | `svg` | `svg`, `png` (requires resvg), `text` (alias `txt`), `drawio`, `excalidraw` (the last two flow only); an unknown value is an error, not a silent fallback |
+| `-format` | `svg` | `svg`, `png` (requires resvg), `text` (alias `txt`), `drawio`, `excalidraw` (the last two flow only, and in beta); an unknown value is an error, not a silent fallback |
 | `-scale` | `2.0` | PNG only; ignored when `-width` is set |
 | `-width` | — | PNG output width in pixels; overrides `-scale` |
-| `-previous` | — | Anchor the layout on a previous render: an SVG rendered by diago (its `<metadata id="diago-layout">` element is the exact anchor; an SVG from an older diago, rendered before its current layered layout engine, anchors as a best effort), a layout-carrier JSON, or the previous spec (exact for one step). Flow and class; sequence renders warn and ignore it. Layout rules spec C18 |
+| `-previous` | — | Anchor the layout on a previous render: an SVG rendered by diago (its `<metadata id="diago-layout">` element is the exact anchor; an SVG from an older diago, rendered before its current layered layout engine, anchors as a best effort), a layout-carrier JSON, or the previous spec (exact for one step). Any of them may be `REV:PATH`. Flow and class; sequence renders warn and ignore it. Layout rules spec C18 |
 | `-debug` | off | JSON Lines layout/routing decisions on stderr — see [Debug logging](#debug-logging) |
 
 `text` output lays out under its own cell-aligned profile (layout rules spec
@@ -120,7 +130,8 @@ anchored on that carrier, and its `flat-edge-ranked` warning says it was
 kept, not that no clear side route exists; a render without `-previous`
 tries the side route again and decides fresh. Anchored on a previous spec, a render keeps only the fallbacks that
 spec's own layout has, laid out as above. So under `scripts/diago-render`,
-which anchors each document version on the previous version's spec, laid
+which anchors each flow or class diagram's version on the previous
+version's spec (a sequence diagram is drawn fresh), laid
 out fresh, a kept fallback lasts one version: the next version is anchored
 on this version's own layout, and keeps the fallback only if this version,
 laid out on its own, has no side route for the edge either. Only a chain of
@@ -138,10 +149,18 @@ ones marked, unchanged ones dimmed and removed ones kept in their reserved
 space (never overlapping a survivor).
 
 ```bash
-diago diff v1.json v2.json > diff.svg
-diago diff v1.json v2.json -format text
-git diff v1.json > change.patch && diago diff v1.json change.patch   # the second argument may be a unified diff of the first
+diago diff arch.json > diff.svg                     # the latest change of a file in git
+diago diff v1.json v2.json > diff.svg               # two files
+diago diff HEAD~3:arch.json arch.json -format text  # a revision against the file on disk
+diago diff v1.2:arch.json HEAD:arch.json -format png > diff.png
 ```
+
+With one path, `diago diff` draws that file's latest change: the newest
+version committed along first parents from HEAD, following renames, whose
+content differs from the file on disk, against the file on disk. A file with
+uncommitted edits shows them against HEAD; a clean file shows what its last
+change did. It fails (exit 2) when the file is not tracked or has no earlier
+version. With two arguments, each is a path or `REV:PATH` (see *Specs* above).
 
 `-format` accepts `svg` (default), `png`, `text`; `-theme` as for `render`,
 over the new spec's `theme` field (the old spec's is not read).
@@ -153,10 +172,14 @@ its own `color` never reaches its outline, wire or label (an edge's color is
 dropped). The palette is the theme's `diff` block (`added`, `changed`,
 `removed`). Every diff lists its changes, one line each: under the diagram
 in SVG and PNG, each line led by a sample in its status's style, and in a
-footer in text. A changed line names the fields that differ, `old → new`, by
-their spec keys:
+footer in text. The list starts with a caption that names the two sides,
+`old → new`: a file on disk by its base name, a revision as
+`<name> @ <rev> (<hash7>)`, and the version the one-path form picked as
+`<name> @ <hash7>`; it is there even when nothing changed. A changed line
+names the fields that differ, `old → new`, by their spec keys:
 
 ```text
+arch.json @ a1b2c3d → arch.json
 added: node Metrics
 removed: node SMTP Relay
 changed: edge API Gateway -> Postgres: label none → "read/write", style solid → dashed
@@ -171,9 +194,11 @@ before the visibility glyph (`+ `, `- `, `~ `, or two spaces when
 unchanged), removed members keep their row, and the list adds one line per
 changed member (`changed: class Payment, removed attribute - amount:
 Money`); relations are named in spec orientation. Exit 0 on identical inputs
-(everything dimmed, no list), 1 on a validation error (fields are prefixed
-`before.` / `after.`, a bad patch reports on `new`), 2 on usage or internal
-errors. draw.io and Excalidraw output are not available for diffs.
+(everything dimmed, the caption alone), 1 on a validation error (fields are
+prefixed `before.` / `after.`), 2 on usage or internal errors and on a git
+failure: no `git` on PATH, a file outside a repository, an unknown revision,
+or a file missing at a revision. draw.io and Excalidraw output are not
+available for diffs.
 
 ### diago check
 
@@ -235,6 +260,9 @@ name there is a validation error. Findings are returned, never logged.
 diago import diagram.mmd > spec.json     # JSON on stdout, report lines on stderr
 diago import < diagram.mmd | diago check
 ```
+
+`render`, `check` and `diff` read Mermaid directly. `import` is for when you
+want the JSON, to keep editing the diagram in diago's own terms.
 
 The dialect is sniffed from the header. The output is the JSON an agent
 would have written: two-space indent, derived edge ids, `rect` omitted.
@@ -422,6 +450,7 @@ The typical case is two peer sites, each with its own web, API and database, joi
 **`theme`:** optional theme name (`default`, `dark`, `midnight`, `sketch`, or one in `DIAGO_THEME_DIR`): the theme the render uses unless `-theme` overrides it; text art takes none. A name that does not load is a validation error on `theme`.
 **Interaction styles:** `solid`, `dashed`, `async`
 **Fragment types:** `alt`, `opt`, `loop`, `par`, `break`
+**Fragments:** each draws a frame with its type in a tab at the top-left corner and each section's `label` as a guard in brackets; the frame spans the actors in `over` and widens to every actor a message in its sections reaches
 **`activations`:** boolean, default `true` — set `false` to hide the activation bars on lifelines
 **`ignore`:** optional array of advisory rule names to silence for this spec (see `diago check`)
 
@@ -459,7 +488,9 @@ The typical case is two peer sites, each with its own web, API and database, joi
 **Packages:** the flow group rules under the key `packages`.
 **Legend:** `legend: true` adds one row per relation kind present; `legend_labels` overrides a row's text, an empty value hides it.
 **Relation id:** as for flow edges, derived from `from` and `to` as written (`from->to#n`).
-draw.io and Excalidraw export cover flow diagrams only.
+draw.io and Excalidraw export cover flow diagrams only, and are in beta: they
+are not fully tested yet, so open what they write and check it before relying on
+it.
 
 ## Skills for Claude Code
 

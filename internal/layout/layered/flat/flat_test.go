@@ -689,7 +689,10 @@ func TestRoute_EveryShapeMeetsTheContract(t *testing.T) {
 			}
 		}
 	}
-	assert.Equal(t, [2]int{1460, 108}, [2]int{kept, refused}, "routes kept and refused")
+	// Four refusals more since a parallelogram's ports take the stretch
+	// its top and bottom edges share (S8, Shape ports): a circle aligned
+	// with a parallelogram, the flat edge running back, under DOWN and UP.
+	assert.Equal(t, [2]int{1456, 112}, [2]int{kept, refused}, "routes kept and refused")
 }
 
 // TestRoute_ASecondFlatEdgeBesideTheFirst pins the flat routes kept

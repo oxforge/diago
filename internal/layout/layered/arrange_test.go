@@ -372,7 +372,7 @@ func TestArrange_ScreenNodesGrowToKeepTheirPortsApart(t *testing.T) {
 			cylinder := hub(crowded(t, "cylinder", 30), dir)
 			if dir == model.Down || dir == model.Up {
 				assert.Equal(t, 2*span, hexagon.W, "a hexagon's flat face is the middle half")
-				assert.InDelta(t, span+ports.Slant*parallelogram.H, parallelogram.W, 1e-9, "a parallelogram's edge loses its slant")
+				assert.InDelta(t, span+2*ports.Slant*parallelogram.H, parallelogram.W, 1e-9, "a parallelogram's faces share its edges' stretch, less the slant at each end")
 				assert.Equal(t, span, cylinder.W, "a cylinder's cap: its whole side")
 			} else {
 				assert.Equal(t, span, hexagon.W, "a hexagon's angled side: its whole side")

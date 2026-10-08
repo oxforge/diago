@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/oxforge/diago/internal/diff"
-	"github.com/oxforge/diago/internal/font"
 	seqlayout "github.com/oxforge/diago/internal/layout/sequence"
 	"github.com/oxforge/diago/internal/model"
 	pngrender "github.com/oxforge/diago/internal/render/png"
@@ -24,7 +23,26 @@ type DiffOptions struct {
 	Format     string // "svg" (default) | "png" | "text" ("txt" alias)
 	Theme      string // theme name override (empty = use the after spec's theme field)
 	PNG        pngrender.Options
+	Caption    string             // names the two sides, the change list's first line ("" for none); see DiffCaption
 	Advisories *[]schema.Advisory // optional sink: both specs checked as anchored, fields prefixed before./after., plus text-label-dropped
+}
+
+// DiffCaption is the first line of a diff's change list: the names of its
+// two sides, old → new.
+func DiffCaption(oldName, newName string) string { return oldName + " → " + newName }
+
+// withFooter appends a text diff's change list to its art after one blank
+// line: the caption, when there is one, then the change lines. With neither
+// the art is returned as it is.
+func withFooter(art, caption string, legend []string) string {
+	lines := legend
+	if caption != "" {
+		lines = append([]string{caption}, legend...)
+	}
+	if len(lines) == 0 {
+		return art
+	}
+	return strings.TrimRight(art, "\n") + "\n\n" + strings.Join(lines, "\n") + "\n"
 }
 
 // prefixFields prepends prefix to every field path of a ValidationErrors.
@@ -194,13 +212,7 @@ func layoutSequenceDiff(u diff.UnionSequence, th theme.Theme, text bool) *model.
 		seqlayout.NormalizeSequenceWithProfile(ps, p)
 		return ps
 	}
-	p := seqlayout.ScreenProfile(seqlayout.LayoutFonts{
-		Family:        th.Actor.Font.Family,
-		HeaderSize:    th.Actor.Font.Size,
-		LabelSize:     th.Edge.LabelFont.Size,
-		FragLabelSize: th.Fragment.LabelFont.Size,
-	})
-	p.MeasureText = font.MeasureText
+	p := sequenceScreenProfile(th)
 	ps := seqlayout.LayoutWithOptions(u.Diagram, p, opts)
 	seqlayout.NormalizeSequenceWithProfile(ps, p)
 	return ps
@@ -298,11 +310,7 @@ func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("diff: render text: %w", err)
 			}
-			art := res.Art
-			if legend := diff.SequenceLegend(u); len(legend) > 0 {
-				art = strings.TrimRight(art, "\n") + "\n\n" + strings.Join(legend, "\n") + "\n"
-			}
-			return []byte(art), res.DroppedLabels, nil, nil
+			return []byte(withFooter(res.Art, opts.Caption, diff.SequenceLegend(u))), res.DroppedLabels, nil, nil
 		}
 		ps := layoutSequenceDiff(u, th, false)
 		svg := svgrender.RenderSequenceWithOptions(ps, th, &svgrender.RenderOptions{
@@ -311,6 +319,7 @@ func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 			MarkerFills: statusFills(th),
 			StatusPaint: true,
 			Changes:     changeLines(diff.SequenceChanges(u), th),
+			Caption:     opts.Caption,
 		})
 
 		if format == "png" {
@@ -333,11 +342,7 @@ func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("diff: render text: %w", err)
 		}
-		art := res.Art
-		if legend := diff.FlowLegend(u); len(legend) > 0 {
-			art = strings.TrimRight(art, "\n") + "\n\n" + strings.Join(legend, "\n") + "\n"
-		}
-		return []byte(art), res.DroppedLabels, flatRanked, nil
+		return []byte(withFooter(res.Art, opts.Caption, diff.FlowLegend(u))), res.DroppedLabels, flatRanked, nil
 	}
 
 	pg, basePrev, err := layoutFlowDiff(ctx, u, bg, th, false)
@@ -356,6 +361,7 @@ func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 		MarkerFills: statusFills(th),
 		StatusPaint: true,
 		Changes:     changeLines(diff.FlowChanges(u), th),
+		Caption:     opts.Caption,
 	})
 
 	if format == "png" {

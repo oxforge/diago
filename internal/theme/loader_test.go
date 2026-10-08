@@ -226,3 +226,31 @@ func TestAllEmbeddedThemesHaveClassSection(t *testing.T) {
 		assert.Positive(t, th.Class.SeparatorWidth, name)
 	}
 }
+
+func TestValidate_PaddingBounds(t *testing.T) {
+	tests := []struct {
+		name    string
+		edit    func(th *Theme)
+		wantErr string // "" accepts
+	}{
+		{"node padding x negative", func(th *Theme) { th.Node.Padding.X = -1 }, "node.padding.x"},
+		{"node padding y negative", func(th *Theme) { th.Node.Padding.Y = -0.5 }, "node.padding.y"},
+		{"node padding zero", func(th *Theme) { th.Node.Padding = Padding{} }, ""},
+		{"group padding 11", func(th *Theme) { th.Group.Padding = 11 }, "group.padding"},
+		{"group padding 12", func(th *Theme) { th.Group.Padding = 12 }, ""},
+		{"group padding 24", func(th *Theme) { th.Group.Padding = 24 }, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			th := DefaultTheme()
+			tt.edit(&th)
+			err := Validate(th)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}

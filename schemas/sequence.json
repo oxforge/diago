@@ -37,7 +37,6 @@
       "additionalProperties": false,
       "type": "object",
       "required": [
-        "label",
         "start",
         "end"
       ]
@@ -157,8 +156,7 @@
       "type": "object",
       "required": [
         "type",
-        "actors",
-        "interactions"
+        "actors"
       ]
     }
   }

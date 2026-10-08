@@ -53,7 +53,7 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 	// zero and the canvas is exactly the graph's.
 	legendW, legendH := legendSize(graph.Legend, th)
 	band, titleW := titleBand(graph.Title, th.Node.Font)
-	changesW, changesH := changeListSize(opts.changes(), th)
+	changesW, changesH := changeListSize(opts.caption(), opts.changes(), th)
 	w := max(graph.Width, legendW, changesW, titleW)
 	h := graph.Height + legendH + changesH + band
 
@@ -85,11 +85,6 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 		X: 0, Y: 0, Width: w, Height: h,
 		Fill: th.Background,
 	})
-
-	// Add sketch distortion filter to defs if using sketch style.
-	if sketch {
-		doc.Defs = append(doc.Defs, RawXML{Content: sketchDistortionFilter()})
-	}
 
 	// Groups (rendered in depth order: parents behind children, all behind
 	// edges/nodes). Their titles are collected and drawn in front of the
@@ -287,8 +282,8 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 	if len(graph.Legend) > 0 {
 		doc.Children = append(doc.Children, renderLegend(graph.Legend, graph.Height, th))
 	}
-	if lines := opts.changes(); len(lines) > 0 {
-		doc.Children = append(doc.Children, renderChangeList(lines, graph.Height+legendH, th))
+	if caption, lines := opts.caption(), opts.changes(); caption != "" || len(lines) > 0 {
+		doc.Children = append(doc.Children, renderChangeList(caption, lines, graph.Height+legendH, th))
 	}
 
 	doc.Children = withTitleBand(doc.Children, graph.Title, w, band, th.Node.Font)
@@ -306,7 +301,6 @@ func renderGroup(g model.PositionedGroup, style theme.GroupStyle, sketch bool) S
 			Stroke:      style.Stroke,
 			StrokeWidth: style.StrokeWidth,
 			StrokeDash:  style.StrokeDash,
-			Filter:      sketchDistortionFilterRef,
 		}
 	} else {
 		shapeEl = Rect{
@@ -455,7 +449,6 @@ func renderEdge(e model.PositionedEdge, style theme.EdgeAppearance, background s
 			StrokeDash:  strokeDash,
 			MarkerStart: markerStart,
 			MarkerEnd:   markerEnd,
-			Filter:      sketchDistortionFilterRef,
 		}
 	} else if len(crossings) > 0 {
 		// Edge has crossings — render as path with hop arcs.

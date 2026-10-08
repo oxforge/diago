@@ -456,15 +456,30 @@ func LayoutSequenceForFormat(ctx context.Context, input []byte, format string) (
 	if err != nil {
 		return nil, fmt.Errorf("theme: %w", err)
 	}
-	fonts := seqlayout.LayoutFonts{
+	return layoutSequenceScreen(*diagram, th), nil
+}
+
+// sequenceScreenProfile is the timeline engine's screen profile for th: its
+// fonts and its activation bar width.
+func sequenceScreenProfile(th theme.Theme) seqlayout.Profile {
+	p := seqlayout.ScreenProfile(seqlayout.LayoutFonts{
 		Family:        th.Actor.Font.Family,
 		HeaderSize:    th.Actor.Font.Size,
 		LabelSize:     th.Edge.LabelFont.Size,
 		FragLabelSize: th.Fragment.LabelFont.Size,
-	}
-	positioned := seqlayout.Layout(*diagram, font.MeasureText, fonts)
-	seqlayout.NormalizeSequence(positioned, font.MeasureText, fonts)
-	return positioned, nil
+	})
+	p.MeasureText = font.MeasureText
+	p.ActivationWidth = th.Activation.Width
+	return p
+}
+
+// layoutSequenceScreen lays a sequence diagram out under th's screen profile
+// and normalizes it.
+func layoutSequenceScreen(d model.SequenceDiagram, th theme.Theme) *model.PositionedSequence {
+	p := sequenceScreenProfile(th)
+	positioned := seqlayout.LayoutWithProfile(d, p)
+	seqlayout.NormalizeSequenceWithProfile(positioned, p)
+	return positioned
 }
 
 func renderFlowWithTheme(ctx context.Context, input []byte, themeName string) (string, error) {
@@ -560,21 +575,8 @@ func renderSequenceFull(_ context.Context, input []byte, themeName string) (stri
 		return "", fmt.Errorf("render sequence: %w", err)
 	}
 
-	// Step 2: Lay out the sequence diagram using the timeline engine.
-	positioned := seqlayout.Layout(*diagram, font.MeasureText, seqlayout.LayoutFonts{
-		Family:        th.Actor.Font.Family,
-		HeaderSize:    th.Actor.Font.Size,
-		LabelSize:     th.Edge.LabelFont.Size,
-		FragLabelSize: th.Fragment.LabelFont.Size,
-	})
-
-	// Step 2b: Normalize coordinates for consistent margins.
-	seqlayout.NormalizeSequence(positioned, font.MeasureText, seqlayout.LayoutFonts{
-		Family:        th.Actor.Font.Family,
-		HeaderSize:    th.Actor.Font.Size,
-		LabelSize:     th.Edge.LabelFont.Size,
-		FragLabelSize: th.Fragment.LabelFont.Size,
-	})
+	// Steps 2 and 2b: lay out with the timeline engine and normalize.
+	positioned := layoutSequenceScreen(*diagram, th)
 
 	// Step 3: Render to SVG using the resolved theme.
 	svg := svgrender.RenderSequence(positioned, th)
