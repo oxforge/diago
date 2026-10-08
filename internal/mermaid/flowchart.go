@@ -26,6 +26,11 @@ var (
 	// before -.-, ==> before ===, --> before ---.
 	flowArrowRE     = regexp.MustCompile(`^(<-->|-->|---|-\.->|-\.-|==>|===)\s*(?:\|([^|]*)\|\s*)?`)
 	flowDashLabelRE = regexp.MustCompile(`^--\s+(.+?)\s+-->\s*`)
+	// An edge id, Mermaid 11's "e1@" before an arrow: any run without
+	// whitespace, quotes, "@" or "|" (so a "|label|" is never taken for one).
+	flowEdgeIDRE = regexp.MustCompile(`^([^\s"@|]+)@`)
+	// An edge's properties, "e1@{ animate: true }", set after the edge.
+	flowEdgePropsRE = regexp.MustCompile(`^([^\s"@|]+)@\{.*\}$`)
 	// One node reference: id, optional shape bracket (submatch 2 to 12, in
 	// the order of flowShapes), trailing whitespace.
 	flowNodeRefRE = regexp.MustCompile(`^(` + flowID + `)\s*(?:` +
@@ -75,8 +80,8 @@ type flowGroup struct {
 }
 
 type flowEdge struct {
-	from, to, label, style, dir string
-	line                        int
+	id, from, to, label, style, dir string
+	line                            int
 }
 
 type flowParser struct {
@@ -85,6 +90,7 @@ type flowParser struct {
 	order   int
 	stack   []string // open subgraph ids; a flattened subgraph pushes its ancestor again
 	edges   []flowEdge
+	edgeIDs map[string]int // edge id → the line that gave it
 	reports []Report
 }
 
@@ -96,7 +102,7 @@ func (p *flowParser) top() string {
 }
 
 func parseFlowchart(title string, body []line) (any, []Report, error) {
-	p := &flowParser{nodes: map[string]*flowNode{}, groups: map[string]*flowGroup{}}
+	p := &flowParser{nodes: map[string]*flowNode{}, groups: map[string]*flowGroup{}, edgeIDs: map[string]int{}}
 	direction := ""
 	lastLine := 1
 	for _, ln := range body {
@@ -224,37 +230,66 @@ func (p *flowParser) endpoint(rest string, n int) ([]string, string, error) {
 }
 
 // statement parses "endpoint (arrow endpoint)*", emitting one edge per
-// source-target pair and advancing the current set along a chain.
+// source-target pair and advancing the current set along a chain. An arrow
+// may carry an edge id ("e1@-->"); the properties statement of an edge
+// that has one ("e1@{ animate: true }") is dropped with a report.
 func (p *flowParser) statement(ln line) error {
+	if m := flowEdgePropsRE.FindStringSubmatch(ln.text); m != nil {
+		if _, ok := p.edgeIDs[m[1]]; ok {
+			p.reports = append(p.reports, Report{Line: ln.n, Message: fmt.Sprintf("properties of edge %q ignored, diago draws no edge animation or curve", m[1])})
+			return nil
+		}
+	}
 	current, rest, err := p.endpoint(ln.text, ln.n)
 	if err != nil {
 		return err
 	}
 	for rest != "" {
-		var label, style, dir string
-		if m := flowDashLabelRE.FindStringSubmatch(rest); m != nil {
+		var id, label, style, dir string
+		arrow := rest
+		if m := flowEdgeIDRE.FindStringSubmatch(arrow); m != nil {
+			id, arrow = m[1], arrow[len(m[0]):]
+		}
+		if m := flowDashLabelRE.FindStringSubmatch(arrow); m != nil {
 			label = strings.TrimSpace(m[1])
-			rest = rest[len(m[0]):]
-		} else if m := flowArrowRE.FindStringSubmatch(rest); m != nil {
+			arrow = arrow[len(m[0]):]
+		} else if m := flowArrowRE.FindStringSubmatch(arrow); m != nil {
 			style, dir = flowArrows[m[1]].style, flowArrows[m[1]].dir
 			label = unquote(m[2])
-			rest = rest[len(m[0]):]
+			arrow = arrow[len(m[0]):]
 		} else {
 			return perr(ln.n, "expected an arrow near %q", strings.TrimSpace(rest))
 		}
-		targets, remaining, err := p.endpoint(rest, ln.n)
+		targets, remaining, err := p.endpoint(arrow, ln.n)
 		if err != nil {
 			return err
 		}
 		rest = remaining
 		for _, s := range current {
 			for _, t := range targets {
-				p.edges = append(p.edges, flowEdge{from: s, to: t, label: label, style: style, dir: dir, line: ln.n})
+				// Mermaid gives a fan-out's id to the edge from its last
+				// source to its first target only.
+				e := flowEdge{from: s, to: t, label: label, style: style, dir: dir, line: ln.n}
+				if id != "" && s == current[len(current)-1] && t == targets[0] {
+					e.id = p.edgeID(id, s, t, ln.n)
+				}
+				p.edges = append(p.edges, e)
 			}
 		}
 		current = targets
 	}
 	return nil
+}
+
+// edgeID claims id for the edge from s to t, or reports it and returns ""
+// when an earlier edge has it: Mermaid keeps an id with its first edge.
+func (p *flowParser) edgeID(id, s, t string, n int) string {
+	if first, taken := p.edgeIDs[id]; taken {
+		p.reports = append(p.reports, Report{Line: n, Message: fmt.Sprintf("edge id %q already used on line %d, %s->%s imported without one", id, first, s, t)})
+		return ""
+	}
+	p.edgeIDs[id] = n
+	return id
 }
 
 // assemble emits the spec: nodes in first-mention order, edges in source
@@ -288,7 +323,11 @@ func (p *flowParser) assemble(title, direction string) (any, []Report, error) {
 				return nil, nil, perr(e.line, "edges to a subgraph are not supported (%q)", end)
 			}
 		}
-		spec.Edges = append(spec.Edges, schema.EdgeSpec{From: e.from, To: e.to, Label: e.label, Style: e.style, Direction: e.dir})
+		es := schema.EdgeSpec{From: e.from, To: e.to, Label: e.label, Style: e.style, Direction: e.dir}
+		if e.id != "" {
+			es.ID = &e.id
+		}
+		spec.Edges = append(spec.Edges, es)
 	}
 	type member struct {
 		id    string

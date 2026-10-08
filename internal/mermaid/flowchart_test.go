@@ -127,6 +127,49 @@ func TestFlowchart_Edges(t *testing.T) {
 	assert.NotContains(t, string(res.JSON), `"shape"`)
 }
 
+func TestFlowchart_EdgeIDs(t *testing.T) {
+	id := func(s string) *string { return &s }
+
+	// an id before the arrow, in each arrow form, becomes the edge's id
+	spec, reports := parseFlow(t, "flowchart LR\n  a e1@--> b\n  b e-2@-->|yes| c\n  c e3@-- no --> d\n  d e4@==> e\n  e e5@-.- f\n  f e6@<--> g\n  g --> a")
+	assert.Equal(t, []schema.EdgeSpec{
+		{ID: id("e1"), From: "a", To: "b"},
+		{ID: id("e-2"), From: "b", To: "c", Label: "yes"},
+		{ID: id("e3"), From: "c", To: "d", Label: "no"},
+		{ID: id("e4"), From: "d", To: "e", Style: "thick"},
+		{ID: id("e5"), From: "e", To: "f", Style: "dotted", Direction: "none"},
+		{ID: id("e6"), From: "f", To: "g", Direction: "both"},
+		edge("g", "a"),
+	}, spec.Edges)
+	assert.Empty(t, reports)
+
+	// each hop of a chain takes its own id; without spaces around the arrow too
+	spec, _ = parseFlow(t, "graph TD\n  a e1@--> b --> c e3@-->d\n")
+	assert.Equal(t, []schema.EdgeSpec{{ID: id("e1"), From: "a", To: "b"}, edge("b", "c"), {ID: id("e3"), From: "c", To: "d"}}, spec.Edges)
+
+	// on a fan-out, the id goes to the edge from the last source to the
+	// first target, as Mermaid gives it; the others have none
+	spec, _ = parseFlow(t, "graph TD\n  a & b e1@--> c & d\n")
+	assert.Equal(t, []schema.EdgeSpec{edge("a", "c"), edge("a", "d"), {ID: id("e1"), From: "b", To: "c"}, edge("b", "d")}, spec.Edges)
+
+	// a repeated id stays with its first edge; the later one has none, as
+	// in Mermaid, and the importer says so
+	spec, reports = parseFlow(t, "graph TD\n  a e1@--> b\n  b e1@--> c\n")
+	assert.Equal(t, []schema.EdgeSpec{{ID: id("e1"), From: "a", To: "b"}, edge("b", "c")}, spec.Edges)
+	assert.Equal(t, []Report{{Line: 3, Message: `edge id "e1" already used on line 2, b->c imported without one`}}, reports)
+
+	// an edge's properties (animation, curve) have no diago meaning: dropped
+	// with a report, the edge kept
+	spec, reports = parseFlow(t, "graph TD\n  a e1@--> b\n  e1@{ animate: true }\n  e1@{ curve: linear };\n")
+	assert.Equal(t, []schema.EdgeSpec{{ID: id("e1"), From: "a", To: "b"}}, spec.Edges)
+	assert.Equal(t, []Report{
+		{Line: 3, Message: `properties of edge "e1" ignored, diago draws no edge animation or curve`},
+		{Line: 4, Message: `properties of edge "e1" ignored, diago draws no edge animation or curve`},
+	}, reports)
+	// "@{" after an id no edge has stays unsupported
+	assert.Equal(t, `expected an arrow near "@{ animate: true }"`, errOf(t, "graph TD\n  a e1@--> b\n  e2@{ animate: true }\n").Message)
+}
+
 func TestFlowchart_Subgraphs(t *testing.T) {
 	// subgraph nodes become children of a group
 	spec, _ := parseFlow(t, strings.Join([]string{"graph TD", "  gw --> api", "  subgraph backend[Backend]", "    api --> db", "  end"}, "\n"))
