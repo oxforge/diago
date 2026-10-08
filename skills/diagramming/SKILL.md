@@ -190,6 +190,7 @@ band above the diagram, a centered first line in text art.
 | `diago render [flags] SPEC > out` | Render. SPEC is a JSON spec, a Mermaid file (`.mmd`, rendered as it is), `REV:PATH` (the file at a git revision, `HEAD~1:spec.json`), or stdin when omitted |
 | `diago check [-strict] [-json] SPEC` | Advisories only, no layout; `-strict` exits 1 on any finding |
 | `diago diff old.json new.json [flags] > out` | One diagram of both versions, each element marked added, removed or changed, with the list of changes under it (a footer in text art) and a first line naming both sides; either side may be `REV:PATH`, and `diago diff spec.json` alone draws a git-tracked spec's latest change |
+| `diago help [verb]`, `diago --version` | The usage or one verb's flags; the installed version (a release tag, the commit it was built from, or `(devel)`) |
 | `diago import diagram.mmd > spec.json` | Mermaid (`flowchart`/`graph`, `sequenceDiagram`, `classDiagram`) to diago JSON, only to keep editing it as JSON: every verb reads a `.mmd` file directly |
 
 Always name the verb: `diago spec.json` and `diago -format text spec.json` are errors.

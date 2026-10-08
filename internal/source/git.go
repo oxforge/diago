@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,9 +19,10 @@ import (
 var gitTimeout = 10 * time.Second
 
 // gitConfig pins the settings whose user values would change the output
-// parsed here: quoted paths, signature lines, color codes. (The root
-// commit's raw line, which log.showRoot can hide, is asked for with --root.)
-var gitConfig = []string{"-c", "core.quotePath=false", "-c", "log.showSignature=false", "-c", "color.ui=false"}
+// parsed here: quoted paths, signature lines, color codes, and what -m
+// prints for a merge. (The root commit's raw line, which log.showRoot can
+// hide, is asked for with --root.)
+var gitConfig = []string{"-c", "core.quotePath=false", "-c", "log.showSignature=false", "-c", "color.ui=false", "-c", "log.diffMerges=first-parent"}
 
 // localEnv is what `git rev-parse --local-env-vars` prints: the variables
 // git exports to hooks and to the commands it runs (`git rebase -x`).
@@ -178,23 +180,83 @@ func (r repo) git(ctx context.Context, args ...string) ([]byte, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, gitTimeout)
 	defer cancel()
+	cmd, stderr := r.command(ctx, bin, args)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, failure(ctx, args, stderr, err)
+	}
+	return out, nil
+}
+
+// walk calls each with the versions of r.rel, newest first, along first
+// parents from HEAD and following renames, until each returns false. git
+// streams them and is stopped there, so the walk reads history only back to
+// the version the caller needs, not to the root commit.
+func (r repo) walk(ctx context.Context, each func(version) bool) error {
+	bin, err := exec.LookPath("git")
+	if err != nil {
+		return errNoGit
+	}
+	ctx, cancel := context.WithTimeout(ctx, gitTimeout)
+	defer cancel()
+	args := []string{"log", "-z", "-m", "--first-parent", "--follow", "--root", "--format=%H", "--raw", "--no-abbrev", "--", r.rel}
+	cmd, stderr := r.command(ctx, bin, args)
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("git log: %w", err)
+	}
+	if err := cmd.Start(); err != nil {
+		return failure(ctx, args, stderr, err)
+	}
+	log := newRawLog(out)
+	for {
+		v, err := log.next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil { // git's output cannot be read: stop git, report why
+			cancel()
+			_ = cmd.Wait()
+			return err
+		}
+		if !each(v) {
+			cancel() // the rest of the history is not needed
+			_ = cmd.Wait()
+			return nil
+		}
+	}
+	if err := cmd.Wait(); err != nil {
+		return failure(ctx, args, stderr, err)
+	}
+	return nil
+}
+
+// command is git with args in r.dir, under gitConfig and gitEnv; its stderr
+// goes to the buffer returned beside it.
+func (r repo) command(ctx context.Context, bin string, args []string) (*exec.Cmd, *bytes.Buffer) {
 	full := append(append([]string{"-C", r.dir}, gitConfig...), args...)
 	cmd := exec.CommandContext(ctx, bin, full...)
 	cmd.Env = gitEnv()
+	// Once git is stopped, a child it started (a lazy fetch in a partial
+	// clone) may still hold its pipes; Wait gives up on them after a second
+	// instead of waiting for that child.
+	cmd.WaitDelay = time.Second
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	out, err := cmd.Output()
-	if err != nil {
-		ge := &gitError{args: args, timeout: ctx.Err() != nil, err: err}
-		for _, line := range strings.Split(stderr.String(), "\n") {
-			if line = strings.TrimSpace(line); line != "" {
-				ge.stderr = line
-				break
-			}
+	return cmd, &stderr
+}
+
+// failure is the *gitError of a git call that failed with err: a timeout
+// when ctx expired, else git's first non-empty stderr line.
+func failure(ctx context.Context, args []string, stderr *bytes.Buffer, err error) *gitError {
+	ge := &gitError{args: args, timeout: ctx.Err() != nil, err: err}
+	for _, line := range strings.Split(stderr.String(), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			ge.stderr = line
+			break
 		}
-		return nil, ge
 	}
-	return out, nil
+	return ge
 }
 
 // revisionLabel names a REV:PATH side of a diff caption: the base name, then

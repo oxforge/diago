@@ -2,7 +2,7 @@
 
 Three diagram types, selected by `type`. Every id is a stable identity: keep it
 across versions when the thing is the same. How to draw well: `SKILL.md` beside
-this file; full reference: the repository README.
+this file; full reference: https://diago.dev/docs/.
 
 ## Flow (architecture, states, task DAGs)
 

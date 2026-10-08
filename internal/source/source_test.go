@@ -3,6 +3,7 @@ package source
 import (
 	"context"
 	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -268,17 +269,31 @@ func TestLatest(t *testing.T) {
 	})
 }
 
-func TestParseVersions(t *testing.T) {
+func TestRawLog(t *testing.T) {
 	zero := strings.Repeat("0", 40)
-	log := "c3\n\n:100644 100644 b2 b2 R100\told/a.json\tnew/a.json\n" +
-		"c2\n\n:100644 100644 b1 b2 M\told/a.json\n" +
-		"c1\n\n:000000 100644 " + zero + " b1 A\told/a.json\n" +
-		"c0\n\n:100644 000000 b0 " + zero + " D\told/a.json\n"
+	log := "c3\x00\n:100644 100644 b2 b2 R100\x00old/a \"q\".json\x00new/a \"q\".json\x00" +
+		"c2\x00\n:100644 100644 b1 b2 M\x00old/a \"q\".json\x00" +
+		"c1\x00\n:000000 100644 " + zero + " b1 A\x00old/a \"q\".json\x00" +
+		"c0\x00\n:100644 000000 b0 " + zero + " D\x00tab\there.json\x00"
+	l := newRawLog(strings.NewReader(log))
+	var got []version
+	for {
+		v, err := l.next()
+		if err == io.EOF {
+			break
+		}
+		require.NoError(t, err)
+		got = append(got, v)
+	}
 	assert.Equal(t, []version{
-		{commit: "c3", blob: "b2", path: "new/a.json"},
-		{commit: "c2", blob: "b2", path: "old/a.json"},
-		{commit: "c1", blob: "b1", path: "old/a.json"},
-	}, parseVersions([]byte(log)))
+		{commit: "c3", mode: "100644", blob: "b2", path: `new/a "q".json`},
+		{commit: "c2", mode: "100644", blob: "b2", path: `old/a "q".json`},
+		{commit: "c1", mode: "100644", blob: "b1", path: `old/a "q".json`},
+	}, got, "paths arrive unquoted; a deletion is not a version")
+
+	cut := newRawLog(strings.NewReader("c1\x00\n:100644 100644 b0 b1 M\x00half-a-pa"))
+	_, err := cut.next()
+	assert.ErrorIs(t, err, io.ErrUnexpectedEOF, "a path cut short is an error, not the end")
 }
 
 func TestRevisionLabel(t *testing.T) {
@@ -370,4 +385,159 @@ func TestRead_StdinWithoutAReader(t *testing.T) {
 		_, err := Read(context.Background(), arg, nil)
 		assert.EqualError(t, err, "read stdin: no stdin to read", arg)
 	}
+}
+
+// TestLatest_NamesGitWouldQuote: git quotes a path holding '"' or '\' in
+// its raw output whatever core.quotePath says; the label uses the real name.
+func TestLatest_NamesGitWouldQuote(t *testing.T) {
+	for _, name := range []string{`say "hi".json`, `back\slash.json`} {
+		t.Run(name, func(t *testing.T) {
+			r := sourcetest.New(t)
+			c1 := r.Commit("v1", map[string]string{name: "one"})
+			r.Commit("v2", map[string]string{name: "two"})
+			old, _, err := Latest(context.Background(), r.Path(name))
+			require.NoError(t, err)
+			assert.Equal(t, Spec{Data: []byte("one"), Name: name, Label: name + " @ " + c1[:7]}, old)
+		})
+	}
+}
+
+// TestLatest_StopsAtTheVersionItNeeds: Latest reads history only back to
+// the version it returns. With the root commit's object gone, a walk to the
+// root fails, and Latest still finds v3, two commits back.
+func TestLatest_StopsAtTheVersionItNeeds(t *testing.T) {
+	r := sourcetest.New(t)
+	c1 := r.Commit("v1", map[string]string{"arch.json": "one"})
+	r.Commit("v2", map[string]string{"arch.json": "two"})
+	c3 := r.Commit("v3", map[string]string{"arch.json": "three"})
+	r.Commit("v4", map[string]string{"arch.json": "four"})
+	require.NoError(t, os.Remove(filepath.Join(r.Dir, ".git", "objects", c1[:2], c1[2:])))
+
+	old, _, err := Latest(context.Background(), r.Path("arch.json"))
+	require.NoError(t, err)
+	assert.Equal(t, "three", string(old.Data))
+	assert.Equal(t, "arch.json @ "+c3[:7], old.Label)
+}
+
+// TestLatest_RefusesASymlink: git stores a symlink as its link text, so its
+// history is not the history of the spec it points to; diff the target.
+func TestLatest_RefusesASymlink(t *testing.T) {
+	r := sourcetest.New(t)
+	r.Write(map[string]string{"shared/arch.json": "one"})
+	require.NoError(t, os.MkdirAll(r.Path("docs"), 0o755))
+	require.NoError(t, os.Symlink("../shared/arch.json", r.Path("docs/arch.json")))
+	r.Commit("v1", nil)
+	r.Commit("v2", map[string]string{"shared/arch.json": "two"})
+
+	_, _, err := Latest(context.Background(), r.Path("docs/arch.json"))
+	assert.Equal(t, Symlink, kindOf(err))
+	assert.Contains(t, err.Error(), "docs/arch.json is a symbolic link; pass the file it points to: ")
+	assert.Contains(t, err.Error(), filepath.Join("shared", "arch.json"))
+
+	_, err = Read(context.Background(), "HEAD:"+r.Path("docs/arch.json"), nil)
+	assert.Equal(t, Symlink, kindOf(err), "a symlink at the revision is refused too")
+	assert.Contains(t, err.Error(), "is a symbolic link at HEAD")
+}
+
+// fakeGit puts an executable git script ahead of the real one on PATH.
+func fakeGit(t *testing.T, script string) {
+	t.Helper()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "git"), []byte("#!/bin/sh\n"+script), 0o755))
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+// TestWalk_StopsGitWithoutWaitingForItsChildren: once the walk has its
+// version it stops git, and a child git left running (a lazy fetch in a
+// partial clone) does not hold it past gitTimeout's spirit: Wait gives up
+// on the child's open pipes after a second.
+func TestWalk_StopsGitWithoutWaitingForItsChildren(t *testing.T) {
+	fakeGit(t, `printf 'c1\000\n:100644 100644 0000000000000000000000000000000000000001 0000000000000000000000000000000000000002 M\000a.json\000'
+sleep 8 &
+exec sleep 8
+`)
+	r := repo{dir: t.TempDir(), rel: "./a.json"}
+	start := time.Now()
+	var got []version
+	err := r.walk(context.Background(), func(v version) bool { got = append(got, v); return false })
+	require.NoError(t, err)
+	assert.Len(t, got, 1)
+	assert.Less(t, time.Since(start), 4*time.Second, "git and its child were not waited for")
+}
+
+// TestWalk_StopsGitOnAMalformedLog: a log the reader cannot parse stops git
+// at once and reports the parse error, not a timeout.
+func TestWalk_StopsGitOnAMalformedLog(t *testing.T) {
+	fakeGit(t, `printf 'c1\000\n:bad\000'
+exec sleep 8
+`)
+	r := repo{dir: t.TempDir(), rel: "./a.json"}
+	start := time.Now()
+	err := r.walk(context.Background(), func(version) bool { return true })
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected raw field")
+	assert.Less(t, time.Since(start), 4*time.Second)
+}
+
+// TestLatest_ReportsAFailureBeforeTheVersionItNeeds: history git cannot read
+// before the version Latest needs is a GitFailed, not a missing version.
+func TestLatest_ReportsAFailureBeforeTheVersionItNeeds(t *testing.T) {
+	r := sourcetest.New(t)
+	r.Commit("v1", map[string]string{"arch.json": "one"})
+	c2 := r.Commit("v2", map[string]string{"arch.json": "two"})
+	r.Commit("v3", map[string]string{"arch.json": "two"}) // no change to arch.json
+	r.Commit("v4", map[string]string{"arch.json": "four"})
+	r.Write(map[string]string{"arch.json": "four"})
+	require.NoError(t, os.Remove(filepath.Join(r.Dir, ".git", "objects", c2[:2], c2[2:])))
+	_, _, err := Latest(context.Background(), r.Path("arch.json"))
+	assert.Equal(t, GitFailed, kindOf(err), "%v", err)
+}
+
+// TestLatest_MergesFollowTheFirstParentWhateverTheConfig: log.diffMerges
+// decides what -m prints for a merge; pinned, a merge that changed the file
+// is still a version.
+func TestLatest_MergesFollowTheFirstParentWhateverTheConfig(t *testing.T) {
+	for _, mode := range []string{"combined", "dense-combined", "remerge"} {
+		t.Run(mode, func(t *testing.T) {
+			r := sourcetest.New(t)
+			r.Commit("v1", map[string]string{"arch.json": "one"})
+			r.Git("checkout", "-q", "-b", "side")
+			r.Commit("side", map[string]string{"arch.json": "two"})
+			r.Git("checkout", "-q", "main")
+			r.Git("merge", "-q", "--no-ff", "side", "-m", "merge")
+			merge := r.Git("rev-parse", "HEAD")
+			r.Git("config", "log.diffMerges", mode)
+			r.Write(map[string]string{"arch.json": "three"})
+			old, _, err := Latest(context.Background(), r.Path("arch.json"))
+			require.NoError(t, err)
+			assert.Equal(t, "two", string(old.Data))
+			assert.Equal(t, "arch.json @ "+merge[:7], old.Label)
+		})
+	}
+}
+
+// TestLatest_RefusesAnOlderVersionThatWasASymlink: a version that was a
+// symbolic link is its link text, not a spec.
+func TestLatest_RefusesAnOlderVersionThatWasASymlink(t *testing.T) {
+	r := sourcetest.New(t)
+	r.Write(map[string]string{"shared.json": "shared"})
+	require.NoError(t, os.Symlink("shared.json", r.Path("arch.json")))
+	c1 := r.Commit("v1 is a link", nil)
+	require.NoError(t, os.Remove(r.Path("arch.json")))
+	r.Commit("v2 is a file", map[string]string{"arch.json": "two"})
+	_, _, err := Latest(context.Background(), r.Path("arch.json"))
+	assert.Equal(t, Symlink, kindOf(err))
+	assert.Contains(t, err.Error(), "arch.json was a symbolic link at "+c1[:7])
+}
+
+// TestLatest_RefusesADanglingSymlink: the message names where the link
+// points, relative to the link's own directory, and says it is missing.
+func TestLatest_RefusesADanglingSymlink(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "docs"), 0o755))
+	require.NoError(t, os.Symlink("../shared/gone.json", filepath.Join(dir, "docs", "arch.json")))
+	t.Chdir(dir)
+	_, _, err := Latest(context.Background(), filepath.Join("docs", "arch.json"))
+	assert.Equal(t, Symlink, kindOf(err))
+	assert.EqualError(t, err, filepath.Join("docs", "arch.json")+" is a symbolic link to "+filepath.Join("shared", "gone.json")+", which does not exist")
 }

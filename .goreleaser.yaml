@@ -1,0 +1,41 @@
+# The release build, run by .github/workflows/release.yml on a pushed vX.Y.Z
+# tag. diago --version prints the version Go stamps from the tag, so the
+# ldflags carry no version variables. The release notes come from
+# --release-notes (the tag's message), not from a git changelog.
+version: 2
+
+project_name: diago
+
+builds:
+  - main: ./cmd/diago
+    binary: diago
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  # Named, not read from the git remote, so goreleaser check also runs on an
+  # export outside git.
+  github:
+    owner: oxforge
+    name: diago
+  # A re-run after a partial upload replaces the assets; the builds are reproducible.
+  replace_existing_artifacts: true

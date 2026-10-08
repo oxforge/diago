@@ -1145,7 +1145,8 @@ func TestLayout_FlowNetworksSpineRunsMidCanvas(t *testing.T) {
 
 // ecommerceCheckout is the ecommerce-checkout spec: Clients
 // feed an API Gateway, which fans out into the Services group, whose
-// nodes reach PostgreSQL and Redis in the Data group and Stripe.
+// nodes reach PostgreSQL and Redis in the Data group and the Payment
+// Provider.
 func ecommerceCheckout(dir model.Direction) model.Graph {
 	return model.Graph{
 		Direction: dir,
@@ -1154,7 +1155,7 @@ func ecommerceCheckout(dir model.Direction) model.Graph {
 			{ID: "gateway", Label: "API Gateway", Shape: model.ShapeHexagon},
 			{ID: "catalog", Label: "Catalog Service", Shape: model.ShapeRect}, {ID: "cart", Label: "Cart Service", Shape: model.ShapeRect},
 			{ID: "orders", Label: "Order Service", Shape: model.ShapeRect}, {ID: "payments", Label: "Payment Service", Shape: model.ShapeRect},
-			{ID: "stripe", Label: "Stripe", Shape: model.ShapeRounded},
+			{ID: "provider", Label: "Payment Provider", Shape: model.ShapeRounded},
 			{ID: "postgres", Label: "PostgreSQL", Shape: model.ShapeCylinder}, {ID: "redis", Label: "Redis", Shape: model.ShapeCylinder},
 		},
 		Edges: []model.Edge{
@@ -1164,7 +1165,7 @@ func ecommerceCheckout(dir model.Direction) model.Graph {
 			{ID: "gateway->cart#0", From: "gateway", To: "cart"},
 			{ID: "gateway->orders#0", From: "gateway", To: "orders"},
 			{ID: "orders->payments#0", From: "orders", To: "payments", Label: "charge"},
-			{ID: "payments->stripe#0", From: "payments", To: "stripe", Label: "API"},
+			{ID: "payments->provider#0", From: "payments", To: "provider", Label: "API"},
 			{ID: "catalog->postgres#0", From: "catalog", To: "postgres"},
 			{ID: "orders->postgres#0", From: "orders", To: "postgres"},
 			{ID: "cart->redis#0", From: "cart", To: "redis"},
@@ -1180,10 +1181,10 @@ func ecommerceCheckout(dir model.Direction) model.Graph {
 // TestLayout_EcommerceServicesPackTheirParts pins S7's *Packing* on the
 // final layout of ecommerce-checkout, DOWN (the gallery review's issue
 // 6): in the Services level, Order Service's part (its entry, Payment
-// Service, Stripe's and PostgreSQL's wires) shares no edge with Catalog
-// Service's or Cart Service's, and act 1's reference drifted it 60.6 px
-// away from Catalog Service, a 780.3 px box. Packed, the box is at most
-// 720 px wide, and the row keeps its order.
+// Service, the Payment Provider's and PostgreSQL's wires) shares no edge
+// with Catalog Service's or Cart Service's, and act 1's reference drifted
+// it 60.6 px away from Catalog Service, a 780.3 px box. Packed, the box is
+// at most 720 px wide, and the row keeps its order.
 func TestLayout_EcommerceServicesPackTheirParts(t *testing.T) {
 	pg := lay(t, ecommerceCheckout(model.Down), screen(), model.Down)
 	services := group(t, pg, "services")

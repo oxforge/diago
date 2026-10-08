@@ -1,8 +1,8 @@
 # Diago
 
 Instructions for people and coding agents working on this repository. Usage
-documentation, the CLI reference and the JSON spec reference are in
-`README.md`.
+documentation, the CLI reference and the JSON spec reference are at
+https://diago.dev; `README.md` has install and a quick start.
 
 ## What This Project Is
 
@@ -22,7 +22,7 @@ configuration required.
 The repository has three parts:
 
 1. **The CLI** (`cmd/diago`, `internal/`): `render`, `diff`, `check`, `import`; a verb is always required.
-2. **The README**: all usage documentation.
+2. **The README**: install, a quick start and links to the docs at https://diago.dev.
 3. **The plugin** (`.claude-plugin/`, `skills/`, `hooks/`, `scripts/`):
    `diago:diagramming` (how to draw well, and the CLI) and
    `diago:illustrating` (when and in which format to show a diagram while
@@ -59,7 +59,7 @@ The repository has three parts:
 ```
 diago/
 ├── cmd/
-│   ├── diago/            # CLI entrypoint (verbs: render, diff, check, import; a verb is required; every spec argument is a path, stdin or REV:PATH, and may be Mermaid by .mmd extension or header; output on stdout; advisories and import reports on stderr)
+│   ├── diago/            # CLI entrypoint (verbs: render, diff, check, import, plus help and --version; a verb is required; every spec argument is a path, stdin or REV:PATH, and may be Mermaid by .mmd extension or header; output on stdout; advisories and import reports on stderr)
 │   └── generate-enums/   # Codegen for internal/model/enums_gen.go ("DO NOT EDIT": change the generator, not the output)
 ├── internal/
 │   ├── schema/           # JSON schema definitions and validation per diagram type (flow, sequence, class), plus the advisory checker (schema.Check, the ignore list, rule constants)
@@ -86,14 +86,17 @@ diago/
 ├── schemas/              # Generated JSON schema files
 ├── themes/               # Built-in theme JSON files (default, dark, midnight, sketch)
 ├── .claude-plugin/       # plugin.json + marketplace.json (the plugin is the repo root)
+├── .github/workflows/    # ci.yml (build, vet, test and lint every push and pull request) and release.yml (a pushed vX.Y.Z tag: GoReleaser, configured by .goreleaser.yaml, publishes the GitHub Release)
 ├── hooks/                # The plugin's SessionStart hook: hooks.json, session-start and its Go test
 ├── skills/               # diagramming/ (SKILL.md + cheatsheet.md) and illustrating/ (SKILL.md + documents.md; example/ is its worked example)
 └── scripts/diago-render  # Render/lint/diff/embed a folder of versioned diagrams (used by illustrating); its Go test is scripts/diago_render_test.go
 ```
 
-Skill changes ship through the plugin cache: bump `version` in both
-`.claude-plugin/plugin.json` and `marketplace.json` whenever a skill, the
-hook, the script or the cheatsheet changes, or installed copies never see it.
+The plugin follows releases: `.claude-plugin/marketplace.json` pins it to the
+release tag, and `version` in `.claude-plugin/plugin.json` names that
+release. Both change only at a release, so a change to a skill, the hook,
+the script or the cheatsheet reaches plugin users with the next release;
+`claude --plugin-dir .` runs a checkout's plugin meanwhile.
 
 ## Themes
 
@@ -162,6 +165,11 @@ the rejected alternative without new information that invalidates the reason.
   and worktrees.
 - **A verb is always required.** The verbless form (`diago < spec.json`) was
   removed, so a first argument is never both a verb and a path.
+- **Releases are version tags on the public repo.** A pushed `vX.Y.Z` tag
+  runs the release workflow (GoReleaser), and `go install …@latest` and the
+  plugin's pin resolve to it. The version comes from Go's build info, which
+  Go stamps from the tag: never a constant in the code or an ldflags
+  variable, so a `go install` and a release binary print the same version.
 - **resvg over headless Chromium for PNG.** An audit of what diago actually
   emits (basic shapes, plain `<text>`, embedded `@font-face`, simple
   `<marker>`s) found all of it natively supported by resvg. resvg is ~10–20×
@@ -182,8 +190,9 @@ the rejected alternative without new information that invalidates the reason.
 
 When debugging a layout or routing bug, use `--debug` (CLI) to emit JSON Lines
 decision records for every layout/routing decision. The schema, the phase list
-and the `jq` recipes are in `README.md` → *Debug logging*; a record's `phase`
-names the stage that emitted it, and `spec_ref` the rule id it followed.
+and the `jq` recipes are at https://diago.dev/docs/reference/debug-logging/; a
+record's `phase` names the stage that emitted it, and `spec_ref` the rule id it
+followed.
 
 Do not add ad-hoc `fmt.Printf` instrumentation. If a bug is hard to
 investigate, the existing debug logging doesn't cover that decision yet:

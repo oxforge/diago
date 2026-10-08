@@ -9,12 +9,17 @@
 //	diago diff [flags] OLD NEW
 //	diago check [-strict] [-json] [SPEC]
 //	diago import [SPEC]
+//	diago help [verb]
+//	diago --version
 //
 // Every call names its verb: "diago", "diago spec.json" and "diago -format
-// text spec.json" print the usage on stderr and exit 2, while "diago -h",
-// "diago --help" and "diago help" print it on stdout and exit 0. Every verb
-// takes its flags before, between or after its arguments, and "--" ends the
-// flags.
+// text spec.json" print the usage on stderr and exit 2. Help asked for goes
+// to stdout with exit 0: "diago -h", "diago --help" and "diago help" print
+// the usage, "diago help <verb>" and "-h" or "--help" on a verb print that
+// verb's usage and flags. "diago --version" and "diago version" print
+// "diago <version>", the version Go embeds in the binary (a release tag, or
+// a pseudo-version naming the commit). Every verb takes its flags before,
+// between or after its arguments, and "--" ends the flags.
 //
 // A SPEC is a path; "-" or nothing for stdin (render, check and import); or
 // REV:PATH, the file as it was at a git revision (internal/source): a name
@@ -85,7 +90,9 @@ func main() {
 // specHelp says what a SPEC argument may be; the top-level usage and every
 // verb's usage print it.
 const specHelp = `SPEC is a JSON spec or a Mermaid source: a .mmd or .mermaid path, or a body
-whose first line is a flowchart, graph, sequenceDiagram or classDiagram header.
+whose first meaningful line (after a leading --- frontmatter block, blank
+lines and %% comments) is a flowchart, graph, sequenceDiagram or classDiagram
+header.
 REV:PATH reads PATH as it was at a git revision, e.g. HEAD~1:arch.json.
 `
 
@@ -98,9 +105,10 @@ const usage = `usage: diago <verb> [flags] [args]
   diago diff [flags] OLD NEW     draw what changed between two specs
   diago check [flags] [SPEC]     print advisories without drawing
   diago import [SPEC]            translate Mermaid into diago JSON
+  diago help [verb]              print this usage, or a verb's usage and flags
+  diago --version                print diago's version
 
 ` + specHelp + `Without SPEC, or with -, render, check and import read stdin.
-Run "diago <verb> -h" for a verb's flags.
 `
 
 // run dispatches the verb and returns the exit code: 0 ok, 1 validation
@@ -119,8 +127,17 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runCheck(args[1:], stdin, stdout, stderr)
 	case "import":
 		return runImport(args[1:], stdin, stdout, stderr)
-	case "-h", "--help", "help":
+	case "-h", "--help":
 		fmt.Fprint(stdout, usage)
+		return 0
+	case "help":
+		return runHelp(args[1:], stdout, stderr)
+	case "--version", "-version", "version":
+		if len(args) > 1 {
+			fmt.Fprint(stderr, versionUsage)
+			return 2
+		}
+		fmt.Fprintf(stdout, "diago %s\n", version())
 		return 0
 	}
 	if strings.HasPrefix(args[0], "-") {
@@ -144,6 +161,59 @@ func looksLikeSpec(arg string) bool {
 	_, err := os.Stat(arg)
 	return err == nil
 }
+
+// runHelp prints the top-level usage, or with a verb that verb's usage and
+// flags, on stdout.
+func runHelp(args []string, stdout, stderr io.Writer) int {
+	if len(args) > 1 {
+		fmt.Fprint(stderr, "usage: diago help [verb]\n")
+		return 2
+	}
+	if len(args) == 0 || args[0] == "help" {
+		fmt.Fprint(stdout, usage)
+		return 0
+	}
+	switch args[0] {
+	case "render", "diff", "check", "import":
+		return run([]string{args[0], "-h"}, nil, stdout, stderr)
+	case "version":
+		fmt.Fprint(stdout, versionUsage)
+		return 0
+	}
+	fmt.Fprintf(stderr, "diago help: unknown command %q\n%s", args[0], usage)
+	return 2
+}
+
+// parseVerb parses a verb's flags wherever they stand (parseArgs). Help
+// asked for with -h, -help or --help prints the verb's usage and flags on
+// stdout, exit code 0; a bad flag prints the flag package's message, then
+// the usage and flags, on stderr, exit code 2. done reports that the verb
+// must return code.
+func parseVerb(fs *flag.FlagSet, verbUsage string, args []string, stdout, stderr io.Writer) (paths []string, code int, done bool) {
+	fs.SetOutput(stderr)
+	fs.Usage = func() {} // printed below, where the outcome decides
+	paths, err := parseArgs(fs, args)
+	switch {
+	case errors.Is(err, flag.ErrHelp):
+		printUsage(fs, verbUsage, stdout)
+		return nil, 0, true
+	case err != nil:
+		printUsage(fs, verbUsage, stderr)
+		return nil, 2, true
+	}
+	return paths, 0, false
+}
+
+// printUsage writes a verb's usage text and its flags' defaults to w.
+func printUsage(fs *flag.FlagSet, verbUsage string, w io.Writer) {
+	fmt.Fprint(w, verbUsage)
+	out := fs.Output()
+	fs.SetOutput(w)
+	fs.PrintDefaults()
+	fs.SetOutput(out)
+}
+
+const versionUsage = "usage: diago --version\n\nPrints \"diago <version>\": a release tag, or a pseudo-version naming the commit\ndiago was built from; (devel) when the binary carries no version.\n"
 
 const renderUsage = "usage: diago render [flags] [SPEC]\n\n" + specHelp + "Without SPEC, or with -, the spec is read from stdin.\n\n"
 
@@ -173,17 +243,15 @@ func parseArgs(fs *flag.FlagSet, args []string) ([]string, error) {
 
 func runRender(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("render", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	fs.Usage = func() { fmt.Fprint(stderr, renderUsage); fs.PrintDefaults() }
 	themeName := fs.String("theme", "", "theme name (default, dark, midnight, sketch). Overrides spec's theme field.")
 	format := fs.String("format", "svg", "output format: svg, png (requires resvg), text (alias: txt), drawio [beta], or excalidraw [beta] (flow only)")
 	scale := fs.Float64("scale", 0, "PNG scale factor (default 2.0). Ignored if --width is set.")
 	width := fs.Int("width", 0, "PNG output width in pixels. Overrides --scale.")
 	debug := fs.Bool("debug", false, "emit JSON Lines layout/routing debug log to stderr")
 	previousPath := fs.String("previous", "", "anchor the layout on a previous render: an SVG rendered by diago, a layout carrier JSON, or the previous spec")
-	paths, err := parseArgs(fs, args)
-	if err != nil {
-		return 2
+	paths, code, done := parseVerb(fs, renderUsage, args, stdout, stderr)
+	if done {
+		return code
 	}
 	if len(paths) > 1 {
 		fmt.Fprintf(stderr, "diago render: at most one spec path (default stdin, '-' for stdin)\n")
@@ -376,16 +444,14 @@ JSON or Mermaid (.mmd).
 // change (source.Latest). The change list's caption names both sides.
 func runDiff(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("diff", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	fs.Usage = func() { fmt.Fprint(stderr, diffUsage); fs.PrintDefaults() }
 	themeName := fs.String("theme", "", "theme name (default, dark, midnight, sketch). Overrides the new spec's theme field.")
 	format := fs.String("format", "svg", "output format: svg, png (requires resvg), or text (alias: txt)")
 	scale := fs.Float64("scale", 0, "PNG scale factor (default 2.0). Ignored if --width is set.")
 	width := fs.Int("width", 0, "PNG output width in pixels. Overrides --scale.")
 	debug := fs.Bool("debug", false, "emit JSON Lines layout/routing debug log to stderr")
-	rest, err := parseArgs(fs, args)
-	if err != nil {
-		return 2
+	rest, code, done := parseVerb(fs, diffUsage, args, stdout, stderr)
+	if done {
+		return code
 	}
 	if len(rest) < 1 || len(rest) > 2 {
 		fmt.Fprint(stderr, diffUsage)
@@ -405,6 +471,7 @@ func runDiff(args []string, stdout, stderr io.Writer) int {
 		baseCtx = layoutdbg.NewContext(baseCtx, logger)
 	}
 	var before, after source.Spec
+	var err error
 	if len(rest) == 1 {
 		if hint := revisionHint(rest[0]); hint != "" {
 			fmt.Fprintf(stderr, "error: %s\n", hint)
@@ -471,13 +538,11 @@ const checkUsage = "usage: diago check [flags] [SPEC]\n\n" + specHelp + "Without
 // lays out.
 func runCheck(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("check", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	fs.Usage = func() { fmt.Fprint(stderr, checkUsage); fs.PrintDefaults() }
 	strict := fs.Bool("strict", false, "exit 1 when any finding remains after the spec's ignore list")
 	asJSON := fs.Bool("json", false, "print {\"warnings\": [...]} instead of one line per finding")
-	rest, err := parseArgs(fs, args)
-	if err != nil {
-		return 2
+	rest, code, done := parseVerb(fs, checkUsage, args, stdout, stderr)
+	if done {
+		return code
 	}
 	if len(rest) > 1 {
 		fmt.Fprint(stderr, checkUsage)
@@ -555,11 +620,9 @@ const importUsage = "usage: diago import [SPEC]\n\nSPEC is a Mermaid source; REV
 // spec on stdout, with the importer's reports on stderr.
 func runImport(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("import", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	fs.Usage = func() { fmt.Fprint(stderr, importUsage) }
-	paths, err := parseArgs(fs, args)
-	if err != nil {
-		return 2
+	paths, code, done := parseVerb(fs, importUsage, args, stdout, stderr)
+	if done {
+		return code
 	}
 	if len(paths) > 1 {
 		fmt.Fprint(stderr, importUsage)

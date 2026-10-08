@@ -1,13 +1,20 @@
 {
   "name": "diago",
-  "owner": { "name": "oxforge" },
-  "metadata": { "description": "diago local marketplace", "version": "0.4.0" },
+  "owner": {
+    "name": "oxforge"
+  },
+  "metadata": {
+    "description": "The diago plugin, pinned to the latest diago release"
+  },
   "plugins": [
     {
       "name": "diago",
-      "source": "./",
-      "description": "Diagrams from typed JSON specs, shown wherever an agent presents structure (two skills and a SessionStart hook)",
-      "version": "0.4.0"
+      "source": {
+        "source": "github",
+        "repo": "oxforge/diago",
+        "ref": "v0.5.0"
+      },
+      "description": "Diagrams from typed JSON specs, shown wherever an agent presents structure (two skills and a SessionStart hook)"
     }
   ]
 }

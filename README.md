@@ -1,536 +1,77 @@
 # Diago
 
-Diago is a command-line tool that renders diagrams from structured JSON specs.
-Describe *what's connected to what* in typed JSON; diago handles layout and
-rendering and writes SVG, PNG, Unicode text art, draw.io XML or Excalidraw JSON
-(the last two in beta).
+Diago renders diagrams from typed JSON specs. Describe *what's connected to
+what*; diago lays it out and draws it as SVG, PNG, Unicode text art, draw.io XML
+or Excalidraw JSON (the last two in beta), and it renders Mermaid files as they
+are. It is built for AI agents as much as for people: agents write valid JSON
+far more reliably than a diagram DSL, every spec has a JSON Schema, and the
+same spec always renders to the same bytes.
 
-It is built for AI agents (Claude Code, Codex, Cursor and the like) as much as
-for people: agents produce valid JSON far more reliably than valid DSL syntax
-(Mermaid, D2, PlantUML), so each diagram type has a typed JSON schema and the
-engine is opinionated, with good defaults and nothing to configure. Three
-diagram types: **flow** (architecture, pipelines, decision trees, state
-machines), **sequence** and **class**. Output is deterministic: the same spec
-and theme give the same bytes on every machine.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://diago.dev/readme-dark.png">
+  <img alt="An architecture diagram drawn by diago" src="https://diago.dev/readme-light.png">
+</picture>
 
-The repository also ships a Claude Code plugin that teaches agents to draw with
-diago and to show a diagram wherever they present structure, see
-[Skills for Claude Code](#skills-for-claude-code).
+**Documentation** at [diago.dev](https://diago.dev):
+[getting started](https://diago.dev/docs/),
+[guides](https://diago.dev/docs/guides/flow/),
+[agents](https://diago.dev/docs/agents/claude-code/),
+[reference](https://diago.dev/docs/reference/cli/) and the
+[gallery](https://diago.dev/examples/).
 
 ## Install
+
+Download the archive for your platform from the
+[latest release](https://github.com/oxforge/diago/releases/latest) (Linux,
+macOS and Windows, on amd64 and arm64) and put `diago` on `PATH`. On macOS, a
+binary downloaded with a browser is quarantined; clear it with
+`xattr -d com.apple.quarantine diago`. Or, with Go 1.26+:
 
 ```bash
 go install github.com/oxforge/diago/cmd/diago@latest
 ```
 
-Requires Go 1.26+. SVG, text art, draw.io and Excalidraw output are pure Go
-with embedded fonts and need nothing else.
-
-PNG output rasterizes the SVG with [resvg](https://github.com/linebender/resvg),
-a separate program diago runs. Without it, `-format png` fails with an install
-hint and every other format still works. Install it with one of:
-
-```bash
-brew install resvg      # macOS, or Linux with Homebrew
-cargo install resvg     # any platform with Rust
-```
-
-or download a binary for Linux x86_64 or macOS from
-[resvg's releases](https://github.com/linebender/resvg/releases), and put it on
-`PATH` or point `DIAGO_RESVG_PATH` at it.
+PNG output also needs [resvg](https://github.com/linebender/resvg)
+(`brew install resvg` or `cargo install resvg`); every other format is pure Go.
 
 ## Usage
 
-`diago <verb> [flags] [args]`: every call names its verb, one of `render`,
-`diff`, `check` and `import`, and `diago -h` lists them. `diago render
-spec.json` draws a spec to stdout; `diago diff` (below) draws what changed
-between two versions; `diago check` (below) prints advisories without drawing;
-`diago import` (below) translates Mermaid into a diago JSON spec. Every verb
-takes its flags before, between or after its arguments, and `--` ends the
-flags. A `render` or `diff` is subject to a 10 second timeout.
-
-**Specs.** Wherever a verb takes a SPEC it accepts:
-
-- a path to a JSON spec, or to a Mermaid source (below);
-- `-`, or nothing, for stdin (`render`, `check` and `import`; `diff` reads
-  files only);
-- `REV:PATH`, the file as it was at a git revision: `HEAD~1:arch.json`,
-  `v1.2:docs/arch.mmd`, a branch or a commit hash. PATH is relative to the
-  current directory, like any path, and the repository is the one that
-  contains it. A name that exists on disk is always read as a file. Reading a
-  revision needs `git` on `PATH`.
-
-**Mermaid sources.** `diago render diagram.mmd` draws a Mermaid diagram as it
-is, with no import step. Every SPEC may be a Mermaid `flowchart`/`graph`,
-`sequenceDiagram` or `classDiagram` instead of JSON: a path ending in `.mmd` or
-`.mermaid`, or a body whose first meaningful line is one of those headers, is
-translated before parsing, in `render`, `check`, both `diff` arguments and
-`-previous`. Constructs diago cannot carry are translated to their nearest
-form and reported on stderr as `warning: import line <n>: <message>`;
-statements with no meaning in diago fail with `diago <verb>: line <n>:
-<message>` and exit 1. The mapping tables are under `diago import` below.
-
 ```bash
-echo '{
+cat > hello.json <<'EOF'
+{
   "type": "flow",
   "nodes": [
     {"id": "a", "label": "Hello", "shape": "rounded"},
     {"id": "b", "label": "World"}
   ],
-  "edges": [{"from": "a", "to": "b"}]
-}' | diago render > hello.svg
-
-# A spec from a file (any flow, sequence or class spec, see the JSON Spec
-# Reference below), with a theme override
-diago render -theme midnight spec.json > output.svg
-
-# PNG at 3x, and Unicode text art
-diago render -format png -scale 3 spec.json > output.png
-diago render -format text spec.json
-
-# A Mermaid file, as it is
-diago render diagram.mmd > diagram.svg
-
-# Anchor a second render on the first, so unrelated nodes don't reshuffle
-diago render -previous v1.svg v2.json > v2.svg
-```
-
-**Themes:** `default`, `dark`, `midnight`, `sketch`
-
-| Flag | Default | Notes |
-|------|---------|-------|
-| `-theme` | spec value, else `default` | `default`, `dark`, `midnight`, `sketch` |
-| `-format` | `svg` | `svg`, `png` (requires resvg), `text` (alias `txt`), `drawio`, `excalidraw` (the last two flow only, and in beta); an unknown value is an error, not a silent fallback |
-| `-scale` | `2.0` | PNG only; ignored when `-width` is set |
-| `-width` | — | PNG output width in pixels; overrides `-scale` |
-| `-previous` | — | Anchor the layout on a previous render: an SVG rendered by diago (its `<metadata id="diago-layout">` element is the exact anchor; an SVG from an older diago, rendered before its current layered layout engine, anchors as a best effort), a layout-carrier JSON, or the previous spec (exact for one step). Any of them may be `REV:PATH`. Flow and class; sequence renders warn and ignore it. Layout rules spec C18 |
-| `-debug` | off | JSON Lines layout/routing decisions on stderr — see [Debug logging](#debug-logging) |
-
-`text` output lays out under its own cell-aligned profile (layout rules spec
-C0 and S14): the profile snaps every position to character cells, so node positions
-differ from the SVG's even though both are orthogonal. An edge label sits
-on the row next to a wire that runs along its row, and may be written over
-a group frame's left or right side when nothing nearer is free; one that
-cannot be placed without overwriting other ink is dropped and reported as
-the `text-label-dropped` advisory (`warning: text-label-dropped: label …`
-on stderr; see `diago check`).
-
-Every flow and class SVG embeds its layout as a `<metadata id="diago-layout">`
-element: `version`, per-scope `layers` and `order`, `reversed`, and `ranked`
-when a flat edge fell back to an ordinary one (ids only, never labels). That
-embedded carrier is exactly what `-previous` reads back when handed an SVG
-(or the same JSON shape saved on its own). Passing it, or the previous spec,
-to a later render of the same structure keeps surviving nodes close to where
-they were instead of the layout re-optimizing from scratch. A previous spec
-is laid out fresh as the render lays out its own spec: under the text
-profile for `-format text`, else under the screen profile of the theme the
-render uses, so a render anchored on an unchanged spec draws what the fresh
-render draws. A flat edge that fell back stays ranked in every render
-anchored on that carrier, and its `flat-edge-ranked` warning says it was
-kept, not that no clear side route exists; a render without `-previous`
-tries the side route again and decides fresh. Anchored on a previous spec, a render keeps only the fallbacks that
-spec's own layout has, laid out as above. So under `scripts/diago-render`,
-which anchors each flow or class diagram's version on the previous
-version's spec (a sequence diagram is drawn fresh), laid
-out fresh, a kept fallback lasts one version: the next version is anchored
-on this version's own layout, and keeps the fallback only if this version,
-laid out on its own, has no side route for the edge either. Only a chain of
-`-previous <svg>` renders, each anchored on the SVG before it, carries a
-fallback on indefinitely. Under `--strict`, add `flat-edge-ranked` to that
-version's `ignore` list and drop it from the next version, never keep it
-(copied forward, it would hide real fallbacks later); or keep the edge
-ordinary.
-
-### diago diff
-
-Renders one picture of what changed between two flow, sequence or class specs: the union of both,
-laid out anchored on the old layout, with added elements highlighted, changed
-ones marked, unchanged ones dimmed and removed ones kept in their reserved
-space (never overlapping a survivor).
-
-```bash
-diago diff arch.json > diff.svg                     # the latest change of a file in git
-diago diff v1.json v2.json > diff.svg               # two files
-diago diff HEAD~3:arch.json arch.json -format text  # a revision against the file on disk
-diago diff v1.2:arch.json HEAD:arch.json -format png > diff.png
-```
-
-With one path, `diago diff` draws that file's latest change: the newest
-version committed along first parents from HEAD, following renames, whose
-content differs from the file on disk, against the file on disk. A file with
-uncommitted edits shows them against HEAD; a clean file shows what its last
-change did. It fails (exit 2) when the file is not tracked or has no earlier
-version. With two arguments, each is a path or `REV:PATH` (see *Specs* above).
-
-`-format` accepts `svg` (default), `png`, `text`; `-theme` as for `render`,
-over the new spec's `theme` field (the old spec's is not read).
-
-Color carries the status only: added elements are drawn green, changed ones
-blue, and removed ones red, dashed, faded and struck through; unchanged ones
-are faded in the theme's neutral colors. An element keeps its own fill, but
-its own `color` never reaches its outline, wire or label (an edge's color is
-dropped). The palette is the theme's `diff` block (`added`, `changed`,
-`removed`). Every diff lists its changes, one line each: under the diagram
-in SVG and PNG, each line led by a sample in its status's style, and in a
-footer in text. The list starts with a caption that names the two sides,
-`old → new`: a file on disk by its base name, a revision as
-`<name> @ <rev> (<hash7>)`, and the version the one-path form picked as
-`<name> @ <hash7>`; it is there even when nothing changed. A changed line
-names the fields that differ, `old → new`, by their spec keys:
-
-```text
-arch.json @ a1b2c3d → arch.json
-added: node Metrics
-removed: node SMTP Relay
-changed: edge API Gateway -> Postgres: label none → "read/write", style solid → dashed
-```
-
-For sequence specs the union keeps every message row, and a removed message
-opens no activation bar. Text output stamps `+ `, `- `, `~ ` on flow node and
-group labels, and on sequence actor labels, message labels and section
-guards (an unlabeled changed message shows the bare marker). For class specs
-every member line of every class carries a two-character status column
-before the visibility glyph (`+ `, `- `, `~ `, or two spaces when
-unchanged), removed members keep their row, and the list adds one line per
-changed member (`changed: class Payment, removed attribute - amount:
-Money`); relations are named in spec orientation. Exit 0 on identical inputs
-(everything dimmed, the caption alone), 1 on a validation error (fields are
-prefixed `before.` / `after.`), 2 on usage or internal errors and on a git
-failure: no `git` on PATH, a file outside a repository, an unknown revision,
-or a file missing at a revision. draw.io and Excalidraw output are not
-available for diffs.
-
-### diago check
-
-Prints advisories: things a spec does that parse fine but read badly. Every
-`render` and `diff` prints the same findings on stderr, each line prefixed
-`warning: `, after the output. `check` never lays out, so two findings only
-appear on `render` and `diff`: `text-label-dropped` (text format) and
-`flat-edge-ranked` (any format, only when a flat edge falls back).
-
-```bash
-diago check spec.json              # one line per finding, exit 0
-diago check -strict < spec.json    # exit 1 when any finding remains
-diago check -json spec.json        # {"warnings": [{"rule", "message", "field"}]}
-```
-
-`-strict`'s exit 1 means findings survived the spec's ignore list; it is not
-the same exit-1 condition `render` and `diff` use, which is a structured
-validation error.
-
-Node and actor ids are interpolated into advisory messages verbatim, so an id
-containing unusual characters (quotes, control characters) can make the plain
-text line awkward to parse; `-json` is the machine-readable surface for that
-case.
-
-Line format: `<rule> <field>: <message>`, or `<rule>: <message>` for findings
-about the whole diagram. Findings are sorted by rule, then field in natural
-order, then message. A spec
-silences rules with `"ignore": ["rule", …]` at the top level; an unknown rule
-name there is a validation error. Findings are returned, never logged.
-
-| Rule | Fires when |
-|------|-----------|
-| `unknown-field` | a JSON key the schema does not know (silently ignored otherwise); suggests the nearest known key. `format` and `store` are allowed at the top level |
-| `removed-field` | a spec still carries a removed top-level field (`style`, `hints`, `alignment` on flow; `style` on class); the field is ignored |
-| `duplicate-edge` | two edges with the same `from`, `to` and label |
-| `isolated-node` | a node no edge touches (two or more nodes) |
-| `empty-group` | a group or package whose `contains` is empty |
-| `unlabeled-branch` | a `diamond` with two or more outgoing edges and one unlabeled (a `flat` edge is not a branch and is not counted) |
-| `vague-edge-label`, `vague-message-label` | a label in `uses`, `has`, `is`, `does`, `calls`, `handles`, `data`, `flow` |
-| `long-label` | a node, group, actor, message or section label over 60 characters |
-| `unbreakable-token` | a whitespace-free run over 24 characters in such a label |
-| `too-large` | more than 20 nodes (groups never count) |
-| `no-entry` | every node has an incoming edge (self-loops excluded; a `flat` edge implies no order and does not count as incoming) |
-| `shape-soup` | more than 5 distinct node shapes |
-| `edge-without-id` | a labeled edge, or any relation, without `id`, only under `render -previous` and `diff` |
-| `flat-edge-ranked` | a `flat` edge with no clean side route, laid out as an ordinary edge, or kept as one from an earlier anchored layout (render/diff only, layout rules spec S9 and S13) |
-| `seq-too-many-participants` | more than 8 actors |
-| `unlabeled-alt-section` | an `alt` section with no guard label |
-| `deep-nesting` | a fragment nested more than 3 levels deep (by range containment) |
-| `god-class` | a class with more than 15 attributes and methods together |
-| `isolated-class` | a class no relation touches (two or more classes) |
-| `overlong-member` | a member line (visibility, space, text) over 40 characters |
-| `oversized-class-diagram` | more than 20 classes |
-| `text-label-dropped` | the text renderer could not place an edge label or a cardinality (render only) |
-
-### diago import
-
-```bash
-diago import diagram.mmd > spec.json     # JSON on stdout, report lines on stderr
-diago import < diagram.mmd | diago check
-```
-
-`render`, `check` and `diff` read Mermaid directly. `import` is for when you
-want the JSON, to keep editing the diagram in diago's own terms.
-
-The dialect is sniffed from the header. The output is the JSON an agent
-would have written: two-space indent, derived edge ids, `rect` omitted.
-Exit 1 on a rejected line (plain text, with the line number) or on a
-non-Mermaid input; exit 0 otherwise, even with report lines.
-
-**Flowchart** (`graph`/`flowchart` + `TD|TB|LR|BT|RL`): every node bracket
-form; `-->` `---` `-.->` `-.-` `==>` `===` `<-->` with `|label|` or
-`-- label -->`; a trailing `;` terminator is accepted; `&` fan-out; chains;
-nested `subgraph … end` (a fourth level is flattened into its depth-3
-ancestor, reported); a `title:` frontmatter.
-Lossy, reported: stadium and subroutine (rounded, rect), doublecircle and
-trapezoid (circle, parallelogram). Rejected: `classDef`, `class`, `style`,
-`linkStyle`, `click`, `accTitle`, `accDescr`, `direction`, an edge whose
-endpoint is a subgraph.
-
-**Sequence** (`sequenceDiagram`): `participant`/`actor` with `as`, implicit
-declaration on first use; `->>` `-->>` `-)` `--)`; `loop` `opt` `alt`/`else`
-`par`/`and` `break` blocks, nested, as fragments over interaction ranges.
-Lossy, reported: `actor` renders as a participant; `+`/`-` marks and
-`activate`/`deactivate` lines are ignored (bars are engine-computed); a
-`Note` is folded into the label of the nearest preceding message in its
-block (dropped when there is none); an empty branch or block is dropped.
-Rejected: `critical`, `autonumber`, `create`, `destroy`, `rect`, `box`,
-`link`, `links`, `properties`, `details`, lost-message arrows (`-x`).
-
-**Class** (`classDiagram`): `class X~T~ { … }` blocks and bare
-declarations, `<<stereotype>>` inside a block or standalone, `X : +member`
-inline members, visibility prefixes, `*` abstract and `$` static suffixes,
-`~T~` generics, all twelve relation operators with cardinalities and labels
-(the JSON is written with `from` as the subtype, implementer, owner or
-dependent), `direction TB|LR|BT|RL`. Rejected: `<-->`, `()--`, `note`,
-`namespace`, `cssClass`, `click`.
-
----
-
-### Debug logging
-
-The CLI's `--debug` flag emits one JSON Lines record per layout/routing
-decision on **stderr**, so a run separates cleanly into artifact and trace:
-
-```bash
-diago --debug < spec.json > out.svg 2> debug.ndjson
-```
-
-Without `--debug`, stderr stays empty on success. This is the supported way to
-investigate a layout or routing bug — do not add ad-hoc `fmt.Printf`.
-
-**Schema** — one object per line. Always present: `time`, `level` (`DEBUG`),
-`msg` (always `layout decision`), `phase`, `decision` (snake_case), and
-`module` (`diago`). Optional `spec_ref` names the layout rule the decision
-followed, by its id: an output-contract rule (C1–C18) or a stage of the
-layered engine (S0–S14). The remaining keys vary per decision:
-
-```json
-{
-  "time": "2026-09-28T00:22:32.411625+02:00",
-  "level": "DEBUG",
-  "msg": "layout decision",
-  "decision": "layers_assigned",
-  "phase": "rank",
-  "module": "diago",
-  "spec_ref": "S3",
-  "layers": 3,
-  "span_longest_path": 2,
-  "span": 2
+  "edges": [{"id": "a-b", "from": "a", "to": "b"}]
 }
+EOF
+
+diago render hello.json > hello.svg             # or -format png, text, drawio, excalidraw
+diago render -format text hello.json            # Unicode text art, in the terminal
+diago check -strict hello.json                  # advisories, without rendering
+diago diff hello.json hello-v2.json > diff.svg  # what changed between two versions
+diago import diagram.mmd > spec.json            # from Mermaid
 ```
 
-**Phases**, in pipeline order: the layered engine's stages `size` (S1),
-`cycle` (S2), `anchoring` (S13, runs per level before `rank` and again
-before `order`, only when a previous layout is given via `-previous` or
-`diago diff`: it emits `previous_read` once, when the previous carrier is
-read, and `previous_ranked` once too, but only when the carrier lists flat
-edges that fell back), `rank` (S3), `equalize` (S4), `lgraph` (S5), `order` (S6),
-`place` (S7), `route` (S8), `nest` (S9, groups laid out level by level),
-`congruence` (S12), `flat` (S9, flat edges routed on the composed layout:
-`flat_edge_routed`, `flat_edge_unrouted`, and `flat_edge_ranked` when one
-falls back to an ordinary edge and the layout is redone, whose stages then
-emit their records again), `labels` (S10) and `frame` (S11); then `contract`
-(violations of the output contract, C2-C17, from `internal/layout/contract`,
-run on the final positioned graph in its render profile, screen or text;
-each record's `spec_ref` is the violated rule, e.g. `C5`, `subject` the
-edge, node or group id it applies to, and `detail` the checker's message;
-emitted only when `--debug` is armed). Sequence diagrams emit no records.
+`diago help <verb>` prints a verb's flags; the
+[CLI reference](https://diago.dev/docs/reference/cli/) covers them all.
 
-**Useful queries:**
+## For agents
+
+This repository is also a Claude Code plugin. Its two skills teach an agent to
+draw with diago and to show a diagram wherever it presents structure, and its
+hook adds that rule to every session. With `diago` on `PATH`:
 
 ```bash
-# Every decision citing one spec rule
-jq 'select(.spec_ref == "S8")' debug.ndjson
-
-# Only one stage's decisions
-jq 'select(.phase == "route")' debug.ndjson
-
-# Everything mentioning one node, across the differing key conventions
-jq 'select(.node == "db" or .source == "db" or .subject == "db")' debug.ndjson
-
-# Every output-contract violation --debug found in this render
-jq 'select(.decision == "contract_violation")' debug.ndjson
-
-# What ran, and how much
-jq -r '.phase' debug.ndjson | sort | uniq -c | sort -rn
-jq -r '(.module // "-") + " | " + .phase + " | " + .decision' debug.ndjson | sort -u
-```
-
-**Workflow:** save the failing spec to a file → render it with `--debug` →
-identify the misplaced node or edge in the SVG → grep the ndjson for that id →
-walk the decision chain backward to the phase that made the wrong call. If no
-record explains it, the gap is the bug report: extend the
-`internal/layoutdbg.Decision` call sites at that spot rather than
-printing.
-
-**Cost:** when debug is off, each call site is one
-`slog.Logger.Enabled(LevelDebug)` comparison and allocates nothing. When on,
-expect thousands of lines — always redirect stderr to a file.
-
-
-## Configuration
-
-| Variable | Description |
-|----------|-------------|
-| `DIAGO_RESVG_PATH` | Path to the resvg binary, overriding the `PATH` lookup (PNG only). |
-| `DIAGO_THEME_DIR` | Directory searched for theme JSON files whose name is not a built-in theme (built-ins always win). |
-
-## JSON Spec Reference
-
-### Flow Diagram
-
-```json
-{
-  "type": "flow",
-  "title": "Request Path",
-  "direction": "DOWN",
-  "nodes": [
-    {"id": "client", "label": "Client App", "shape": "rounded"},
-    {"id": "api", "label": "API Gateway", "shape": "rect"},
-    {"id": "db", "label": "PostgreSQL", "shape": "cylinder"}
-  ],
-  "edges": [
-    {"from": "client", "to": "api", "label": "HTTPS"},
-    {"from": "api", "to": "db", "label": "query", "style": "dashed"}
-  ],
-  "groups": [
-    {"id": "backend", "label": "Backend", "contains": ["api", "db"]}
-  ]
-}
-```
-
-**`title`:** optional string, rendered as a band above the diagram (SVG, PNG) or a centered first line (text); never part of the layout.
-**`theme`:** optional theme name (`default`, `dark`, `midnight`, `sketch`, or one in `DIAGO_THEME_DIR`): the theme the render uses unless `-theme` overrides it; text art takes none. A name that does not load is a validation error on `theme`.
-**Directions:** `DOWN`, `UP`, `RIGHT`, `LEFT`, `AUTO` (default — the engine picks based on graph shape)
-**Routing:** every edge is routed orthogonally (90° segments); there is no diagram-level style to choose.
-**Shapes:** `rect`, `rounded`, `circle`, `diamond`, `cylinder`, `hexagon`, `parallelogram`
-**Edge styles:** `solid`, `dashed`, `dotted`, `thick`
-**Edge directions:** `forward` (default), `backward`, `both`, `none` (no arrowhead at either end)
-**Edge id:** optional `id` field, stable across edits (anchoring via `-previous` and `diago diff` key on it). Defaults to `from->to#n`, where `n` counts every edge between the same pair in spec order.
-**`flat`:** optional boolean, default `false`. This link does not imply order: its ends stay wherever the rest of the diagram puts them, side by side when it allows, instead of taking part in ranking, and the edge is routed on the finished layout. Use it for links between peers that would otherwise be forced into a hierarchy they don't have: replication between two sites that each serve their own traffic, a sync between two services at one level. It helps only between nodes that other edges already place: a node whose only edges are flat is laid out as an unconnected node (layout rules spec S3), wherever there is room rather than beside its partner, so keep one of its links ordinary. A standby database with nothing else attached, for one, keeps its replication edge from the primary ordinary, which puts it under the primary. Not allowed on a self-loop (validation error). When no clean route exists between the ends, the edge is laid out as an ordinary edge and the render warns (`flat-edge-ranked`, see `diago check`). The warning belongs to the format rendered: text and SVG lay out under different profiles and can decide a flat edge differently, so the SVG can draw flat an edge the text art warns about (`scripts/diago-render` lints the text render).
-
-```json
-{"from": "east_db", "to": "west_db", "label": "async", "style": "dashed", "flat": true}
-```
-
-The typical case is two peer sites, each with its own web, API and database, joined by one flat edge between their databases: without it, the two sites stack instead of sitting side by side (the role dot's `constraint=false` plays).
-**`ignore`:** optional array of advisory rule names to silence for this spec (see `diago check`); an unknown name is a validation error.
-
-### Sequence Diagram
-
-```json
-{
-  "type": "sequence",
-  "activations": true,
-  "actors": [
-    {"id": "client", "label": "Client"},
-    {"id": "server", "label": "Server"}
-  ],
-  "interactions": [
-    {"from": "client", "to": "server", "label": "GET /api", "style": "solid"},
-    {"from": "server", "to": "client", "label": "200 OK", "style": "dashed"}
-  ]
-}
-```
-
-**`title`:** optional string, rendered as a band above the diagram (SVG, PNG) or a centered first line (text); never part of the layout.
-**`theme`:** optional theme name (`default`, `dark`, `midnight`, `sketch`, or one in `DIAGO_THEME_DIR`): the theme the render uses unless `-theme` overrides it; text art takes none. A name that does not load is a validation error on `theme`.
-**Interaction styles:** `solid`, `dashed`, `async`
-**Fragment types:** `alt`, `opt`, `loop`, `par`, `break`
-**Fragments:** each draws a frame with its type in a tab at the top-left corner and each section's `label` as a guard in brackets; the frame spans the actors in `over` and widens to every actor a message in its sections reaches
-**`activations`:** boolean, default `true` — set `false` to hide the activation bars on lifelines
-**`ignore`:** optional array of advisory rule names to silence for this spec (see `diago check`)
-
-### Class Diagram
-
-```json
-{
-  "type": "class",
-  "direction": "DOWN",
-  "theme": "default",
-  "classes": [
-    { "id": "order", "label": "Order", "stereotype": "entity", "type_params": ["T"],
-      "color": "blue",
-      "attributes": [ { "visibility": "-", "text": "id: string" } ],
-      "methods":    [ { "visibility": "+", "text": "total(): Money", "static": false, "abstract": false } ] },
-    { "id": "item", "label": "Item" }
-  ],
-  "relations": [
-    { "id": "r1", "from": "order", "to": "item", "kind": "composition",
-      "label": "contains", "from_card": "1", "to_card": "*", "color": "red" }
-  ],
-  "packages": [ { "id": "domain", "label": "Domain", "contains": ["order", "item"], "color": "gray" } ],
-  "legend": true,
-  "legend_labels": { "inheritance": "is-a" },
-  "ignore": ["god-class"]
-}
-```
-
-**`title`:** optional string, rendered as a band above the diagram (SVG, PNG) or a centered first line (text); never part of the layout.
-**`theme`:** optional theme name (`default`, `dark`, `midnight`, `sketch`, or one in `DIAGO_THEME_DIR`): the theme the render uses unless `-theme` overrides it; text art takes none. A name that does not load is a validation error on `theme`.
-**Relation kinds:** `association` (default), `inheritance`, `realization`, `dependency`, `aggregation`, `composition`. For `inheritance` and `realization`, `from` is the subtype and `to` the supertype or interface; the engine lays the supertype out first and draws the hollow triangle at its end.
-**`directed`:** arrowhead at `to`; default `true` for `dependency`, `false` for `association`; not allowed on the four adorned kinds.
-**Cardinalities:** `from_card`, `to_card`, placed beside the wire ends.
-**Members:** `visibility` in `+ - # ~`; `static` underlines, `abstract` italicises (text art: ` $` and ` *` suffixes).
-**Packages:** the flow group rules under the key `packages`.
-**Legend:** `legend: true` adds one row per relation kind present; `legend_labels` overrides a row's text, an empty value hides it.
-**Relation id:** as for flow edges, derived from `from` and `to` as written (`from->to#n`).
-draw.io and Excalidraw export cover flow diagrams only, and are in beta: they
-are not fully tested yet, so open what they write and check it before relying on
-it.
-
-## Skills for Claude Code
-
-The repository is a Claude Code plugin (`.claude-plugin/`) with two skills and
-a session hook:
-
-- **`diago:diagramming`**: how to draw a good diagram with diago: the diagram
-  type, size, direction, shapes, edge styles, color, groups and themes, each
-  checked against what diago renders (text art keeps fewer shapes than SVG,
-  and no color), and the CLI reference.
-- **`diago:illustrating`**: when the agent is about to present something with
-  structure (how code works, a design, a debugging finding, a plan's task
-  order), it decides whether a diagram makes it faster to grasp and shows one
-  in the format the medium can display: text art in a terminal, text art and
-  a clickable SVG in a graphical host, PNG or SVG in Markdown, SVG in HTML. A
-  change to code, architecture or business logic is shown as a **diff
-  diagram** of the before and the after. Documents written for review (design
-  specs, implementation plans) get their diagrams embedded, and each revision
-  a diff diagram, everything unchanged pinned in place by layout anchoring.
-  The mechanics are `scripts/diago-render`; `skills/illustrating/example/` is
-  a worked example.
-- **A SessionStart hook** (`hooks/session-start`) puts that rule in every
-  session's context (about 150 tokens), worded for the host: text art in a
-  terminal, text art and an SVG path elsewhere. Disable the plugin to drop it.
-
-Agents run diago as a binary rather than through an MCP server: a spec stays
-in a file, so a revision is a small edit and a diff costs two paths, and
-images go to disk without passing through the agent's context.
-
-Install from GitHub, or from a local checkout (needs `diago` on `PATH`):
-
-```bash
-claude plugin marketplace add oxforge/diago    # or: /path/to/diago
+claude plugin marketplace add oxforge/diago
 claude plugin install diago@diago
 ```
 
-The install copies the repo at its current commit into Claude Code's plugin
-cache, and `claude plugin update` only refreshes that copy when the version in
-`.claude-plugin/plugin.json` and `marketplace.json` changes. After changing a
-skill or the hook, bump that version and run `claude plugin update diago@diago`.
+The plugin follows diago's releases; see
+[updating it](https://diago.dev/docs/agents/claude-code/). Any other agent with
+a shell: [diago.dev/docs/agents/other-agents](https://diago.dev/docs/agents/other-agents/).
 
 ## Development
 
@@ -547,7 +88,7 @@ just schemas        # regenerate schemas/{flow,sequence,class}.json; required af
 
 `AGENTS.md` describes the code layout and the conventions, for people and
 coding agents alike. To investigate a layout or routing bug, start from
-[Debug logging](#debug-logging).
+[debug logging](https://diago.dev/docs/reference/debug-logging/).
 
 ## License
 

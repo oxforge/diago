@@ -58,7 +58,7 @@ func TestRun_UnknownVerb(t *testing.T) {
 
 func TestRun_UsageNamesMermaidAndRevisions(t *testing.T) {
 	_, out, _ := runCLI(t, "", "help")
-	for _, want := range []string{"Mermaid", ".mmd", "REV:PATH", "diago diff [flags] PATH", "diago diff [flags] OLD NEW"} {
+	for _, want := range []string{"Mermaid", ".mmd", "first meaningful line", "REV:PATH", "diago diff [flags] PATH", "diago diff [flags] OLD NEW"} {
 		assert.Contains(t, out, want)
 	}
 	for verb, want := range map[string][]string{
@@ -67,9 +67,10 @@ func TestRun_UsageNamesMermaidAndRevisions(t *testing.T) {
 		"check":  {"usage: diago check [flags] [SPEC]", "Mermaid", "REV:PATH", "  -strict"},
 		"import": {"usage: diago import [SPEC]", "REV:PATH"},
 	} {
-		_, _, stderr := runCLI(t, "", verb, "-h")
+		code, out, _ := runCLI(t, "", verb, "-h")
+		assert.Equal(t, 0, code, verb)
 		for _, w := range want {
-			assert.Contains(t, stderr, w, verb)
+			assert.Contains(t, out, w, verb)
 		}
 	}
 }

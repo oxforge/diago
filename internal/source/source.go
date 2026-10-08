@@ -4,6 +4,7 @@
 package source
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -33,6 +34,7 @@ const (
 	NotTracked                        // Latest: the file has no committed version
 	NoEarlierVersion                  // Latest: every committed version equals the file on disk
 	GitFailed                         // git failed for a reason none of the above names: a refused repository, a timeout
+	Symlink                           // PATH is a symbolic link, whose git history is its link text
 )
 
 // Error is a spec argument git cannot resolve. Msg names the argument, the
@@ -97,22 +99,20 @@ func readRevision(ctx context.Context, arg, rev, file string) (Spec, error) {
 	if err != nil {
 		return Spec{}, err
 	}
-	missing := fmt.Sprintf("%s does not exist at %s (%s)", file, rev, hash[:7])
-	oid, err := r.git(ctx, "rev-parse", "--verify", "--quiet", hash+":"+r.rel)
-	if err != nil {
-		return Spec{}, classify(err, arg, MissingAtRevision, missing)
-	}
-	id := strings.TrimSpace(string(oid))
-	kind, err := r.git(ctx, "cat-file", "-t", id)
+	entry, err := r.git(ctx, "ls-tree", "-z", hash, "--", r.rel)
 	if err != nil {
 		return Spec{}, gitFailed(err, arg)
 	}
-	if strings.TrimSpace(string(kind)) != "blob" {
-		return Spec{}, &Error{Kind: MissingAtRevision, Msg: missing} // a directory at rev
+	mode, kind, id, ok := treeEntry(entry)
+	if !ok || kind != "blob" { // nothing there, or a directory
+		return Spec{}, &Error{Kind: MissingAtRevision, Msg: fmt.Sprintf("%s does not exist at %s (%s)", file, rev, hash[:7])}
 	}
 	data, err := r.git(ctx, "cat-file", "blob", id)
 	if err != nil {
 		return Spec{}, gitFailed(err, arg)
+	}
+	if mode == symlinkMode {
+		return Spec{}, &Error{Kind: Symlink, Msg: fmt.Sprintf("%s is a symbolic link at %s (%s), to %s; pass the file it points to", file, rev, hash[:7], data)}
 	}
 	return Spec{Data: data, Name: file, Label: revisionLabel(filepath.Base(file), rev, hash)}, nil
 }
@@ -121,6 +121,17 @@ func readRevision(ctx context.Context, arg, rev, file string) (Spec, error) {
 // newest version of it committed along first parents from HEAD, following
 // renames, whose content differs from cur.
 func Latest(ctx context.Context, file string) (old, cur Spec, err error) {
+	if fi, err := os.Lstat(file); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		// Its history is its link text, not the spec it points to.
+		if target, err := filepath.EvalSymlinks(file); err == nil {
+			return Spec{}, Spec{}, &Error{Kind: Symlink, Msg: fmt.Sprintf("%s is a symbolic link; pass the file it points to: %s", file, target)}
+		}
+		target, _ := os.Readlink(file)
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(filepath.Dir(file), target)
+		}
+		return Spec{}, Spec{}, &Error{Kind: Symlink, Msg: fmt.Sprintf("%s is a symbolic link to %s, which does not exist", file, target)}
+	}
 	if cur, err = readFile(file); err != nil {
 		return Spec{}, Spec{}, err
 	}
@@ -140,24 +151,32 @@ func Latest(ctx context.Context, file string) (old, cur Spec, err error) {
 	if err != nil {
 		return Spec{}, Spec{}, gitFailed(err, file)
 	}
-	log, err := r.git(ctx, "log", "-m", "--first-parent", "--follow", "--root", "--format=%H", "--raw", "--no-abbrev", "--", r.rel)
+	blob := strings.TrimSpace(string(disk))
+	tracked := false
+	var found *version
+	err = r.walk(ctx, func(v version) bool {
+		tracked = true
+		if v.blob == blob {
+			return true
+		}
+		found = &v
+		return false
+	})
 	if err != nil {
 		return Spec{}, Spec{}, gitFailed(err, file)
 	}
-	versions := parseVersions(log)
-	if len(versions) == 0 {
+	if !tracked {
 		return Spec{}, Spec{}, notTracked
 	}
-	blob := strings.TrimSpace(string(disk))
-	for _, v := range versions {
-		if v.blob == blob {
-			continue
+	if found != nil {
+		if found.mode == symlinkMode {
+			return Spec{}, Spec{}, &Error{Kind: Symlink, Msg: fmt.Sprintf("%s was a symbolic link at %s, so that version is a link's text, not a spec; pass two specs", file, found.commit[:7])}
 		}
-		data, err := r.git(ctx, "cat-file", "blob", v.blob)
+		data, err := r.git(ctx, "cat-file", "blob", found.blob)
 		if err != nil {
 			return Spec{}, Spec{}, gitFailed(err, file)
 		}
-		return Spec{Data: data, Name: v.path, Label: path.Base(v.path) + " @ " + v.commit[:7]}, cur, nil
+		return Spec{Data: data, Name: found.path, Label: path.Base(found.path) + " @ " + found.commit[:7]}, cur, nil
 	}
 	msg := fmt.Sprintf("%s has no earlier version in git to compare with", file)
 	if out, err := r.git(ctx, "rev-parse", "--is-shallow-repository"); err == nil && strings.TrimSpace(string(out)) == "true" {
@@ -169,31 +188,88 @@ func Latest(ctx context.Context, file string) (old, cur Spec, err error) {
 // version is one committed version of a file.
 type version struct {
 	commit string // the full hash of the commit that wrote it
+	mode   string // the file's mode at that commit; symlinkMode for a symbolic link
 	blob   string // the blob id of the file's content at that commit
 	path   string // the file's repo-relative path at that commit, slash-separated
 }
 
-// parseVersions reads `git log --format=%H --raw --no-abbrev`, newest first:
-// a commit hash line, then one ":<modes> <old> <new> <status>\t<path>" line
-// (two paths for a rename or copy, the new one last) per file it changed. A
-// deletion, whose new blob is all zeros, is not a version.
-func parseVersions(log []byte) []version {
-	var out []version
-	commit := ""
-	for _, line := range strings.Split(string(log), "\n") {
-		switch {
-		case line == "":
-		case strings.HasPrefix(line, ":"):
-			meta, paths, ok := strings.Cut(line, "\t")
-			fields := strings.Fields(meta)
-			if !ok || len(fields) < 5 || commit == "" || strings.Trim(fields[3], "0") == "" {
-				continue
-			}
-			names := strings.Split(paths, "\t")
-			out = append(out, version{commit: commit, blob: fields[3], path: names[len(names)-1]})
-		default:
-			commit = line
+// rawLog reads `git log -z --format=%H --raw --no-abbrev` one version at a
+// time. Its fields end in NUL: a commit hash, then for each file the commit
+// changed a ":<modes> <old> <new> <status>" field (after a newline) and its
+// path, or two paths for a rename or copy, the new one last. -z leaves every
+// path unquoted, whatever it holds.
+type rawLog struct {
+	r      *bufio.Reader
+	commit string
+}
+
+func newRawLog(r io.Reader) *rawLog { return &rawLog{r: bufio.NewReader(r)} }
+
+// next returns the next version, newest first, skipping deletions (an
+// all-zero new blob); io.EOF ends the log.
+func (l *rawLog) next() (version, error) {
+	for {
+		field, err := l.field()
+		if err != nil {
+			return version{}, err
 		}
+		field = strings.TrimLeft(field, "\n")
+		if !strings.HasPrefix(field, ":") {
+			if field != "" {
+				l.commit = field
+			}
+			continue
+		}
+		meta := strings.Fields(field)
+		if len(meta) < 5 {
+			return version{}, fmt.Errorf("git log: unexpected raw field %q", field)
+		}
+		file, err := l.path()
+		if err != nil {
+			return version{}, err
+		}
+		if status := meta[4]; status[0] == 'R' || status[0] == 'C' {
+			if file, err = l.path(); err != nil {
+				return version{}, err
+			}
+		}
+		if l.commit == "" || strings.Trim(meta[3], "0") == "" {
+			continue
+		}
+		return version{commit: l.commit, mode: meta[1], blob: meta[3], path: file}, nil
 	}
-	return out
+}
+
+// field reads one NUL-terminated field; a field cut short by the end of the
+// output is dropped, and io.EOF returned.
+func (l *rawLog) field() (string, error) {
+	f, err := l.r.ReadString(0)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSuffix(f, "\x00"), nil
+}
+
+// path reads the path field a raw field announced: the log cannot end there.
+func (l *rawLog) path() (string, error) {
+	f, err := l.field()
+	if err == io.EOF {
+		return "", io.ErrUnexpectedEOF
+	}
+	return f, err
+}
+
+// symlinkMode is the mode git stores a symbolic link under.
+const symlinkMode = "120000"
+
+// treeEntry reads the first entry `git ls-tree -z` printed:
+// "<mode> <type> <object>\t<path>"; ok is false when it printed none.
+func treeEntry(out []byte) (mode, kind, id string, ok bool) {
+	entry, _, _ := strings.Cut(string(out), "\x00")
+	meta, _, found := strings.Cut(entry, "\t")
+	fields := strings.Fields(meta)
+	if !found || len(fields) != 3 {
+		return "", "", "", false
+	}
+	return fields[0], fields[1], fields[2], true
 }

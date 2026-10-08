@@ -20,6 +20,9 @@ profile.cov
 # Build output
 bin/
 
+# GoReleaser's output (.goreleaser.yaml); an untracked file would stamp the build +dirty
+dist/
+
 # Dependency directories (remove the comment below to include it)
 # vendor/
 

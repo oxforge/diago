@@ -1,0 +1,54 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # Only oxforge/diago runs this; forks and copies skip it.
+    if: github.repository == 'oxforge/diago'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # The checkout leaves the pushed annotated tag as a lightweight one, and
+      # the tag's message is the release notes.
+      - run: git fetch --force --tags
+      # Releases build with the latest Go, not go.mod's floor, for its security fixes.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache: false
+      - name: Check the tag against the plugin's version
+        run: |
+          version=$(jq -r .version .claude-plugin/plugin.json)
+          pin=$(jq -r '.plugins[0].source.ref' .claude-plugin/marketplace.json)
+          if [ "$GITHUB_REF_NAME" != "v$version" ] || [ "$pin" != "$GITHUB_REF_NAME" ]; then
+            echo "tag $GITHUB_REF_NAME, plugin.json $version and the marketplace pin $pin must agree" >&2
+            exit 1
+          fi
+      - run: go test ./...
+      - name: Check the version Go stamps
+        run: |
+          go build -trimpath -ldflags='-s -w' -o "$RUNNER_TEMP/diago" ./cmd/diago
+          got=$("$RUNNER_TEMP/diago" --version)
+          if [ "$got" != "diago $GITHUB_REF_NAME" ]; then
+            echo "a build at $GITHUB_REF_NAME prints \"$got\"" >&2
+            exit 1
+          fi
+      - name: Write the release notes from the tag's message
+        run: git tag -l --format='%(contents:body)' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
+      - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          distribution: goreleaser
+          version: v2.18.2
+          args: release --clean --release-notes ${{ runner.temp }}/notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
