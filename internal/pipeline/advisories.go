@@ -151,10 +151,11 @@ func textLabelDropped(d textrender.DroppedLabel) schema.Advisory {
 	return schema.Advisory{Rule: schema.RuleTextLabelDropped, Message: msg + " could not be placed in text art"}
 }
 
-// diffAdvisories checks both sides of a diff as anchored, prefixes their
-// fields with the side, and appends the union render's dropped labels and
-// ranked flat edges under the after spec's ignore list. flatRanked is
-// already field-shaped ("before.edges[i]" or "after.edges[i]",
+// diffAdvisories checks both sides of a diff as anchored, keeps once a
+// finding both sides raise alike (unrepeated), prefixes their fields with
+// the side, and appends the union render's dropped labels and ranked flat
+// edges under the after spec's ignore list. flatRanked is already
+// field-shaped ("before.edges[i]" or "after.edges[i]",
 // flatRankedDiffFields), so no further side prefixing is needed here.
 func diffAdvisories(before, after []byte, dropped []textrender.DroppedLabel, flatRanked []flatRankedField) ([]schema.Advisory, error) {
 	b, err := schema.Check(before, schema.CheckOptions{Anchored: true})
@@ -165,7 +166,7 @@ func diffAdvisories(before, after []byte, dropped []textrender.DroppedLabel, fla
 	if err != nil {
 		return nil, fmt.Errorf("diff: after: %w", err)
 	}
-	advs := append(prefixAdvisories(b, "before"), prefixAdvisories(a, "after")...)
+	advs := append(prefixAdvisories(unrepeated(b, a), "before"), prefixAdvisories(a, "after")...)
 	// Deliberately the after spec's ignore list only: the union render is
 	// the after-shaped picture, so its ignore list is what governs it.
 	advs, err = appendDropped(advs, after, dropped)
@@ -236,6 +237,25 @@ func edgeIndexByID(edges []model.Edge) map[string]int {
 
 // prefixAdvisories copies advs with side prepended to every field
 // ("before.nodes[2]"); an empty field becomes the bare side.
+// unrepeated returns the before findings the after side does not repeat
+// alike, with the same rule, field and message: a finding both sides raise
+// is one finding, reported on the after side, the version drawn. The field
+// takes part because a message need not name its element (unknown-field's
+// does not), so two elements' findings may read alike.
+func unrepeated(before, after []schema.Advisory) []schema.Advisory {
+	repeated := make(map[schema.Advisory]bool, len(after))
+	for _, a := range after {
+		repeated[a] = true
+	}
+	var out []schema.Advisory
+	for _, b := range before {
+		if !repeated[b] {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
 func prefixAdvisories(advs []schema.Advisory, side string) []schema.Advisory {
 	out := make([]schema.Advisory, len(advs))
 	for i, a := range advs {

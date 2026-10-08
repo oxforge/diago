@@ -97,11 +97,47 @@ func TestRenderDiff_AdvisorySink(t *testing.T) {
 	assert.Equal(t, []string{"edge-without-id before.edges[0]", "isolated-node after.nodes[2]", "vague-edge-label after.edges[0]"}, advKeys(advs))
 
 	// A whole-diagram finding gets the bare side as its field.
-	big := `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b"},{"from":"b","to":"a"}]}`
+	cycle := `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b"},{"from":"b","to":"a"}]}`
+	chain := `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b"}]}`
 	advs = nil
-	_, err = RenderDiff(context.Background(), []byte(big), []byte(big), DiffOptions{Advisories: &advs})
+	_, err = RenderDiff(context.Background(), []byte(cycle), []byte(chain), DiffOptions{Advisories: &advs})
 	require.NoError(t, err)
-	assert.Equal(t, []string{"no-entry after", "no-entry before"}, advKeys(advs))
+	assert.Equal(t, []string{"no-entry before"}, advKeys(advs))
+	advs = nil
+	_, err = RenderDiff(context.Background(), []byte(chain), []byte(cycle), DiffOptions{Advisories: &advs})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"no-entry after"}, advKeys(advs))
+}
+
+// A finding both sides raise alike (rule, field and message) is reported
+// once, on the after side; a before finding the after side does not repeat
+// exactly, at another field or with another message, stays.
+func TestRenderDiff_RepeatedAdvisoryOnce(t *testing.T) {
+	advs := func(before, after string) []string {
+		t.Helper()
+		var got []schema.Advisory
+		_, err := RenderDiff(context.Background(), []byte(before), []byte(after), DiffOptions{Format: "text", Advisories: &got})
+		require.NoError(t, err)
+		return advKeys(got)
+	}
+	assert.Equal(t, []string{"edge-without-id after.edges[0]", "vague-edge-label after.edges[0]"}, advs(vagueSpec, vagueSpec))
+
+	cycle := `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b"},{"from":"b","to":"a"}]}`
+	assert.Equal(t, []string{"no-entry after"}, advs(cycle, cycle))
+
+	// The same edge one place further down: another field, both stay.
+	moved := `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"edges":[{"id":"e","from":"c","to":"b"},{"from":"a","to":"b","label":"uses"}]}`
+	assert.Equal(t, []string{
+		"edge-without-id after.edges[1]", "edge-without-id before.edges[0]",
+		"vague-edge-label after.edges[1]", "vague-edge-label before.edges[0]",
+	}, advs(vagueSpec, moved))
+
+	// The same field with another message: both stay.
+	relabelled := `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b","label":"handles"}]}`
+	assert.Equal(t, []string{
+		"edge-without-id after.edges[0]", "edge-without-id before.edges[0]",
+		"vague-edge-label after.edges[0]", "vague-edge-label before.edges[0]",
+	}, advs(vagueSpec, relabelled))
 }
 
 // blockedFlatSpec is P3's fallback fixture (flat_test.go's blocked graph):
