@@ -128,8 +128,8 @@ func shortenStartWithCrossings(pts []model.Point, depth float64, crossings []mod
 // rect, the header lines, a separator above each non-empty compartment and
 // the left-aligned member lines. status is the node-level diff class (on
 // the inner group; "" for none); memberClass returns the per-line class
-// suffix ("" for none). Exported, so both optional inputs are guarded: a node
-// with no Members falls back to the plain shape render, and a nil memberClass
+// suffix ("" for none). Both optional inputs are guarded: a node with no
+// Members falls back to the plain shape render, and a nil memberClass
 // is read as "no class on any line".
 func renderClassNode(node model.PositionedNode, style theme.NodeStyle, class theme.ClassStyle, sketch bool, status string, memberClass func(compartment string, i int) string) SVGGroup {
 	m := node.Members

@@ -1,6 +1,6 @@
 // Package layoutdbg provides a thin helper for layout/routing decision
-// logging. A *slog.Logger is carried in context.Context and accessed via
-// from/With/Decision. When the logger's level is above DEBUG, Decision
+// logging. A *slog.Logger is carried in context.Context: NewContext puts it
+// there, and Armed and Decision read it. When the logger's level is above DEBUG, Decision
 // short-circuits before any allocation, so call sites are cheap when
 // debug is off.
 package layoutdbg

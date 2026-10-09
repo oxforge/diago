@@ -51,8 +51,8 @@ func TestUnknownFields_Case(t *testing.T) {
 	assert.Equal(t, []string{"fragments[0].sections[0].finish", "interactions[0].lbl"}, fieldsOf(advs))
 }
 
-// format and store were the old HTTP API's request-body keys; the spec has no
-// such fields, so a top-level "format" is as unknown as any other key.
+// The spec has no format or store field, so a top-level "format" or "store"
+// is as unknown as any other key.
 func TestUnknownFields_FormatAndStoreAreUnknown(t *testing.T) {
 	spec := `{"type":"flow","format":"png","store":false,"nodes":[{"id":"a","label":"A"}],"edges":[]}`
 	advs, err := unknownFields([]byte(spec), reflect.TypeOf(FlowSpec{}), nil)

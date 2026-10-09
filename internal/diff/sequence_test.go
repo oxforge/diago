@@ -117,9 +117,10 @@ func TestAlignSequences_RemovedActorSplicedBesideLeftNeighbour(t *testing.T) {
 	}, al.Actors)
 }
 
-// A tie in the LCS between consuming a before step and an after step goes to
-// the before side: of A,B against B,A (one common step either way) the
-// earliest before index that matches is B's, so A is removed and A added.
+// A tie in the LCS between skipping a before step and skipping an after
+// step skips the before step: of A,B against B,A (one common step either
+// way) the walk skips A and matches B, so A is removed, B stays and A is
+// added.
 func TestAlignSequences_TiesConsumeTheBeforeSideFirst(t *testing.T) {
 	before := parseSeq(t, `{"type":"sequence",`+gapActors+`,"interactions":[
  {"from":"a","to":"b","label":"A"},{"from":"b","to":"a","label":"B"}]}`)

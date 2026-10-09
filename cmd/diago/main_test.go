@@ -648,8 +648,8 @@ func TestRun_ClassRenderCheckAndPrevious(t *testing.T) {
 	assert.NotContains(t, errb.String(), "must be a  diagram")
 }
 
-// TestRun_RemovedStyleFlag: -style was removed; each verb that took it now
-// reports the flag as unknown, exit 2.
+// TestRun_RemovedStyleFlag: render and diff take no -style flag; each
+// reports it as unknown, exit 2.
 func TestRun_RemovedStyleFlag(t *testing.T) {
 	spec := `{"type":"flow","nodes":[{"id":"a","label":"A"}],"edges":[]}`
 	for _, args := range [][]string{{"render", "-style", "lawful"}, {"diff", "-style", "lawful", "a.json", "b.json"}} {
