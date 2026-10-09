@@ -375,3 +375,23 @@ func TestParseSequence_FragmentsMayNestOrCoincide(t *testing.T) {
 		assert.NoError(t, err, fragments)
 	}
 }
+
+// Section bounds are read like every other key: case-insensitively, and a
+// null bound counts as not given.
+func TestParseSequence_SectionBoundsReadLikeOtherKeys(t *testing.T) {
+	spec := func(section string) []byte {
+		return []byte(`{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"}],` +
+			`"interactions":[{"from":"a","to":"b","label":"x"},{"from":"b","to":"a","label":"y"}],` +
+			`"fragments":[{"type":"loop","over":["a","b"],"sections":[` + section + `]}]}`)
+	}
+	d, err := schema.ParseSequence(spec(`{"Start":0,"END":1}`))
+	require.NoError(t, err)
+	assert.Equal(t, 1, d.Fragments[0].Sections[0].End)
+
+	_, err = schema.ParseSequence(spec(`{"start":null,"end":1}`))
+	var ve schema.ValidationErrors
+	require.True(t, errors.As(err, &ve), "%v", err)
+	require.Len(t, ve, 1)
+	assert.Equal(t, "fragments[0].sections[0].start", ve[0].Field)
+	assert.Equal(t, "must be given", ve[0].Message)
+}

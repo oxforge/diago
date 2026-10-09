@@ -75,7 +75,7 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 	interactions, interactionErrs := validateInteractions(spec.Interactions, actorIDs)
 	errs = append(errs, interactionErrs...)
 
-	fragments, fragmentErrs := validateFragments(spec.Fragments, sectionKeys(data), actorIDs, len(spec.Interactions))
+	fragments, fragmentErrs := validateFragments(spec.Fragments, sectionBounds(data), actorIDs, len(spec.Interactions))
 	errs = append(errs, fragmentErrs...)
 
 	errs = append(errs, validateIgnore(spec.Ignore)...)
@@ -98,22 +98,30 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 	}, nil
 }
 
-// sectionKeys returns the keys each fragment section in data gives, by
-// fragment and then section index: decoded into an int, a missing start or
-// end would read as 0. ParseSequence calls it on data it decoded, so this
-// decode succeeds too.
-func sectionKeys(data []byte) [][]map[string]json.RawMessage {
+// givenBounds holds a fragment section's bounds as the spec gives them: nil
+// for a bound it leaves out or sets to null.
+type givenBounds struct {
+	Start *int `json:"start"`
+	End   *int `json:"end"`
+}
+
+// sectionBounds returns the bounds each fragment section in data gives, by
+// fragment and then section index: decoded into an int, a missing or null
+// bound would read as 0. Keys match case-insensitively, as in the spec
+// decode. ParseSequence calls it on data it decoded, so this decode succeeds
+// too.
+func sectionBounds(data []byte) [][]givenBounds {
 	var given struct {
 		Fragments []struct {
-			Sections []map[string]json.RawMessage `json:"sections"`
+			Sections []givenBounds `json:"sections"`
 		} `json:"fragments"`
 	}
 	_ = json.Unmarshal(data, &given)
-	keys := make([][]map[string]json.RawMessage, len(given.Fragments))
+	bounds := make([][]givenBounds, len(given.Fragments))
 	for i, f := range given.Fragments {
-		keys[i] = f.Sections
+		bounds[i] = f.Sections
 	}
-	return keys
+	return bounds
 }
 
 // validateActors validates the actors and returns them with the set of
@@ -215,10 +223,10 @@ func validateInteractions(specs []InteractionSpec, actorIDs map[string]bool) ([]
 }
 
 // validateFragments validates the fragments against the actor ids, the
-// keys each section gives (sectionKeys) and the number of interactions,
+// bounds each section gives (sectionBounds) and the number of interactions,
 // and returns them, an unknown type read as alt. Fragments nest or stay
 // apart: two whose spans cross would draw one frame through the other.
-func validateFragments(specs []FragmentSpec, keys [][]map[string]json.RawMessage, actorIDs map[string]bool, interactionCount int) ([]model.Fragment, ValidationErrors) {
+func validateFragments(specs []FragmentSpec, bounds [][]givenBounds, actorIDs map[string]bool, interactionCount int) ([]model.Fragment, ValidationErrors) {
 	var errs ValidationErrors
 	fragments := make([]model.Fragment, 0, len(specs))
 	spans := make([][2]int, 0, len(specs))
@@ -256,7 +264,7 @@ func validateFragments(specs []FragmentSpec, keys [][]map[string]json.RawMessage
 			})
 		}
 
-		sections, sectionErrs := validateSections(field, f.Sections, keys[i], interactionCount)
+		sections, sectionErrs := validateSections(field, f.Sections, bounds[i], interactionCount)
 		errs = append(errs, sectionErrs...)
 
 		fragments = append(fragments, model.Fragment{
@@ -274,18 +282,21 @@ func validateFragments(specs []FragmentSpec, keys [][]map[string]json.RawMessage
 }
 
 // validateSections validates the sections of fragment field against the
-// keys each gives and the number of interactions, and returns those that
-// give both bounds.
-func validateSections(field string, specs []FragmentSectionSpec, keys []map[string]json.RawMessage, interactionCount int) ([]model.FragmentSection, ValidationErrors) {
+// bounds each gives and the number of interactions, and returns those that
+// give both.
+func validateSections(field string, specs []FragmentSectionSpec, bounds []givenBounds, interactionCount int) ([]model.FragmentSection, ValidationErrors) {
 	var errs ValidationErrors
 	sections := make([]model.FragmentSection, 0, len(specs))
 	prevEnd := -1
 	for j, sec := range specs {
 		secField := fmt.Sprintf("%s.sections[%d]", field, j)
 		missing := false
-		for _, bound := range []string{"start", "end"} {
-			if _, ok := keys[j][bound]; !ok {
-				errs = append(errs, ValidationError{Field: secField + "." + bound, Message: "must be given"})
+		for _, b := range []struct {
+			name  string
+			given *int
+		}{{"start", bounds[j].Start}, {"end", bounds[j].End}} {
+			if b.given == nil {
+				errs = append(errs, ValidationError{Field: secField + "." + b.name, Message: "must be given"})
 				missing = true
 			}
 		}
