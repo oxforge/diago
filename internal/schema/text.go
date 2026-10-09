@@ -10,6 +10,11 @@ import (
 // its row, and no character XML forbids reaches an SVG.
 func singleLine(s string) string { return escapeControls(s, false) }
 
+// hasControl reports whether s holds a control character.
+func hasControl(s string) bool {
+	return strings.ContainsFunc(s, func(r rune) bool { return r < 0x20 || r == 0x7f })
+}
+
 // multiLine is singleLine for a node's label, whose "\n" (or "\r\n") breaks
 // it into lines.
 func multiLine(s string) string {

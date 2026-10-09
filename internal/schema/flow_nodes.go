@@ -34,6 +34,9 @@ func validateNodes(specs []NodeSpec) ([]model.Node, map[string]bool, ValidationE
 		} else {
 			nodeIDs[n.ID] = true
 		}
+		if msg := idProblem(n.ID, true); n.ID != "" && msg != "" {
+			errs = append(errs, ValidationError{Field: field + ".id", Message: msg})
+		}
 
 		if n.Label == "" {
 			errs = append(errs, ValidationError{

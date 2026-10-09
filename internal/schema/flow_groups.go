@@ -45,6 +45,9 @@ func validateGroupsPrefixed(specs []GroupSpec, nodeIDs map[string]bool, prefix s
 			errs = append(errs, ValidationError{Field: field + ".id", Message: "must not be empty"})
 			continue
 		}
+		if msg := idProblem(g.ID, true); msg != "" {
+			errs = append(errs, ValidationError{Field: field + ".id", Message: msg})
+		}
 		if gm.groupIDs[g.ID] {
 			errs = append(errs, ValidationError{Field: field + ".id", Message: fmt.Sprintf("duplicate group id %q", g.ID)})
 			continue

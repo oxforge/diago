@@ -54,6 +54,10 @@ func validatePairIDs(explicit []*string, from, to []string, field, noun string) 
 			errs = append(errs, ValidationError{Field: f, Message: "must not be empty when present"})
 			continue
 		}
+		if msg := idProblem(*id, false); msg != "" {
+			errs = append(errs, ValidationError{Field: f, Message: msg})
+			continue
+		}
 		if j, dup := seen[*id]; dup {
 			errs = append(errs, ValidationError{Field: f,
 				Message: fmt.Sprintf("duplicate %s id %q (also %s[%d])", noun, *id, field, j)})

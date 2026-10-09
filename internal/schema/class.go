@@ -25,7 +25,7 @@ type ClassSpec struct {
 
 // ClassNodeSpec is the JSON representation of a class.
 type ClassNodeSpec struct {
-	ID         string       `json:"id"`
+	ID         string       `json:"id" jsonschema:"description=Unique id. It must not contain -> or end in @ followed by digits."`
 	Label      string       `json:"label,omitempty" jsonschema:"description=Class name. Defaults to the id."`
 	Stereotype string       `json:"stereotype,omitempty" jsonschema:"description=Rendered as «stereotype» above the name; abstract also italicises the name."`
 	TypeParams []string     `json:"type_params,omitempty" jsonschema:"description=Generic parameters. Rendered after the class name as a comma-separated list inside angle brackets."`
@@ -156,6 +156,9 @@ func validateClasses(specs []ClassNodeSpec) ([]model.Node, map[string]bool, Vali
 			errs = append(errs, ValidationError{Field: field + ".id", Message: fmt.Sprintf("duplicate class id %q", c.ID)})
 		default:
 			ids[c.ID] = true
+		}
+		if msg := idProblem(c.ID, true); c.ID != "" && msg != "" {
+			errs = append(errs, ValidationError{Field: field + ".id", Message: msg})
 		}
 		for j, tp := range c.TypeParams {
 			if tp == "" {

@@ -6,7 +6,8 @@
     "ClassNodeSpec": {
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "description": "Unique id. It must not contain -\u003e or end in @ followed by digits."
         },
         "label": {
           "type": "string",
@@ -123,7 +124,8 @@
     "GroupSpec": {
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "description": "Unique id. It must not contain -\u003e or end in @ followed by digits."
         },
         "label": {
           "type": "string"

@@ -102,6 +102,9 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 		} else {
 			actorIDs[a.ID] = true
 		}
+		if msg := idProblem(a.ID, false); a.ID != "" && msg != "" {
+			errs = append(errs, ValidationError{Field: field + ".id", Message: msg})
+		}
 
 		if a.Label == "" {
 			errs = append(errs, ValidationError{

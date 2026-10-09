@@ -23,7 +23,7 @@ type FlowSpec struct {
 
 // NodeSpec is the JSON representation of a node.
 type NodeSpec struct {
-	ID    string `json:"id"`
+	ID    string `json:"id" jsonschema:"description=Unique id. It must not contain -> or end in @ followed by digits."`
 	Label string `json:"label"`
 	Shape string `json:"shape,omitempty" jsonschema:"enum=rect,enum=rounded,enum=circle,enum=diamond,enum=cylinder,enum=hexagon,enum=parallelogram"`
 	Color string `json:"color,omitempty"`
@@ -43,7 +43,7 @@ type EdgeSpec struct {
 
 // GroupSpec is the JSON representation of a group.
 type GroupSpec struct {
-	ID       string   `json:"id"`
+	ID       string   `json:"id" jsonschema:"description=Unique id. It must not contain -> or end in @ followed by digits."`
 	Label    string   `json:"label"`
 	Contains []string `json:"contains" jsonschema:"description=Node IDs or group IDs belonging to this group. Referencing a group ID creates a nested child group (max 3 levels deep)."`
 	Color    string   `json:"color,omitempty"`
