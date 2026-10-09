@@ -2,7 +2,6 @@ package svg
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/oxforge/diago/internal/theme"
 )
@@ -126,14 +125,4 @@ func SequenceDiffStyles(th theme.Theme) string {
 .changed .removed line { stroke: %[3]s; }
 .changed .removed text { fill: %[3]s; }
 `, th.Diff.Added, th.Diff.Changed, th.Diff.Removed)
-}
-
-// sortedKeys keeps marker emission deterministic.
-func sortedKeys(m map[string]string) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
 }
