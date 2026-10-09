@@ -289,7 +289,7 @@ func legendSample(r model.Relation, x1, cy float64, dash string, th theme.Theme)
 // tip points left.
 func sketchLegendSample(r model.Relation, kind string, x1, cy float64, dash string, th theme.Theme) []Element {
 	wire := Path{
-		D:    sketchPolyline([]model.Point{{X: x1, Y: cy}, {X: legendSampleX2, Y: cy}}, "legend-"+kind),
+		D:    sketchPolyline([]model.Point{{X: x1, Y: cy}, {X: legendSampleX2, Y: cy}}, "legend-"+kind, nil),
 		Fill: "none", Stroke: th.Edge.Stroke, StrokeWidth: th.Edge.StrokeWidth, StrokeDash: dash,
 	}
 	if r == model.RelationDependency {

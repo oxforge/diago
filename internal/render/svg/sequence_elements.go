@@ -207,7 +207,7 @@ func renderNormalInteraction(
 	if sketch {
 		edgeID := fmt.Sprintf("%s-%s", it.From, it.To)
 		arrowEl = Path{
-			D:           sketchPolyline(pts, edgeID),
+			D:           sketchPolyline(pts, edgeID, nil),
 			Fill:        "none",
 			Stroke:      style.Stroke,
 			StrokeWidth: style.StrokeWidth,
@@ -272,7 +272,7 @@ func renderSelfInteraction(
 	if sketch {
 		edgeID := fmt.Sprintf("%s-self-%s", it.From, it.To)
 		arrowEl = Path{
-			D:           sketchPolyline(it.SelfPoints, edgeID),
+			D:           sketchPolyline(it.SelfPoints, edgeID, nil),
 			Fill:        "none",
 			Stroke:      style.Stroke,
 			StrokeWidth: style.StrokeWidth,

@@ -62,25 +62,28 @@ func sketchLine(sb *strings.Builder, rng *rand.Rand, x0, y0, x1, y1 float64) {
 	}
 }
 
-// sketchPolyline converts a polyline into a path with subdivided, slightly wobbly segments.
-// The edgeID seeds a deterministic PRNG so the result is reproducible.
-// Returns an SVG path d attribute string.
-func sketchPolyline(pts []model.Point, edgeID string) string {
+// sketchPolyline is a hand-drawn polyline through pts that hops over each
+// of crossings as polylineWithHops does; edgeID seeds its wobble.
+func sketchPolyline(pts []model.Point, edgeID string, crossings []model.Crossing) string {
 	if len(pts) < 2 {
 		if len(pts) == 1 {
 			return fmt.Sprintf("M %s %s", ff(pts[0].X), ff(pts[0].Y))
 		}
 		return ""
 	}
-
 	rng := seedRNG(edgeID)
+	hops := hopsBySegment(pts, crossings)
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "M %s %s", ff(pts[0].X), ff(pts[0].Y))
-
 	for i := 0; i < len(pts)-1; i++ {
-		sketchLine(&sb, rng, pts[i].X, pts[i].Y, pts[i+1].X, pts[i+1].Y)
+		from := pts[i]
+		for _, h := range hops[i] {
+			sketchLine(&sb, rng, from.X, from.Y, h.pre.X, h.pre.Y)
+			writeHop(&sb, h)
+			from = h.post
+		}
+		sketchLine(&sb, rng, from.X, from.Y, pts[i+1].X, pts[i+1].Y)
 	}
-
 	return sb.String()
 }
 

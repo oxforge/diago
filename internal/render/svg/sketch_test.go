@@ -1,6 +1,7 @@
 package svg
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/oxforge/diago/internal/model"
@@ -9,21 +10,21 @@ import (
 
 func TestSketchPolylineDeterministic(t *testing.T) {
 	pts := []model.Point{{X: 0, Y: 0}, {X: 100, Y: 0}, {X: 100, Y: 100}}
-	path1 := sketchPolyline(pts, "a-b")
-	path2 := sketchPolyline(pts, "a-b")
+	path1 := sketchPolyline(pts, "a-b", nil)
+	path2 := sketchPolyline(pts, "a-b", nil)
 	assert.Equal(t, path1, path2)
 }
 
 func TestSketchPolylineDiffersByEdgeID(t *testing.T) {
 	pts := []model.Point{{X: 0, Y: 0}, {X: 100, Y: 0}}
-	path1 := sketchPolyline(pts, "a-b")
-	path2 := sketchPolyline(pts, "c-d")
+	path1 := sketchPolyline(pts, "a-b", nil)
+	path2 := sketchPolyline(pts, "c-d", nil)
 	assert.NotEqual(t, path1, path2)
 }
 
 func TestSketchPolylineSubdivides(t *testing.T) {
 	pts := []model.Point{{X: 0, Y: 0}, {X: 100, Y: 0}}
-	path := sketchPolyline(pts, "test")
+	path := sketchPolyline(pts, "test", nil)
 	// 100px segment should be subdivided into multiple L commands.
 	assert.Contains(t, path, "L")
 	assert.Contains(t, path, "M")
@@ -31,7 +32,7 @@ func TestSketchPolylineSubdivides(t *testing.T) {
 
 func TestSketchPolylineShortSegmentUsesLine(t *testing.T) {
 	pts := []model.Point{{X: 0, Y: 0}, {X: 0.5, Y: 0}}
-	path := sketchPolyline(pts, "short")
+	path := sketchPolyline(pts, "short", nil)
 	assert.Contains(t, path, "L")
 	assert.NotContains(t, path, "Q")
 }
@@ -82,4 +83,12 @@ func TestSeedRNGDeterministic(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		assert.Equal(t, r1.Float64(), r2.Float64())
 	}
+}
+
+func TestSketchPolyline_HopsOverItsCrossings(t *testing.T) {
+	pts := []model.Point{{X: 0, Y: 0}, {X: 100, Y: 0}}
+	plain := sketchPolyline(pts, "a-b", nil)
+	hopped := sketchPolyline(pts, "a-b", []model.Crossing{{SegmentIndex: 0, T: 0.5}})
+	assert.NotContains(t, plain, " A")
+	assert.Equal(t, 1, strings.Count(hopped, " A5,5 0 0 1 55,0"), hopped)
 }

@@ -442,7 +442,7 @@ func renderEdge(e model.PositionedEdge, style theme.EdgeAppearance, background s
 	if sketch {
 		edgeID := fmt.Sprintf("%s-%s", e.From, e.To)
 		edgeEl = Path{
-			D:           sketchPolyline(pts, edgeID),
+			D:           sketchPolyline(pts, edgeID, crossings),
 			Fill:        "none",
 			Stroke:      style.Stroke,
 			StrokeWidth: strokeWidth,

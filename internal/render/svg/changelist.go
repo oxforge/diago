@@ -86,7 +86,7 @@ func renderChangeList(caption string, lines []ChangeLine, top float64, th theme.
 		var sample Element
 		switch {
 		case l.Wire && sketch:
-			sample = Path{D: sketchPolyline([]model.Point{{X: legendSampleX1, Y: cy}, {X: legendSampleX2, Y: cy}}, seed),
+			sample = Path{D: sketchPolyline([]model.Point{{X: legendSampleX1, Y: cy}, {X: legendSampleX2, Y: cy}}, seed, nil),
 				Fill: "none", Stroke: l.Color, StrokeWidth: changeStroke, StrokeDash: dash}
 		case l.Wire:
 			sample = Line{X1: legendSampleX1, Y1: cy, X2: legendSampleX2, Y2: cy, Stroke: l.Color, StrokeWidth: changeStroke, StrokeDash: dash}
