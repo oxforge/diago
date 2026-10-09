@@ -30,7 +30,7 @@ var enums = []enumDef{
 	{
 		TypeName: "Direction", Receiver: "d", ErrorLabel: "direction",
 		Values: []enumValue{
-			{Name: "Auto", Strings: []string{"AUTO", "UNDEFINED"}, Default: true},
+			{Name: "Auto", Strings: []string{"AUTO"}, Default: true},
 			{Name: "Down", Strings: []string{"DOWN"}},
 			{Name: "Up", Strings: []string{"UP"}},
 			{Name: "Right", Strings: []string{"RIGHT"}},

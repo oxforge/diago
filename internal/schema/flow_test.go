@@ -57,7 +57,7 @@ func TestParseFlowValid(t *testing.T) {
 }
 
 func TestParseFlowDefaults(t *testing.T) {
-	// direction defaults to UNDEFINED when omitted; shape defaults to rect
+	// an omitted direction means AUTO; shape defaults to rect
 	spec := `{
 		"type": "flow",
 		"nodes": [{"id": "a", "label": "A"}],

@@ -876,3 +876,19 @@ func TestRun_StrayFormatAndStoreKeysWarn(t *testing.T) {
 	assert.Contains(t, stderr, "warning: unknown-field format")
 	assert.Contains(t, stderr, "warning: unknown-field store")
 }
+
+// A direction must be one the schema lists: UNDEFINED is rejected on the
+// direction field, while an empty or missing direction still means AUTO.
+func TestRun_DirectionUndefinedIsRejected(t *testing.T) {
+	code, _, stderr := runCLI(t, `{"type":"flow","direction":"UNDEFINED","nodes":[{"id":"a","label":"A"}],"edges":[]}`, "render")
+	assert.Equal(t, 1, code)
+	assert.Contains(t, stderr, `"field": "direction"`)
+	for _, spec := range []string{
+		`{"type":"flow","direction":"","nodes":[{"id":"a","label":"A"}],"edges":[]}`,
+		`{"type":"flow","nodes":[{"id":"a","label":"A"}],"edges":[]}`,
+	} {
+		code, out, _ := runCLI(t, spec, "render")
+		assert.Equal(t, 0, code, spec)
+		assert.Contains(t, out, "<svg", spec)
+	}
+}

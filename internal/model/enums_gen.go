@@ -30,7 +30,7 @@ func (d Direction) String() string {
 // ParseDirection converts a string to a Direction.
 func ParseDirection(s string) (Direction, error) {
 	switch s {
-	case "AUTO", "UNDEFINED", "":
+	case "AUTO", "":
 		return Auto, nil
 	case "DOWN":
 		return Down, nil

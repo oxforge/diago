@@ -77,7 +77,7 @@ func TestParseDirection(t *testing.T) {
 		{"UP", model.Up, false},
 		{"RIGHT", model.Right, false},
 		{"LEFT", model.Left, false},
-		{"UNDEFINED", model.Auto, false},
+		{"UNDEFINED", model.Auto, true},
 		{"invalid", model.Auto, true},
 		{"top-bottom", model.Auto, true},
 	}
