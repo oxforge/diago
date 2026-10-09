@@ -254,22 +254,27 @@ func TestSpecThemeName(t *testing.T) {
 }
 
 // TestRenderTheme: the theme name a render uses, checked as the render
-// checks it, and none for text art.
+// checks it, in every format; none for text art, which takes no theme.
 func TestRenderTheme(t *testing.T) {
 	name, err := RenderTheme([]byte(`{"theme":"dark"}`), "svg", "")
 	require.NoError(t, err)
 	assert.Equal(t, "dark", name)
-	name, err = RenderTheme([]byte(`{"theme":"nope"}`), "txt", "")
+	name, err = RenderTheme([]byte(`{"theme":"dark"}`), "txt", "")
 	require.NoError(t, err)
 	assert.Empty(t, name, "text art takes no theme")
 
-	_, err = RenderTheme([]byte(`{"theme":"nope"}`), "png", "")
-	var ve schema.ValidationErrors
-	require.ErrorAs(t, err, &ve)
-	assert.Equal(t, "theme", ve[0].Field)
-	_, err = RenderTheme([]byte(`{}`), "svg", "nope")
-	require.Error(t, err)
-	assert.False(t, errors.As(err, &ve), "an unknown override is not a spec error: %v", err)
+	for _, format := range []string{"png", "text", "txt"} {
+		_, err = RenderTheme([]byte(`{"theme":"nope"}`), format, "")
+		var ve schema.ValidationErrors
+		require.ErrorAs(t, err, &ve, format)
+		assert.Equal(t, "theme", ve[0].Field, format)
+	}
+	for _, format := range []string{"svg", "text"} {
+		_, err = RenderTheme([]byte(`{}`), format, "nope")
+		require.Error(t, err, format)
+		var ve schema.ValidationErrors
+		assert.False(t, errors.As(err, &ve), "%s: an unknown override is not a spec error: %v", format, err)
+	}
 }
 
 func TestRenderWithOptionsSketchTheme(t *testing.T) {

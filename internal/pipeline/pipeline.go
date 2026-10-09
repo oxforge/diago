@@ -84,14 +84,16 @@ func specTheme(spec []byte, override string) (theme.Theme, error) {
 
 // RenderTheme names the theme a render of spec in format uses, override
 // (the -theme flag) when set, else the spec's theme field, else "default",
-// checked to load as the render checks it: "" for text art, which takes no
-// theme. ParsePrevious lays a previous spec out under it.
+// checked to load as the render checks it, in every format: a spec's name
+// that does not load is a validation error on "theme", an override's the
+// error theme.Load returns. Text art takes no theme, so for it the name is
+// "". ParsePrevious lays a previous spec out under it.
 func RenderTheme(spec []byte, format, override string) (string, error) {
-	if isTextFormat(format) {
-		return "", nil
-	}
 	if _, err := specTheme(spec, override); err != nil {
 		return "", err
+	}
+	if isTextFormat(format) {
+		return "", nil
 	}
 	return specThemeName(spec, override), nil
 }

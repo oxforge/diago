@@ -412,12 +412,13 @@ func TestRun_PreviousSpecLaidOutAsTheRender(t *testing.T) {
 
 // TestRun_UnknownSpecTheme: a theme the spec names that does not load is a
 // validation error on its field, exit 1, with or without a -previous spec
-// laid out under it; an unknown -theme is an invocation error, exit 2,
-// reported as the flag's, not as the -previous spec's; text art checks it
-// too.
+// laid out under it, and before the -previous file is read as one; an
+// unknown -theme is an invocation error, exit 2, reported as the flag's,
+// not as the -previous spec's; text art checks it too.
 func TestRun_UnknownSpecTheme(t *testing.T) {
 	spec := strings.Replace(twoNodeSpec, `{"type":"flow",`, `{"type":"flow","theme":"nope",`, 1)
 	prev := writeTemp(t, "v1.json", twoNodeSpec)
+	bad := writeTemp(t, "bad.txt", "nope")
 	for _, tt := range []struct {
 		name  string
 		stdin string
@@ -429,6 +430,8 @@ func TestRun_UnknownSpecTheme(t *testing.T) {
 		{"render", spec, []string{"render"}, 1, "theme", ""},
 		{"previous spec", spec, []string{"render", "-previous", prev}, 1, "theme", ""},
 		{"text", spec, []string{"render", "-format", "text", "-previous", prev}, 1, "theme", ""},
+		{"text, bad previous", spec, []string{"render", "-format", "text", "-previous", bad}, 1, "theme", ""},
+		{"svg, bad previous", spec, []string{"render", "-previous", bad}, 1, "theme", ""},
 		{"flag", twoNodeSpec, []string{"render", "-theme", "nope", "-previous", prev}, 2, "", "error: theme \"nope\" not found\n"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
