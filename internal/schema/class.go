@@ -118,7 +118,11 @@ func ParseClass(data []byte) (*model.Graph, error) {
 		}
 	}
 	if spec.Legend {
-		legend = &model.Legend{Labels: spec.LegendLabels}
+		labels := make(map[string]string, len(spec.LegendLabels))
+		for k, v := range spec.LegendLabels {
+			labels[k] = singleLine(v)
+		}
+		legend = &model.Legend{Labels: labels}
 	}
 
 	errs = append(errs, validateIgnore(spec.Ignore)...)
@@ -127,7 +131,7 @@ func ParseClass(data []byte) (*model.Graph, error) {
 		return nil, errs
 	}
 	return &model.Graph{
-		Title:     strings.TrimSpace(spec.Title),
+		Title:     singleLine(strings.TrimSpace(spec.Title)),
 		Direction: direction,
 		Nodes:     nodes,
 		Edges:     edges,
@@ -165,13 +169,13 @@ func validateClasses(specs []ClassNodeSpec) ([]model.Node, map[string]bool, Vali
 		methods, mErrs := validateMembers(c.Methods, field+".methods")
 		errs = append(errs, aErrs...)
 		errs = append(errs, mErrs...)
-		label := c.Label
+		label := singleLine(c.Label)
 		if label == "" {
 			label = c.ID
 		}
 		nodes = append(nodes, model.Node{
 			ID: c.ID, Label: label, Shape: model.ShapeRect, Color: c.Color,
-			Members: &model.Members{Stereotype: c.Stereotype, TypeParams: c.TypeParams, Attributes: attrs, Methods: methods},
+			Members: &model.Members{Stereotype: singleLine(c.Stereotype), TypeParams: singleLines(c.TypeParams), Attributes: attrs, Methods: methods},
 		})
 	}
 	return nodes, ids, errs
@@ -188,7 +192,7 @@ func validateMembers(specs []MemberSpec, field string) ([]model.Member, Validati
 		if m.Visibility != "" && !visibilities[m.Visibility] {
 			errs = append(errs, ValidationError{Field: f + ".visibility", Message: "must be one of +, -, #, ~"})
 		}
-		out = append(out, model.Member{Visibility: m.Visibility, Text: m.Text, Static: m.Static, Abstract: m.Abstract})
+		out = append(out, model.Member{Visibility: m.Visibility, Text: singleLine(m.Text), Static: m.Static, Abstract: m.Abstract})
 	}
 	return out, errs
 }
@@ -247,8 +251,8 @@ func validateRelations(specs []RelationSpec, classIDs map[string]bool) ([]model.
 			style = model.EdgeDashed
 		}
 		e := model.Edge{
-			ID: ids[i], From: r.From, To: r.To, Label: r.Label, Style: style, Direction: model.EdgeForward, Color: r.Color,
-			Relation: kind, FromCard: r.FromCard, ToCard: r.ToCard, Directed: directed,
+			ID: ids[i], From: r.From, To: r.To, Label: singleLine(r.Label), Style: style, Direction: model.EdgeForward, Color: r.Color,
+			Relation: kind, FromCard: singleLine(r.FromCard), ToCard: singleLine(r.ToCard), Directed: directed,
 		}
 		if kind.Swapped() {
 			e.From, e.To = e.To, e.From

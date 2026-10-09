@@ -145,7 +145,7 @@ func validateEdges(specs []EdgeSpec, nodeIDs map[string]bool) ([]model.Edge, Val
 			ID:        ids[i],
 			From:      e.From,
 			To:        e.To,
-			Label:     e.Label,
+			Label:     singleLine(e.Label),
 			Style:     edgeStyle,
 			Direction: edgeDir,
 			Color:     e.Color,

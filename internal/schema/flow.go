@@ -97,7 +97,7 @@ func ParseFlow(data []byte) (*model.Graph, error) {
 	}
 
 	return &model.Graph{
-		Title:     strings.TrimSpace(spec.Title),
+		Title:     singleLine(strings.TrimSpace(spec.Title)),
 		Direction: direction,
 		Nodes:     nodes,
 		Edges:     edges,

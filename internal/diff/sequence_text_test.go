@@ -93,7 +93,7 @@ func TestSequenceLegend_LabelsWithNewlineAndQuote(t *testing.T) {
 	 "interactions":[{"from":"a","to":"b","label":"x"},{"from":"b","to":"a","label":"Say \"hi\""}]}`
 	got := SequenceLegend(BuildUnionSequence(parseSeq(t, v1), parseSeq(t, v2)))
 	assert.Equal(t, []string{
-		`added: message C -> A B "Say \"hi\""`,
-		`changed: actor A B: color none → red`,
+		`added: message C -> A\nB "Say \"hi\""`,
+		`changed: actor A\nB: color none → red`,
 	}, got)
 }

@@ -3,7 +3,9 @@ package pipeline
 import (
 	"bytes"
 	"context"
+	"encoding/xml"
 	"errors"
+	"io"
 	"log/slog"
 	"os/exec"
 	"strings"
@@ -630,5 +632,26 @@ func TestRenderWithOptions_SketchCarriesNoFilter(t *testing.T) {
 			assert.NotContains(t, string(out), "<filter")
 			assert.NotContains(t, string(out), "filter=")
 		})
+	}
+}
+
+// Control characters print as escapes: an edge label's newline stays on its
+// row in text art, and a node label's bell leaves the SVG well-formed.
+func TestRenderWithOptions_ControlCharactersPrintAsEscapes(t *testing.T) {
+	spec := []byte(`{"type":"flow","direction":"RIGHT","nodes":[{"id":"a","label":"A \u0007 bell"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b","label":"two\nlines"}]}`)
+	art, err := RenderWithOptions(context.Background(), spec, Options{Format: "text"})
+	require.NoError(t, err)
+	assert.Contains(t, string(art), `two\nlines`, "the edge label prints its newline as an escape, on one row")
+
+	svg, err := RenderWithOptions(context.Background(), spec, Options{})
+	require.NoError(t, err)
+	assert.Contains(t, string(svg), `A \u0007 bell`)
+	dec := xml.NewDecoder(bytes.NewReader(svg))
+	for {
+		_, err := dec.Token()
+		if err == io.EOF {
+			break
+		}
+		require.NoError(t, err, "the SVG is well-formed XML")
 	}
 }

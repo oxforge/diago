@@ -57,7 +57,7 @@ func validateNodes(specs []NodeSpec) ([]model.Node, map[string]bool, ValidationE
 
 		nodes = append(nodes, model.Node{
 			ID:    n.ID,
-			Label: n.Label,
+			Label: multiLine(n.Label),
 			Shape: shape,
 			Color: n.Color,
 		})

@@ -116,7 +116,7 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 
 		actors = append(actors, model.Actor{
 			ID:    a.ID,
-			Label: a.Label,
+			Label: singleLine(a.Label),
 			Color: a.Color,
 		})
 	}
@@ -166,7 +166,7 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 		interactions = append(interactions, model.Interaction{
 			From:  it.From,
 			To:    it.To,
-			Label: it.Label,
+			Label: singleLine(it.Label),
 			Style: style,
 			Color: it.Color,
 		})
@@ -266,7 +266,7 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 			usedRanges = append(usedRanges, indexRange{sec.Start, sec.End})
 
 			sections = append(sections, model.FragmentSection{
-				Label: sec.Label,
+				Label: singleLine(sec.Label),
 				Start: sec.Start,
 				End:   sec.End,
 			})
@@ -291,7 +291,7 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 	}
 
 	return &model.SequenceDiagram{
-		Title:        strings.TrimSpace(spec.Title),
+		Title:        singleLine(strings.TrimSpace(spec.Title)),
 		Actors:       actors,
 		Interactions: interactions,
 		Fragments:    fragments,

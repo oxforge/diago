@@ -163,7 +163,7 @@ func validateGroupsPrefixed(specs []GroupSpec, nodeIDs map[string]bool, prefix s
 		}
 		groups = append(groups, model.Group{
 			ID:       g.ID,
-			Label:    g.Label,
+			Label:    singleLine(g.Label),
 			Contains: gm.groupContains[g.ID],
 			Children: gm.groupChildren[g.ID],
 			Depth:    groupDepth[g.ID],
