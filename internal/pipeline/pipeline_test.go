@@ -684,3 +684,51 @@ func TestRenderWithOptions_ACrossingPointTakesOneHop(t *testing.T) {
 		}
 	}
 }
+
+// Every SVG element id is unique, though a spec's ids may name two alike;
+// a spec where none collide keeps every id as it was.
+func TestRenderWithOptions_SVGElementIDsAreUnique(t *testing.T) {
+	idRE := regexp.MustCompile(`\bid="([^"]*)"`)
+	ids := func(t *testing.T, spec string) []string {
+		out, err := RenderWithOptions(context.Background(), []byte(spec), Options{})
+		require.NoError(t, err)
+		var all []string
+		for _, m := range idRE.FindAllSubmatch(out, -1) {
+			all = append(all, string(m[1]))
+		}
+		return all
+	}
+	for _, tc := range []struct{ name, spec string }{
+		{"explicit edge id", `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"edges":[{"from":"a","to":"b"},{"id":"a-b","from":"b","to":"c"}]}`},
+		{"hyphenated node ids", `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"a-b","label":"AB"},{"id":"b-c","label":"BC"},{"id":"c","label":"C"}],"edges":[{"from":"a","to":"b-c"},{"from":"a-b","to":"c"}]}`},
+		{"group named like a title", `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[],"groups":[{"id":"g","label":"G","contains":["a"]},{"id":"title-g","label":"T","contains":["b"]}]}`},
+		{"edge named like a label", `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b","label":"go"},{"id":"label-a-b","from":"b","to":"a","label":"back"}]}`},
+		{"a claimed suffix taken", `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"edges":[{"from":"a","to":"b"},{"id":"a-b","from":"b","to":"c"},{"id":"a-b-2","from":"a","to":"c"}]}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			seen := map[string]bool{}
+			for _, id := range ids(t, tc.spec) {
+				assert.False(t, seen[id], "duplicate id %q", id)
+				seen[id] = true
+			}
+		})
+	}
+	plain := ids(t, `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b","label":"go"}],"groups":[{"id":"g","label":"G","contains":["a"]}]}`)
+	for _, want := range []string{"edge-a-b", "group-g", "group-title-g"} {
+		assert.Contains(t, plain, want)
+	}
+}
+
+// A diff render names edge labels, so an edge id like another's label id
+// must not repeat it.
+func TestRenderDiff_EdgeLabelIDsAreUnique(t *testing.T) {
+	spec := []byte(`{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b","label":"go"},{"id":"label-a-b","from":"b","to":"a","label":"back"}]}`)
+	out, err := RenderDiff(context.Background(), spec, spec, DiffOptions{})
+	require.NoError(t, err)
+	seen := map[string]bool{}
+	for _, m := range regexp.MustCompile(`\bid="([^"]*)"`).FindAllSubmatch(out, -1) {
+		assert.False(t, seen[string(m[1])], "duplicate id %q", m[1])
+		seen[string(m[1])] = true
+	}
+	assert.True(t, seen["edge-label-a-b"])
+}

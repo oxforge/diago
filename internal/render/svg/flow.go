@@ -95,6 +95,7 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 	slices.SortFunc(sortedGroups, func(a, b model.PositionedGroup) int {
 		return a.Depth - b.Depth
 	})
+	ids := idSet{}
 	for _, g := range sortedGroups {
 		adjustedStyle := th.Group
 		if accent := resolveAccent(g.Color, th); accent != "" {
@@ -108,9 +109,11 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 			adjustedStyle.Fill = adjustGroupFill(th.Group.Fill, g.Depth)
 		}
 		grp := renderGroup(g, adjustedStyle, sketch)
+		grp.ID = ids.claim(grp.ID)
 		grp.Class = opts.class("group", g.ID)
 		doc.Children = append(doc.Children, grp)
 		if title, ok := renderGroupTitle(g, adjustedStyle); ok {
+			title.ID = ids.claim(title.ID)
 			title.Class = grp.Class
 			groupTitles = append(groupTitles, title)
 		}
@@ -218,11 +221,12 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 			adornRef = fmt.Sprintf("url(#%s)", umlMarkerID(e.Relation, suffix))
 		}
 		edgeGroup, label := renderEdge(e, edgeStyle, th.Background, sketch, markerIDOverride, markerThickIDOverride, adornRef)
+		edgeGroup.ID = ids.claim(edgeGroup.ID)
 		edgeGroup.Class = cls
 		doc.Children = append(doc.Children, edgeGroup)
 		if label != nil {
 			if cls != "" {
-				label = SVGGroup{ID: "edge-label-" + strings.TrimPrefix(edgeGroup.ID, "edge-"), Class: cls, Children: []Element{label}}
+				label = SVGGroup{ID: ids.claim("edge-label-" + strings.TrimPrefix(edgeGroup.ID, "edge-")), Class: cls, Children: []Element{label}}
 			}
 			edgeLabels = append(edgeLabels, label)
 		}
@@ -246,7 +250,7 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 				DominantBaseline: "central",
 			}
 			if cls != "" {
-				el = SVGGroup{ID: "edge-card-" + card.side + "-" + strings.TrimPrefix(edgeGroup.ID, "edge-"), Class: cls, Children: []Element{el}}
+				el = SVGGroup{ID: ids.claim("edge-card-" + card.side + "-" + strings.TrimPrefix(edgeGroup.ID, "edge-")), Class: cls, Children: []Element{el}}
 			}
 			edgeLabels = append(edgeLabels, el)
 		}
