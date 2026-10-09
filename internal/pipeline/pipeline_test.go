@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -426,7 +427,7 @@ func TestLayoutFlow(t *testing.T) {
 		]
 	}`)
 
-	pg, err := LayoutFlowForFormat(context.Background(), input, "svg", nil)
+	pg, err := LayoutGraphForFormat(context.Background(), input, schema.ParseFlow, "svg", nil)
 	require.NoError(t, err)
 	require.NotNil(t, pg)
 
@@ -449,14 +450,28 @@ func TestLayoutFlow(t *testing.T) {
 
 func TestLayoutFlowInvalidSpec(t *testing.T) {
 	input := []byte(`{"type":"flow","nodes":[{"id":"a","label":"A","shape":"octagon"}]}`)
-	_, err := LayoutFlowForFormat(context.Background(), input, "svg", nil)
+	_, err := LayoutGraphForFormat(context.Background(), input, schema.ParseFlow, "svg", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "shape")
 }
 
 func TestLayoutFlowInvalidJSON(t *testing.T) {
-	_, err := LayoutFlowForFormat(context.Background(), []byte(`not json`), "svg", nil)
+	_, err := LayoutGraphForFormat(context.Background(), []byte(`not json`), schema.ParseFlow, "svg", nil)
 	require.Error(t, err)
+}
+
+// layoutSequenceForTest parses a sequence spec and lays it out under the
+// default theme's screen profile.
+func layoutSequenceForTest(input []byte) (*model.PositionedSequence, error) {
+	diagram, err := schema.ParseSequence(input)
+	if err != nil {
+		return nil, fmt.Errorf("parse: %w", err)
+	}
+	th, err := resolveTheme("default")
+	if err != nil {
+		return nil, fmt.Errorf("theme: %w", err)
+	}
+	return layoutSequenceScreen(*diagram, th), nil
 }
 
 func TestLayoutSequence(t *testing.T) {
@@ -475,7 +490,7 @@ func TestLayoutSequence(t *testing.T) {
 		]
 	}`)
 
-	ps, err := LayoutSequenceForFormat(context.Background(), input, "svg")
+	ps, err := layoutSequenceForTest(input)
 	require.NoError(t, err)
 	require.NotNil(t, ps)
 
@@ -499,13 +514,13 @@ func TestLayoutSequence(t *testing.T) {
 
 func TestLayoutSequenceInvalidSpec(t *testing.T) {
 	input := []byte(`{"type":"sequence","actors":[],"interactions":[]}`)
-	_, err := LayoutSequenceForFormat(context.Background(), input, "svg")
+	_, err := layoutSequenceForTest(input)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "actors")
 }
 
 func TestLayoutSequenceInvalidJSON(t *testing.T) {
-	_, err := LayoutSequenceForFormat(context.Background(), []byte(`not json`), "svg")
+	_, err := layoutSequenceForTest([]byte(`not json`))
 	require.Error(t, err)
 }
 
@@ -553,11 +568,11 @@ func TestReportContract_DebugWiring(t *testing.T) {
 	reportContract(context.Background(), pg, g, false)
 	assert.Empty(t, buf.String(), "unarmed context")
 
-	// Armed end-to-end through LayoutFlowForFormat on a clean spec: no violations,
+	// Armed end-to-end through LayoutGraphForFormat on a clean spec: no violations,
 	// so no contract_violation records — but the call must not fail.
 	buf.Reset()
 	spec := []byte(`{"type":"flow","direction":"DOWN","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b"}]}`)
-	_, err := LayoutFlowForFormat(ctx, spec, "svg", nil)
+	_, err := LayoutGraphForFormat(ctx, spec, schema.ParseFlow, "svg", nil)
 	require.NoError(t, err)
 	assert.NotContains(t, buf.String(), `"decision":"contract_violation"`, "a clean two-node spec")
 }

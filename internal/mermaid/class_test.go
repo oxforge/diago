@@ -144,7 +144,7 @@ func TestClass_InheritanceRendersSupertypeAbove(t *testing.T) {
 	var spec schema.ClassSpec
 	require.NoError(t, json.Unmarshal(res.JSON, &spec))
 	assert.Equal(t, []schema.RelationSpec{rel("Dog", "Animal", "inheritance")}, spec.Relations)
-	pg, err := pipeline.LayoutClassForFormat(context.Background(), res.JSON, "svg", nil)
+	pg, err := pipeline.LayoutGraphForFormat(context.Background(), res.JSON, schema.ParseClass, "svg", nil)
 	require.NoError(t, err)
 	var animalY, dogY float64
 	for _, n := range pg.Nodes {

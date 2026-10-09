@@ -272,20 +272,6 @@ func isTextFormat(format string) bool {
 	return format == "txt" || format == "text"
 }
 
-// LayoutFlowForFormat parses and lays out a flow diagram for format: text art
-// lays out under the text profile (S14); every other format uses the screen
-// profile of the default theme. The ctx is forwarded to the layered engine so
-// that a debug logger attached via layoutdbg.NewContext receives its decision
-// records.
-func LayoutFlowForFormat(ctx context.Context, input []byte, format string, previous *model.LayoutHints) (*model.PositionedGraph, error) {
-	return LayoutGraphForFormat(ctx, input, schema.ParseFlow, format, previous)
-}
-
-// LayoutClassForFormat is LayoutGraphForFormat for a class spec.
-func LayoutClassForFormat(ctx context.Context, input []byte, format string, previous *model.LayoutHints) (*model.PositionedGraph, error) {
-	return LayoutGraphForFormat(ctx, input, schema.ParseClass, format, previous)
-}
-
 // LayoutGraphForFormat parses a flow-shaped spec with parse and lays it out
 // with the output format known: text art lays out under the text profile
 // (S14); every other format uses the screen profile of the default theme.
@@ -360,29 +346,6 @@ func edgeIDs(g model.Graph) []string {
 		ids[i] = e.ID
 	}
 	return ids
-}
-
-// LayoutSequenceForFormat parses and lays out a sequence diagram for format:
-// text art lays out under the sequence engine's text profile, on the cell
-// grid; every other format uses the default theme's screen profile. The ctx
-// is currently unused by the sequence layout engine.
-func LayoutSequenceForFormat(ctx context.Context, input []byte, format string) (*model.PositionedSequence, error) {
-	_ = ctx
-	diagram, err := schema.ParseSequence(input)
-	if err != nil {
-		return nil, fmt.Errorf("parse: %w", err)
-	}
-	if isTextFormat(format) {
-		p := seqlayout.TextProfile()
-		positioned := seqlayout.LayoutWithProfile(*diagram, p)
-		seqlayout.NormalizeSequenceWithProfile(positioned, p)
-		return positioned, nil
-	}
-	th, err := resolveTheme("default")
-	if err != nil {
-		return nil, fmt.Errorf("theme: %w", err)
-	}
-	return layoutSequenceScreen(*diagram, th), nil
 }
 
 // sequenceScreenProfile is the timeline engine's screen profile for th: its
@@ -472,7 +435,7 @@ func renderSequenceText(_ context.Context, input []byte) (textrender.Result, err
 	p := seqlayout.TextProfile()
 	positioned := seqlayout.LayoutWithProfile(*diagram, p)
 	seqlayout.NormalizeSequenceWithProfile(positioned, p)
-	return textrender.RenderSequence(positioned, diagram.Activations)
+	return textrender.RenderSequence(positioned, diagram.Activations), nil
 }
 
 func renderSequenceFull(_ context.Context, input []byte, themeName string) (string, error) {

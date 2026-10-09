@@ -19,6 +19,11 @@ func fixedMeasure(text string, _ float64, _ string) (float64, float64) {
 	return float64(len(text)) * 8.0, 16.0
 }
 
+// fixedProfile is the screen profile measuring text with fixedMeasure.
+func fixedProfile() seqlayout.Profile {
+	return seqlayout.ScreenProfileMeasuring(fixedMeasure, seqlayout.LayoutFonts{Family: "Inter", HeaderSize: 14.0, LabelSize: 12.0, FragLabelSize: 11.0})
+}
+
 func twoActorDiagram(interactions []model.Interaction) model.SequenceDiagram {
 	return model.SequenceDiagram{
 		Actors: []model.Actor{
@@ -34,7 +39,7 @@ func TestLayoutBasicTwoActors(t *testing.T) {
 	diag := twoActorDiagram([]model.Interaction{
 		{From: "a", To: "b", Label: "hello"},
 	})
-	result := seqlayout.Layout(diag, fixedMeasure, seqlayout.LayoutFonts{Family: "Inter", HeaderSize: 14.0, LabelSize: 12.0, FragLabelSize: 11.0})
+	result := seqlayout.LayoutWithProfile(diag, fixedProfile())
 	require.NotNil(t, result)
 
 	assert.Len(t, result.Actors, 2)
@@ -76,7 +81,7 @@ func TestLayoutActorSpacing(t *testing.T) {
 		},
 		Activations: false,
 	}
-	result := seqlayout.Layout(diag, fixedMeasure, seqlayout.LayoutFonts{Family: "Inter", HeaderSize: 14.0, LabelSize: 12.0, FragLabelSize: 11.0})
+	result := seqlayout.LayoutWithProfile(diag, fixedProfile())
 	require.NotNil(t, result)
 
 	// The right edge of actor A should not overlap the left edge of actor B.
@@ -93,7 +98,7 @@ func TestLayoutInteractionOrdering(t *testing.T) {
 		{From: "b", To: "a", Label: "second"},
 		{From: "a", To: "b", Label: "third"},
 	})
-	result := seqlayout.Layout(diag, fixedMeasure, seqlayout.LayoutFonts{Family: "Inter", HeaderSize: 14.0, LabelSize: 12.0, FragLabelSize: 11.0})
+	result := seqlayout.LayoutWithProfile(diag, fixedProfile())
 
 	// Interactions should be strictly ordered top-to-bottom.
 	y0 := result.Interactions[0].Y
@@ -107,7 +112,7 @@ func TestLayoutSelfMessage(t *testing.T) {
 	diag := twoActorDiagram([]model.Interaction{
 		{From: "a", To: "a", Label: "process()"},
 	})
-	result := seqlayout.Layout(diag, fixedMeasure, seqlayout.LayoutFonts{Family: "Inter", HeaderSize: 14.0, LabelSize: 12.0, FragLabelSize: 11.0})
+	result := seqlayout.LayoutWithProfile(diag, fixedProfile())
 	require.NotNil(t, result)
 
 	it := result.Interactions[0]
@@ -127,7 +132,7 @@ func TestLayoutSelfMessageSpacing(t *testing.T) {
 		{From: "a", To: "a", Label: "self"},
 		{From: "a", To: "b", Label: "next"},
 	})
-	result := seqlayout.Layout(diag, fixedMeasure, seqlayout.LayoutFonts{Family: "Inter", HeaderSize: 14.0, LabelSize: 12.0, FragLabelSize: 11.0})
+	result := seqlayout.LayoutWithProfile(diag, fixedProfile())
 
 	selfIt := result.Interactions[0]
 	nextIt := result.Interactions[1]
@@ -141,7 +146,7 @@ func TestLayoutActivationBoxes(t *testing.T) {
 		{From: "a", To: "b", Label: "request"},
 		{From: "b", To: "a", Label: "response"},
 	})
-	result := seqlayout.Layout(diag, fixedMeasure, seqlayout.LayoutFonts{Family: "Inter", HeaderSize: 14.0, LabelSize: 12.0, FragLabelSize: 11.0})
+	result := seqlayout.LayoutWithProfile(diag, fixedProfile())
 	require.NotNil(t, result)
 	require.NotEmpty(t, result.Activations, "should have at least one activation box")
 
@@ -169,7 +174,7 @@ func TestLayoutActivationsDisabled(t *testing.T) {
 		},
 		Activations: false,
 	}
-	result := seqlayout.Layout(diag, fixedMeasure, seqlayout.LayoutFonts{Family: "Inter", HeaderSize: 14.0, LabelSize: 12.0, FragLabelSize: 11.0})
+	result := seqlayout.LayoutWithProfile(diag, fixedProfile())
 	assert.Empty(t, result.Activations, "no activation boxes when disabled")
 }
 
@@ -194,7 +199,7 @@ func TestLayoutFragmentBounds(t *testing.T) {
 		},
 		Activations: false,
 	}
-	result := seqlayout.Layout(diag, fixedMeasure, seqlayout.LayoutFonts{Family: "Inter", HeaderSize: 14.0, LabelSize: 12.0, FragLabelSize: 11.0})
+	result := seqlayout.LayoutWithProfile(diag, fixedProfile())
 	require.Len(t, result.Fragments, 1)
 
 	frag := result.Fragments[0]
@@ -238,7 +243,7 @@ func TestLayoutFragmentSections(t *testing.T) {
 		},
 		Activations: false,
 	}
-	result := seqlayout.Layout(diag, fixedMeasure, seqlayout.LayoutFonts{Family: "Inter", HeaderSize: 14.0, LabelSize: 12.0, FragLabelSize: 11.0})
+	result := seqlayout.LayoutWithProfile(diag, fixedProfile())
 	require.Len(t, result.Fragments, 1)
 	frag := result.Fragments[0]
 	require.Len(t, frag.Sections, 2)
@@ -283,7 +288,7 @@ func TestLayoutNestedFragments(t *testing.T) {
 		},
 		Activations: false,
 	}
-	result := seqlayout.Layout(diag, fixedMeasure, seqlayout.LayoutFonts{Family: "Inter", HeaderSize: 14.0, LabelSize: 12.0, FragLabelSize: 11.0})
+	result := seqlayout.LayoutWithProfile(diag, fixedProfile())
 	require.Len(t, result.Fragments, 2)
 
 	outer := result.Fragments[0]
@@ -305,7 +310,7 @@ func TestLayoutEmptyInteractions(t *testing.T) {
 		Interactions: []model.Interaction{},
 		Activations:  false,
 	}
-	result := seqlayout.Layout(diag, fixedMeasure, seqlayout.LayoutFonts{Family: "Inter", HeaderSize: 14.0, LabelSize: 12.0, FragLabelSize: 11.0})
+	result := seqlayout.LayoutWithProfile(diag, fixedProfile())
 	require.NotNil(t, result)
 	assert.Len(t, result.Actors, 2)
 	assert.Empty(t, result.Interactions)

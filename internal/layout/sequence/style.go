@@ -6,22 +6,9 @@ import (
 	"github.com/oxforge/diago/internal/model"
 )
 
-// NormalizeSequence shifts all sequence diagram elements so that
-// the content starts at (margin, margin), ensuring equal margins on all sides.
-// measureText and fonts are used to compute label extents for bounds calculation.
-func NormalizeSequence(
-	ps *model.PositionedSequence,
-	measureText func(string, float64, string) (float64, float64),
-	fonts LayoutFonts,
-) {
-	p := ScreenProfile(fonts)
-	p.MeasureText = measureText
-	NormalizeSequenceWithProfile(ps, p)
-}
-
 // NormalizeSequenceWithProfile shifts all sequence diagram elements so that
 // the content starts at (margin, margin), ensuring equal margins on all
-// sides. NormalizeSequence is the screen-profile wrapper.
+// sides.
 func NormalizeSequenceWithProfile(ps *model.PositionedSequence, p Profile) {
 	margin := p.NormalizeMargin
 

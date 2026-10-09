@@ -7,6 +7,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// screenProfile is ScreenProfile(fonts) measuring text with mt.
+func screenProfile(mt func(string, float64, string) (float64, float64), fonts LayoutFonts) Profile {
+	p := ScreenProfile(fonts)
+	p.MeasureText = mt
+	return p
+}
+
 func stubMeasure(text string, size float64, family string) (float64, float64) {
 	// Simple: 7px per character width, 14px height.
 	return float64(len(text)) * 7, 14
@@ -18,7 +25,7 @@ func TestNormalizeSequence_AdjustsMargins(t *testing.T) {
 		Height: 100,
 		Actors: []model.PositionedActor{{ID: "a", Label: "A", BoxX: 10, BoxY: 10, BoxW: 20, BoxH: 20, LineX: 20, LineTop: 30, LineBottom: 90}},
 	}
-	NormalizeSequence(ps, stubMeasure, LayoutFonts{Family: "Inter", LabelSize: 12})
+	NormalizeSequenceWithProfile(ps, screenProfile(stubMeasure, LayoutFonts{Family: "Inter", LabelSize: 12}))
 	// Actor box should be shifted so that minX=40 (margin)
 	assert.Equal(t, 40.0, ps.Actors[0].BoxX)
 	assert.Equal(t, 40.0, ps.Actors[0].BoxY)
@@ -53,7 +60,7 @@ func TestNormalizeSequence_SelfInteractionLabelExtendsBounds(t *testing.T) {
 	}
 
 	fonts := LayoutFonts{Family: "Inter", LabelSize: 12}
-	NormalizeSequence(ps, stubMeasure, fonts)
+	NormalizeSequenceWithProfile(ps, screenProfile(stubMeasure, fonts))
 
 	// "process" is 7 chars * 7px = 49px wide.
 	// Label starts at SelfPoints[1].X + 6 = 126 (after shift).
@@ -88,7 +95,7 @@ func TestNormalizeSequence_NormalInteractionLabelExtendsBounds(t *testing.T) {
 	}
 
 	fonts := LayoutFonts{Family: "Inter", LabelSize: 12}
-	NormalizeSequence(ps, stubMeasure, fonts)
+	NormalizeSequenceWithProfile(ps, screenProfile(stubMeasure, fonts))
 
 	// Label: 39 chars * 7px = 273px wide. Center at (70+150)/2 = 110.
 	// Left edge: 110 - 273/2 = -26.5. Right edge: 110 + 273/2 = 246.5.

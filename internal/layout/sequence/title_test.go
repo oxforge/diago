@@ -15,6 +15,6 @@ func TestLayout_CopiesTitle(t *testing.T) {
 		Interactions: []model.Interaction{{From: "a", To: "b", Label: "hi"}},
 		Activations:  true,
 	}
-	ps := Layout(d, font.MeasureText, LayoutFonts{Family: "Inter", LabelSize: 12})
+	ps := LayoutWithProfile(d, screenProfile(font.MeasureText, LayoutFonts{Family: "Inter", LabelSize: 12}))
 	assert.Equal(t, "Login", ps.Title)
 }

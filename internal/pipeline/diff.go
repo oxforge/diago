@@ -314,10 +314,7 @@ func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 		u := diff.BuildUnionSequence(in.seqBefore, in.seqAfter)
 		if format == "text" {
 			ps := layoutSequenceDiff(u, th, true)
-			res, err := textrender.RenderSequence(ps, u.Diagram.Activations)
-			if err != nil {
-				return nil, nil, nil, fmt.Errorf("diff: render text: %w", err)
-			}
+			res := textrender.RenderSequence(ps, u.Diagram.Activations)
 			return []byte(withFooter(res.Art, opts.Caption, diff.SequenceLegend(u))), res.DroppedLabels, nil, nil
 		}
 		ps := layoutSequenceDiff(u, th, false)

@@ -17,21 +17,6 @@ type LayoutFonts struct {
 	FragLabelSize float64
 }
 
-// Layout computes the positions for all actors, interactions, activation boxes,
-// and fragments in a sequence diagram.
-// measureText is used to compute the rendered size of text labels.
-// fonts specifies the font family and sizes for actor headers, interaction labels,
-// and fragment section labels.
-func Layout(
-	diagram model.SequenceDiagram,
-	measureText func(string, float64, string) (float64, float64),
-	fonts LayoutFonts,
-) *model.PositionedSequence {
-	p := ScreenProfile(fonts)
-	p.MeasureText = measureText
-	return LayoutWithProfile(diagram, p)
-}
-
 // LayoutOptions parameterizes LayoutWithOptions.
 type LayoutOptions struct {
 	// InactiveInteractions marks interactions (by index) that keep their

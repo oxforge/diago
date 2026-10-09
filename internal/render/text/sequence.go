@@ -10,7 +10,7 @@ import (
 // RenderSequence converts a text-profile PositionedSequence into text art.
 // Every endpoint tied to an actor resolves through one shared, once-rounded
 // column per actor (colOf), never through a rounded FromX/ToX.
-func RenderSequence(ps *model.PositionedSequence, showActivations bool) (Result, error) {
+func RenderSequence(ps *model.PositionedSequence, showActivations bool) Result {
 	cols := px2col(ps.Width) + 1
 	rows := px2row(ps.Height) + 1
 	// The footer boxes are a text-only feature: make room for them below
@@ -22,7 +22,7 @@ func RenderSequence(ps *model.PositionedSequence, showActivations bool) (Result,
 	}
 	g := newCharGrid(cols, rows)
 	if len(ps.Actors) == 0 {
-		return Result{Art: g.String()}, nil
+		return Result{Art: g.String()}
 	}
 
 	colOf := make(map[string]int, len(ps.Actors))
@@ -76,7 +76,7 @@ func RenderSequence(ps *model.PositionedSequence, showActivations bool) (Result,
 
 	art, top := g.render()
 	titledArt, titleLines := withTitle(art, ps.Title)
-	return Result{Art: titledArt, TopRow: top - titleLines}, nil
+	return Result{Art: titledArt, TopRow: top - titleLines}
 }
 
 // drawFragment paints the double-line frame, ╪ at every lifeline on frame
