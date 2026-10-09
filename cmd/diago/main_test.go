@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -852,6 +853,34 @@ func TestRun_ARenderPastItsDeadlineExits2(t *testing.T) {
 	assert.Equal(t, 2, code)
 	assert.Empty(t, out)
 	assert.Contains(t, stderr, "took longer than")
+}
+
+// slowReader is a stdin that waits delay before its first read.
+type slowReader struct {
+	r     io.Reader
+	delay time.Duration
+	slept bool
+}
+
+func (s *slowReader) Read(p []byte) (int, error) {
+	if !s.slept {
+		time.Sleep(s.delay)
+		s.slept = true
+	}
+	return s.r.Read(p)
+}
+
+// TestRun_TheDeadlineStartsAfterTheRead: reading the spec spends none of
+// the render's time, so a spec read slower than the deadline still renders.
+func TestRun_TheDeadlineStartsAfterTheRead(t *testing.T) {
+	old := renderTimeout
+	renderTimeout = 500 * time.Millisecond
+	t.Cleanup(func() { renderTimeout = old })
+	var out, errb strings.Builder
+	stdin := &slowReader{r: strings.NewReader(twoNodeSpec), delay: 600 * time.Millisecond}
+	code := run([]string{"render", "-format", "text"}, stdin, &out, &errb)
+	require.Equal(t, 0, code, errb.String())
+	assert.NotEmpty(t, out.String())
 }
 
 func TestRun_CheckHasNoDeadline(t *testing.T) {

@@ -272,16 +272,13 @@ func runRender(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		baseCtx = layoutdbg.NewContext(baseCtx, logger)
 	}
 
-	ctx, cancel := context.WithTimeout(baseCtx, renderTimeout)
-	defer cancel()
-
 	input, reports, err := readSource(baseCtx, "spec", path, stdin)
 	if err != nil {
 		return reportSourceError(stderr, "render", err)
 	}
 	writeReports(stderr, reports, "")
 
-	var previous *model.LayoutHints
+	var previousData []byte
 	if *previousPath != "" {
 		if *previousPath == "-" {
 			fmt.Fprintf(stderr, "error: -previous does not read stdin; pass a file or REV:PATH\n")
@@ -292,6 +289,15 @@ func runRender(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			return reportSourceError(stderr, "render", err)
 		}
 		writeReports(stderr, prevReports, "previous")
+		previousData = data
+	}
+
+	// The deadline bounds the layout and drawing, never the reads above.
+	ctx, cancel := context.WithTimeout(baseCtx, renderTimeout)
+	defer cancel()
+
+	var previous *model.LayoutHints
+	if *previousPath != "" {
 		// The anchor must be of the same diagram type as the spec being
 		// rendered. A spec that is not valid JSON, or whose own type is
 		// missing or unknown, is left to the pipeline below so it is
@@ -302,7 +308,7 @@ func runRender(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			if err != nil {
 				return reportError(stderr, err)
 			}
-			previous, err = pipeline.ParsePrevious(ctx, data, kind, *format, renderTheme)
+			previous, err = pipeline.ParsePrevious(ctx, previousData, kind, *format, renderTheme)
 			if err != nil {
 				return reportError(stderr, err)
 			}
