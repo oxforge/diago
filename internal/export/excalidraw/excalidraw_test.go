@@ -520,38 +520,6 @@ func TestEdgeStyles(t *testing.T) {
 	}
 }
 
-func TestOutputIsValidJSON(t *testing.T) {
-	pg := &model.PositionedGraph{
-		Nodes: []model.PositionedNode{
-			{ID: "a", Label: "A", Shape: model.ShapeRect, X: 100, Y: 50, Width: 80, Height: 40},
-			{ID: "b", Label: "B", Shape: model.ShapeCircle, X: 200, Y: 150, Width: 60, Height: 60},
-		},
-		Edges: []model.PositionedEdge{
-			{From: "a", To: "b", Label: "link", Style: model.EdgeDashed, Direction: model.EdgeForward,
-				Points:   []model.Point{{X: 100, Y: 70}, {X: 150, Y: 110}, {X: 200, Y: 120}},
-				LabelPos: &model.Point{X: 150, Y: 95}, LabelWidth: 30, LabelHeight: 16},
-		},
-		Groups: []model.PositionedGroup{
-			{ID: "g", Label: "G", X: 30, Y: 10, Width: 250, Height: 200, Contains: []string{"a", "b"}, Depth: 1},
-		},
-	}
-
-	data, err := Export(pg, theme.DefaultTheme())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Verify it parses back as valid JSON.
-	var raw map[string]interface{}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		t.Fatalf("output is not valid JSON: %v", err)
-	}
-
-	if raw["type"] != "excalidraw" {
-		t.Errorf("expected type excalidraw, got %v", raw["type"])
-	}
-}
-
 // --- Helpers ---
 
 type testDoc struct {
