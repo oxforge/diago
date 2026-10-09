@@ -60,19 +60,19 @@ func TestDecision_DropsWhenInfo(t *testing.T) {
 }
 
 func TestFrom_NilContextReturnsNopLogger(t *testing.T) {
-	// Intentionally pass nil context to verify From's nil-safety contract.
-	logger := From(nil) //nolint:staticcheck // SA1012: testing nil-context safety on purpose
+	// Intentionally pass nil context to verify from's nil-safety contract.
+	logger := from(nil) //nolint:staticcheck // SA1012: testing nil-context safety on purpose
 	if logger == nil {
-		t.Fatal("From(nil) returned nil")
+		t.Fatal("from(nil) returned nil")
 	}
 	// Calling Debug on the nop logger must not panic and must produce no output.
 	logger.Debug("should be dropped")
 }
 
 func TestFrom_NoLoggerInContext(t *testing.T) {
-	logger := From(context.Background())
+	logger := from(context.Background())
 	if logger == nil {
-		t.Fatal("From(empty ctx) returned nil")
+		t.Fatal("from(empty ctx) returned nil")
 	}
 	// Should be the nop logger.
 	logger.Debug("should be dropped")

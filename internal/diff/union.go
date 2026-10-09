@@ -65,7 +65,7 @@ func BuildUnion(before, after *model.Graph) UnionGraph {
 	nodes := make([]model.Node, 0, len(after.Nodes)+len(d.RemovedNodes))
 	for _, n := range after.Nodes {
 		if o, ok := bn[n.ID]; ok && changedNode[n.ID] && o.Members != nil && n.Members != nil {
-			mu := UnionMembers(o.Members, n.Members)
+			mu := unionMembers(o.Members, n.Members)
 			u.Members[n.ID] = mu
 			members := mu.Members
 			n.Members = &members

@@ -20,9 +20,9 @@ var validFontFamilies = map[string]bool{
 	"Pangolin": true,
 }
 
-// Validate checks that a Theme has valid values.
+// validate checks that a Theme has valid values.
 // Returns a descriptive error for the first violation found.
-func Validate(th Theme) error {
+func validate(th Theme) error {
 	if err := validateColor("background", th.Background); err != nil {
 		return err
 	}

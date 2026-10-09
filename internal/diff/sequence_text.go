@@ -15,11 +15,11 @@ func StampSequenceLabels(u UnionSequence) model.SequenceDiagram {
 	d := u.Diagram
 	d.Actors = append([]model.Actor(nil), u.Diagram.Actors...)
 	for i := range d.Actors {
-		d.Actors[i].Label = TextPrefix(u.Actors[d.Actors[i].ID]) + d.Actors[i].Label
+		d.Actors[i].Label = textPrefix(u.Actors[d.Actors[i].ID]) + d.Actors[i].Label
 	}
 	d.Interactions = append([]model.Interaction(nil), u.Diagram.Interactions...)
 	for i := range d.Interactions {
-		p := TextPrefix(u.Interactions[i])
+		p := textPrefix(u.Interactions[i])
 		switch {
 		case p == "":
 		case d.Interactions[i].Label == "":
@@ -34,14 +34,14 @@ func StampSequenceLabels(u UnionSequence) model.SequenceDiagram {
 		f.Sections = append([]model.FragmentSection(nil), f.Sections...)
 		fs := u.Fragments[i]
 		for k := range f.Sections {
-			if p := TextPrefix(fs.Sections[k]); p != "" {
+			if p := textPrefix(fs.Sections[k]); p != "" {
 				f.Sections[k].Label = p + f.Sections[k].Label
 			}
 		}
 		// The frame's status stamps the first guard only when that guard is
 		// not already marked on its own account.
 		if len(f.Sections) > 0 && fs.Sections[0] == Same {
-			if p := TextPrefix(fs.Status); p != "" {
+			if p := textPrefix(fs.Status); p != "" {
 				f.Sections[0].Label = p + f.Sections[0].Label
 			}
 		}

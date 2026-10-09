@@ -41,8 +41,8 @@ func nodeLabelAt(node model.PositionedNode, style theme.NodeStyle, y float64) Te
 	return t
 }
 
-// RenderRect renders a rectangular node.
-func RenderRect(node model.PositionedNode, style theme.NodeStyle, sketch bool) SVGGroup {
+// renderRect renders a rectangular node.
+func renderRect(node model.PositionedNode, style theme.NodeStyle, sketch bool) SVGGroup {
 	hw := node.Width / 2
 	hh := node.Height / 2
 	var shapeEl Element
@@ -69,8 +69,8 @@ func RenderRect(node model.PositionedNode, style theme.NodeStyle, sketch bool) S
 	}
 }
 
-// RenderRounded renders a rectangle with rounded corners.
-func RenderRounded(node model.PositionedNode, style theme.NodeStyle, sketch bool) SVGGroup {
+// renderRounded renders a rectangle with rounded corners.
+func renderRounded(node model.PositionedNode, style theme.NodeStyle, sketch bool) SVGGroup {
 	hw := node.Width / 2
 	hh := node.Height / 2
 	var shapeEl Element
@@ -98,9 +98,9 @@ func RenderRounded(node model.PositionedNode, style theme.NodeStyle, sketch bool
 	}
 }
 
-// RenderCircle renders a circular node.
+// renderCircle renders a circular node.
 // The radius is half the maximum of width and height to ensure the label fits.
-func RenderCircle(node model.PositionedNode, style theme.NodeStyle, sketch bool) SVGGroup {
+func renderCircle(node model.PositionedNode, style theme.NodeStyle, sketch bool) SVGGroup {
 	r := math.Max(node.Width, node.Height) / 2
 	var shapeEl Element
 	if sketch {
@@ -125,9 +125,9 @@ func RenderCircle(node model.PositionedNode, style theme.NodeStyle, sketch bool)
 	}
 }
 
-// RenderDiamond renders a diamond (rotated square) node using a <polygon>.
+// renderDiamond renders a diamond (rotated square) node using a <polygon>.
 // The diamond points are at the four cardinal directions of the bounding box.
-func RenderDiamond(node model.PositionedNode, style theme.NodeStyle, sketch bool) SVGGroup {
+func renderDiamond(node model.PositionedNode, style theme.NodeStyle, sketch bool) SVGGroup {
 	hw := node.Width / 2
 	hh := node.Height / 2
 	pts := []model.Point{
@@ -159,9 +159,9 @@ func RenderDiamond(node model.PositionedNode, style theme.NodeStyle, sketch bool
 	}
 }
 
-// RenderCylinder renders a cylinder (database) node.
+// renderCylinder renders a cylinder (database) node.
 // The body is a rectangle; the top and bottom are elliptical arcs.
-func RenderCylinder(node model.PositionedNode, style theme.NodeStyle, sketch bool) SVGGroup {
+func renderCylinder(node model.PositionedNode, style theme.NodeStyle, sketch bool) SVGGroup {
 	hw := node.Width / 2
 	hh := node.Height / 2
 	// Ellipse vertical radius — about 20% of height.
@@ -225,10 +225,10 @@ func RenderCylinder(node model.PositionedNode, style theme.NodeStyle, sketch boo
 	}
 }
 
-// RenderHexagon renders an equilateral hexagonal node (flat top and bottom).
+// renderHexagon renders an equilateral hexagonal node (flat top and bottom).
 // The layout engine ensures width and height maintain equilateral proportions
 // (height = width * sqrt(3)/2), so we render a regular hexagon.
-func RenderHexagon(node model.PositionedNode, style theme.NodeStyle, sketch bool) SVGGroup {
+func renderHexagon(node model.PositionedNode, style theme.NodeStyle, sketch bool) SVGGroup {
 	hw := node.Width / 2
 	hh := node.Height / 2
 	// Equilateral flat-top hexagon: inset = width/4 on each side.
@@ -272,12 +272,12 @@ func RenderHexagon(node model.PositionedNode, style theme.NodeStyle, sketch bool
 // and attaches its ports (ports.Slant, S8).
 const parallelogramSlantRatio = 0.3
 
-// RenderParallelogram renders a parallelogram node (skewed rectangle).
+// renderParallelogram renders a parallelogram node (skewed rectangle).
 // The polygon is C2.2's outline, fully inside the node box (C0):
 // the top edge is inset on the left, the bottom edge on the right, so the
 // shape leans right without poking past the bbox. The layout engine adds
 // extra width so the label fits within the flat interior.
-func RenderParallelogram(node model.PositionedNode, style theme.NodeStyle, sketch bool) SVGGroup {
+func renderParallelogram(node model.PositionedNode, style theme.NodeStyle, sketch bool) SVGGroup {
 	hw := node.Width / 2
 	hh := node.Height / 2
 	slant := node.Height * parallelogramSlantRatio
@@ -312,22 +312,22 @@ func RenderParallelogram(node model.PositionedNode, style theme.NodeStyle, sketc
 	}
 }
 
-// RenderNode dispatches to the correct shape renderer based on node.Shape.
-func RenderNode(node model.PositionedNode, style theme.NodeStyle, sketch bool) SVGGroup {
+// renderNode dispatches to the correct shape renderer based on node.Shape.
+func renderNode(node model.PositionedNode, style theme.NodeStyle, sketch bool) SVGGroup {
 	switch node.Shape {
 	case model.ShapeRounded:
-		return RenderRounded(node, style, sketch)
+		return renderRounded(node, style, sketch)
 	case model.ShapeCircle:
-		return RenderCircle(node, style, sketch)
+		return renderCircle(node, style, sketch)
 	case model.ShapeDiamond:
-		return RenderDiamond(node, style, sketch)
+		return renderDiamond(node, style, sketch)
 	case model.ShapeCylinder:
-		return RenderCylinder(node, style, sketch)
+		return renderCylinder(node, style, sketch)
 	case model.ShapeHexagon:
-		return RenderHexagon(node, style, sketch)
+		return renderHexagon(node, style, sketch)
 	case model.ShapeParallelogram:
-		return RenderParallelogram(node, style, sketch)
+		return renderParallelogram(node, style, sketch)
 	default: // ShapeRect and any unknown
-		return RenderRect(node, style, sketch)
+		return renderRect(node, style, sketch)
 	}
 }

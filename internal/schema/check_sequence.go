@@ -9,10 +9,10 @@ import (
 // and before the ignore list; Check sorts and filters.
 func checkSequence(spec *SequenceSpec) []Advisory {
 	var out []Advisory
-	if len(spec.Actors) > MaxParticipants {
+	if len(spec.Actors) > maxParticipants {
 		out = append(out, Advisory{Rule: RuleSeqTooManyParticipants,
 			Message: fmt.Sprintf("%d participants is a lot for one sequence diagram (advice threshold: %d); consider splitting into focused diagrams or collapsing minor participants",
-				len(spec.Actors), MaxParticipants)})
+				len(spec.Actors), maxParticipants)})
 	}
 	for i, a := range spec.Actors {
 		out = append(out, labelAdvisories(fmt.Sprintf("actors[%d]", i), fmt.Sprintf("actor %q label", a.ID), "the diagram", a.Label)...)
@@ -39,14 +39,14 @@ func checkSequence(spec *SequenceSpec) []Advisory {
 					Message: fmt.Sprintf("alt section %s has no guard label; label each section with its condition so readers know which path runs", sf)})
 			}
 		}
-		if d := fragmentDepth(ranges, i, memo); d > MaxNesting {
+		if d := fragmentDepth(ranges, i, memo); d > maxNesting {
 			name := f.Type
 			if len(f.Sections) > 0 && strings.TrimSpace(f.Sections[0].Label) != "" {
 				name = f.Sections[0].Label
 			}
 			out = append(out, Advisory{Rule: RuleDeepNesting, Field: field,
 				Message: fmt.Sprintf("fragment %q (%s) is nested %d levels deep; over %d gets hard to read, flatten it or split into a referenced diagram",
-					name, field, d, MaxNesting)})
+					name, field, d, maxNesting)})
 		}
 	}
 	return out

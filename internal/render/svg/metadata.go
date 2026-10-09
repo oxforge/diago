@@ -8,9 +8,9 @@ import (
 	"github.com/oxforge/diago/internal/model"
 )
 
-// LayoutMetadataID is the id of the <metadata> element carrying the
+// layoutMetadataID is the id of the <metadata> element carrying the
 // anchoring carrier (C18) in every flow and class SVG.
-const LayoutMetadataID = "diago-layout"
+const layoutMetadataID = "diago-layout"
 
 // layoutMetadataJSON serializes the carrier for embedding; a nil carrier
 // yields "" (no element).
@@ -28,15 +28,15 @@ func layoutMetadataJSON(h *model.LayoutHints) string {
 // ExtractLayoutHints recovers the carrier from an SVG produced by Render.
 // It errors when the element is absent, malformed, or of another version.
 func ExtractLayoutHints(svgText string) (*model.LayoutHints, error) {
-	open := `<metadata id="` + LayoutMetadataID + `">`
+	open := `<metadata id="` + layoutMetadataID + `">`
 	start := strings.Index(svgText, open)
 	if start < 0 {
-		return nil, fmt.Errorf("svg: no <metadata id=%q> element (not a native diago flow render?)", LayoutMetadataID)
+		return nil, fmt.Errorf("svg: no <metadata id=%q> element (not a native diago flow render?)", layoutMetadataID)
 	}
 	rest := svgText[start+len(open):]
 	end := strings.Index(rest, "</metadata>")
 	if end < 0 {
-		return nil, fmt.Errorf("svg: unterminated <metadata id=%q>", LayoutMetadataID)
+		return nil, fmt.Errorf("svg: unterminated <metadata id=%q>", layoutMetadataID)
 	}
 	raw := unescapeXML(rest[:end])
 	var h model.LayoutHints

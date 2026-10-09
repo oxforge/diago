@@ -33,7 +33,7 @@ func steps(al SeqAlignment) [][3]any {
 }
 
 func TestAlignSequences_IdenticalIsAllSame(t *testing.T) {
-	al := AlignSequences(parseSeq(t, seqA), parseSeq(t, seqA))
+	al := alignSequences(parseSeq(t, seqA), parseSeq(t, seqA))
 	assert.Equal(t, [][3]any{{Same, 0, 0}, {Same, 1, 1}, {Same, 2, 2}, {Same, 3, 3}}, steps(al))
 	assert.Equal(t, []ActorStatus{{"u", Same}, {"w", Same}, {"a", Same}}, al.Actors)
 }
@@ -46,7 +46,7 @@ func TestAlignSequences_LabelEditIsChanged(t *testing.T) {
   {"from":"w","to":"a","label":"check"},
   {"from":"a","to":"w","label":"ok","style":"dashed"},
   {"from":"w","to":"u","label":"welcome","style":"dashed"}]}`)
-	al := AlignSequences(parseSeq(t, seqA), after)
+	al := alignSequences(parseSeq(t, seqA), after)
 	assert.Equal(t, [][3]any{{Changed, 0, 0}, {Same, 1, 1}, {Same, 2, 2}, {Same, 3, 3}}, steps(al))
 }
 
@@ -58,7 +58,7 @@ func TestAlignSequences_EndpointMoveIsRemovedThenAdded(t *testing.T) {
   {"from":"u","to":"a","label":"check"},
   {"from":"a","to":"w","label":"ok","style":"dashed"},
   {"from":"w","to":"u","label":"welcome","style":"dashed"}]}`)
-	al := AlignSequences(parseSeq(t, seqA), after)
+	al := alignSequences(parseSeq(t, seqA), after)
 	assert.Equal(t, [][3]any{{Same, 0, 0}, {Removed, 1, -1}, {Added, -1, 1}, {Same, 2, 2}, {Same, 3, 3}}, steps(al), "removed first in the gap")
 }
 
@@ -71,7 +71,7 @@ func TestAlignSequences_InsertionKeepsNeighboursSame(t *testing.T) {
   {"from":"w","to":"w","label":"audit"},
   {"from":"a","to":"w","label":"ok","style":"dashed"},
   {"from":"w","to":"u","label":"welcome","style":"dashed"}]}`)
-	al := AlignSequences(parseSeq(t, seqA), after)
+	al := alignSequences(parseSeq(t, seqA), after)
 	assert.Equal(t, [][3]any{{Same, 0, 0}, {Same, 1, 1}, {Added, -1, 2}, {Same, 2, 3}, {Same, 3, 4}}, steps(al))
 }
 
@@ -80,7 +80,7 @@ func TestAlignSequences_TiePrefersEarliestBefore(t *testing.T) {
  "interactions":[{"from":"u","to":"w","label":"ping"},{"from":"u","to":"w","label":"ping"}]}`)
 	after := parseSeq(t, `{"type":"sequence","actors":[{"id":"u","label":"U"},{"id":"w","label":"W"}],
  "interactions":[{"from":"u","to":"w","label":"ping"}]}`)
-	al := AlignSequences(before, after)
+	al := alignSequences(before, after)
 	assert.Equal(t, [][3]any{{Same, 0, 0}, {Removed, 1, -1}}, steps(al))
 }
 
@@ -90,7 +90,7 @@ func TestAlignSequences_StyleChangeIsRemovedPlusAddedThenWeakPaired(t *testing.T
  "interactions":[{"from":"u","to":"w","label":"ping"}]}`)
 	after := parseSeq(t, `{"type":"sequence","actors":[{"id":"u","label":"U"},{"id":"w","label":"W"}],
  "interactions":[{"from":"u","to":"w","label":"ping","style":"async"}]}`)
-	assert.Equal(t, [][3]any{{Changed, 0, 0}}, steps(AlignSequences(before, after)))
+	assert.Equal(t, [][3]any{{Changed, 0, 0}}, steps(alignSequences(before, after)))
 }
 
 func TestAlignSequences_ColorChangeIsChanged(t *testing.T) {
@@ -98,7 +98,7 @@ func TestAlignSequences_ColorChangeIsChanged(t *testing.T) {
  "interactions":[{"from":"u","to":"w","label":"ping"}]}`)
 	after := parseSeq(t, `{"type":"sequence","actors":[{"id":"u","label":"U"},{"id":"w","label":"W"}],
  "interactions":[{"from":"u","to":"w","label":"ping","color":"red"}]}`)
-	assert.Equal(t, [][3]any{{Changed, 0, 0}}, steps(AlignSequences(before, after)))
+	assert.Equal(t, [][3]any{{Changed, 0, 0}}, steps(alignSequences(before, after)))
 }
 
 func TestAlignSequences_RemovedActorSplicedBesideLeftNeighbour(t *testing.T) {
@@ -108,7 +108,7 @@ func TestAlignSequences_RemovedActorSplicedBesideLeftNeighbour(t *testing.T) {
 	after := parseSeq(t, `{"type":"sequence",
  "actors":[{"id":"w","label":"Web"},{"id":"u","label":"User!"},{"id":"z","label":"Z"}],
  "interactions":[{"from":"u","to":"w","label":"login"}]}`)
-	al := AlignSequences(before, after)
+	al := alignSequences(before, after)
 	assert.Equal(t, []ActorStatus{
 		{"x", Removed}, // no surviving left neighbour: front
 		{"w", Same},
@@ -125,7 +125,7 @@ func TestAlignSequences_TiesConsumeTheBeforeSideFirst(t *testing.T) {
  {"from":"a","to":"b","label":"A"},{"from":"b","to":"a","label":"B"}]}`)
 	after := parseSeq(t, `{"type":"sequence",`+gapActors+`,"interactions":[
  {"from":"b","to":"a","label":"B"},{"from":"a","to":"b","label":"A"}]}`)
-	assert.Equal(t, [][3]any{{Removed, 0, -1}, {Same, 1, 0}, {Added, -1, 1}}, steps(AlignSequences(before, after)))
+	assert.Equal(t, [][3]any{{Removed, 0, -1}, {Same, 1, 0}, {Added, -1, 1}}, steps(alignSequences(before, after)))
 }
 
 const gapActors = `"actors":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}]`
@@ -135,7 +135,7 @@ func TestAlignSequences_AGapKeepsAfterOrder(t *testing.T) {
  {"from":"a","to":"b","label":"start"},{"from":"a","to":"b","label":"old call"},{"from":"b","to":"a","label":"end"}]}`)
 	after := parseSeq(t, `{"type":"sequence",`+gapActors+`,"interactions":[
  {"from":"a","to":"b","label":"start"},{"from":"a","to":"c","label":"first new"},{"from":"a","to":"b","label":"second new"},{"from":"b","to":"a","label":"end"}]}`)
-	assert.Equal(t, [][3]any{{Same, 0, 0}, {Added, -1, 1}, {Changed, 1, 2}, {Same, 2, 3}}, steps(AlignSequences(before, after)))
+	assert.Equal(t, [][3]any{{Same, 0, 0}, {Added, -1, 1}, {Changed, 1, 2}, {Same, 2, 3}}, steps(alignSequences(before, after)))
 }
 
 // Pairs inside a gap never cross: of the two pairs on from|to, which cross,
@@ -147,7 +147,7 @@ func TestAlignSequences_GapPairsNeverCross(t *testing.T) {
  {"from":"a","to":"c","label":"y2"},{"from":"a","to":"b","label":"x2"}]}`)
 	var bi, ai []int
 	changed := 0
-	for _, s := range AlignSequences(before, after).Steps {
+	for _, s := range alignSequences(before, after).Steps {
 		if s.Status == Changed {
 			changed++
 		}
@@ -184,7 +184,7 @@ func TestAlignSequences_GapEdges(t *testing.T) {
 			[][3]any{{Same, 0, 0}, {Removed, 1, -1}, {Changed, 2, 1}, {Same, 3, 2}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, steps(AlignSequences(seq(tc.before), seq(tc.after))))
+			assert.Equal(t, tc.want, steps(alignSequences(seq(tc.before), seq(tc.after))))
 		})
 	}
 }

@@ -13,14 +13,14 @@ import (
 	"github.com/oxforge/diago/internal/font"
 )
 
-// ErrResvgNotFound is returned when the resvg binary cannot be located.
-var ErrResvgNotFound = errors.New("resvg binary not found")
+// errResvgNotFound is returned when the resvg binary cannot be located.
+var errResvgNotFound = errors.New("resvg binary not found")
 
-// notFoundError is an ErrResvgNotFound whose message says what to do next.
+// notFoundError is an errResvgNotFound whose message says what to do next.
 type notFoundError struct{ msg string }
 
 func (e notFoundError) Error() string { return e.msg }
-func (e notFoundError) Unwrap() error { return ErrResvgNotFound }
+func (e notFoundError) Unwrap() error { return errResvgNotFound }
 
 // Options controls PNG rendering parameters.
 type Options struct {

@@ -258,13 +258,13 @@ func TestMinimize_TheUpwardRunMustBeatTheFirst(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			g := graph(t, tc.specs...)
-			down, c1, d1, _ := minimize(context.Background(), g, Sweeps, false)
-			up, c2, d2, _ := minimize(context.Background(), g, Sweeps, true)
+			down, c1, d1, _ := minimize(context.Background(), g, defaultSweeps, false)
+			up, c2, d2, _ := minimize(context.Background(), g, defaultSweeps, true)
 			require.Positive(t, c1, "the first run leaves a crossing")
 			require.Equal(t, c1, c2, "the upward run ties it")
 			require.NotEqual(t, down, up, "with another ordering")
 			require.LessOrEqual(t, d2, d1, "as near the seed or nearer")
-			best, crossings, _ := run(context.Background(), g, Sweeps)
+			best, crossings, _ := run(context.Background(), g, defaultSweeps)
 			assert.Equal(t, down, best, "the first run's best stays")
 			assert.Equal(t, c1, crossings)
 		})
@@ -279,7 +279,7 @@ func TestMinimize_RestartsFromItsBest(t *testing.T) {
 	// parallel edge.
 	g := graph(t, "n0", "n1", "n2", "n3", "n4", "n5", "n6",
 		"n3->n0", "n6->n0", "n2->n0", "n0->n5", "n3->n1", "n0->n5", "n2->n5")
-	first, crossings, _ := run(context.Background(), g, Sweeps)
+	first, crossings, _ := run(context.Background(), g, defaultSweeps)
 	require.Equal(t, 1, crossings, "the fixture must leave the first run a crossing")
 	g.Layers = Minimize(context.Background(), g, false)
 	assert.Equal(t, 0, g.Crossings())
@@ -432,7 +432,7 @@ func setLayers(t *testing.T, g *lgraph.Graph, rows [][]string) {
 	}
 }
 
-// moved returns the crossings a run of AnchoredSweeps leaves once edge
+// moved returns the crossings a run of anchoredSweeps leaves once edge
 // id's dummies move to the left ends of their layers, or to the right ends
 // when right: what a counter-flow side move of that chain reaches from g's
 // order.
@@ -442,7 +442,7 @@ func moved(t *testing.T, g *lgraph.Graph, id string, right bool) int {
 	require.GreaterOrEqual(t, e, 0, "no edge %s", id)
 	work := *g
 	work.Layers = moveChain(g, e, right)
-	_, c, _ := run(context.Background(), &work, AnchoredSweeps)
+	_, c, _ := run(context.Background(), &work, anchoredSweeps)
 	return c
 }
 
@@ -553,7 +553,7 @@ func TestMinimize_TheRightEndsWhenTheLeftEndsFail(t *testing.T) {
 		{"e->b#0@3", "d"},
 		{"e"},
 	})
-	first, crossings, _ := run(context.Background(), g, Sweeps)
+	first, crossings, _ := run(context.Background(), g, defaultSweeps)
 	require.Equal(t, g.Layers, first, "the sweeps keep the seed")
 	require.Equal(t, 1, crossings)
 	require.Equal(t, 1, moved(t, g, "e->b#0", false), "the left ends keep the crossing")
@@ -627,7 +627,7 @@ func TestMinimize_StopsWithAWholeOrderingWhenTheContextIsDone(t *testing.T) {
 		}
 	}
 	_, live := ordered(t, minimizeOn(math.MaxInt), k33...)
-	require.Greater(t, live["order_chosen"]["sweeps"], float64(Sweeps), "a live context runs every sweep")
+	require.Greater(t, live["order_chosen"]["sweeps"], float64(defaultSweeps), "a live context runs every sweep")
 
 	g, got := ordered(t, minimizeOn(1), k33...)
 	assert.Equal(t, 1.0, got["order_chosen"]["sweeps"], "the first sweep's checks stop it and every later one")
@@ -635,13 +635,13 @@ func TestMinimize_StopsWithAWholeOrderingWhenTheContextIsDone(t *testing.T) {
 }
 
 // TestMinimize_TheSweepLoopChecksTheContext pins the check before each
-// sweep: done after the first check, a run of Sweeps sweeps stops after
+// sweep: done after the first check, a run of defaultSweeps sweeps stops after
 // one, with a whole ordering.
 func TestMinimize_TheSweepLoopChecksTheContext(t *testing.T) {
 	g := graph(t, k33...)
-	_, _, _, ran := minimize(&lgraphtest.Countdown{Context: context.Background(), N: math.MaxInt}, g, Sweeps, false)
-	require.Equal(t, Sweeps, ran)
-	got, crossings, _, ran := minimize(&lgraphtest.Countdown{Context: context.Background(), N: 1}, g, Sweeps, false)
+	_, _, _, ran := minimize(&lgraphtest.Countdown{Context: context.Background(), N: math.MaxInt}, g, defaultSweeps, false)
+	require.Equal(t, defaultSweeps, ran)
+	got, crossings, _, ran := minimize(&lgraphtest.Countdown{Context: context.Background(), N: 1}, g, defaultSweeps, false)
 	assert.Equal(t, 1, ran)
 	assert.Equal(t, 9, crossings)
 	requireWhole(t, g, got)

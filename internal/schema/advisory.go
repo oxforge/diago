@@ -35,7 +35,7 @@ type CheckOptions struct {
 	Anchored bool
 }
 
-// Rule names. Rules lists them sorted; the ignore field is validated
+// Rule names. ruleNames lists them sorted; the ignore field is validated
 // against that list.
 const (
 	RuleDeepNesting            = "deep-nesting"
@@ -63,8 +63,8 @@ const (
 	RuleVagueMessageLabel      = "vague-message-label"
 )
 
-// Rules is every rule name, sorted.
-var Rules = []string{
+// ruleNames is every rule name, sorted.
+var ruleNames = []string{
 	RuleDeepNesting,
 	RuleDuplicateEdge,
 	RuleEdgeWithoutID,
@@ -91,8 +91,8 @@ var Rules = []string{
 }
 
 var ruleSet = func() map[string]bool {
-	m := make(map[string]bool, len(Rules))
-	for _, r := range Rules {
+	m := make(map[string]bool, len(ruleNames))
+	for _, r := range ruleNames {
 		m[r] = true
 	}
 	return m
@@ -108,14 +108,14 @@ var retiredRules = map[string]bool{
 
 // Advisory thresholds: what "too big" means for a label and a diagram.
 const (
-	MaxLabelRunes   = 60
-	MaxTokenRunes   = 24
-	MaxNodes        = 20
-	MaxShapes       = 5
-	MaxParticipants = 8
-	MaxNesting      = 3
-	MaxClassMembers = 15
-	MaxMemberRunes  = 40
+	maxLabelRunes   = 60
+	maxTokenRunes   = 24
+	maxNodes        = 20
+	maxShapes       = 5
+	maxParticipants = 8
+	maxNesting      = 3
+	maxClassMembers = 15
+	maxMemberRunes  = 40
 )
 
 var vagueLabels = map[string]bool{
@@ -248,17 +248,17 @@ func digitRun(s string) int {
 // too-wide token widens ("the node", "the group", "the diagram").
 func labelAdvisories(field, subject, widens, text string) []Advisory {
 	var out []Advisory
-	if n := utf8.RuneCountInString(text); n > MaxLabelRunes {
+	if n := utf8.RuneCountInString(text); n > maxLabelRunes {
 		out = append(out, Advisory{
 			Rule:  RuleLongLabel,
 			Field: field,
 			Message: fmt.Sprintf("%s is %d characters; over %d reads poorly even wrapped, shorten it or move detail elsewhere",
-				subject, n, MaxLabelRunes),
+				subject, n, maxLabelRunes),
 		})
 	}
 	worst, worstLen := "", 0
 	for _, tok := range strings.Fields(text) {
-		if n := utf8.RuneCountInString(tok); n > MaxTokenRunes && n > worstLen {
+		if n := utf8.RuneCountInString(tok); n > maxTokenRunes && n > worstLen {
 			worst, worstLen = tok, n
 		}
 	}
@@ -267,7 +267,7 @@ func labelAdvisories(field, subject, widens, text string) []Advisory {
 			Rule:  RuleUnbreakableToken,
 			Field: field,
 			Message: fmt.Sprintf("%s has an unbreakable %d-character token %q; wrapping only breaks at whitespace, so anything over %d widens %s past the cap, shorten it or add separators",
-				subject, worstLen, worst, MaxTokenRunes, widens),
+				subject, worstLen, worst, maxTokenRunes, widens),
 		})
 	}
 	return out

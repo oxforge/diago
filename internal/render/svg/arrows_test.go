@@ -62,13 +62,13 @@ func markerPath(t *testing.T, m Marker) Path {
 
 func TestCleanMarkers_Unchanged(t *testing.T) {
 	assert.Equal(t, `<marker id="a" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M 0 0 L 8 4 L 0 8 Z" fill="#333"/></marker>`,
-		renderElement(ArrowMarker("a", 8, "#333")))
+		renderElement(plainArrowMarker("a", 8, "#333")))
 	assert.Equal(t, `<marker id="o" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#333" stroke-width="1.5"/></marker>`,
-		renderElement(OpenArrowMarker("o", 8, "#333")))
+		renderElement(plainOpenArrowMarker("o", 8, "#333")))
 	assert.Equal(t, `<marker id="t" viewBox="-1 -1 14 16" refX="0" refY="7" markerWidth="14" markerHeight="16" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M 0 0 L 12 7 L 0 14 Z" fill="none" stroke="#333" stroke-width="1.5"/></marker>`,
-		renderElement(TriangleMarker("t", "#333", 1.5)))
+		renderElement(triangleMarker("t", "#333", 1.5)))
 	assert.Equal(t, `<marker id="d" viewBox="-1 -1 16 14" refX="0" refY="6" markerWidth="16" markerHeight="14" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M 0 6 L 7 0 L 14 6 L 7 12 Z" fill="#333" stroke="#333" stroke-width="1.5"/></marker>`,
-		renderElement(DiamondMarker("d", "#333", 1.5, true)))
+		renderElement(diamondMarker("d", "#333", 1.5, true)))
 }
 
 func TestPath_LineCapAndJoin(t *testing.T) {
@@ -91,12 +91,12 @@ type sketchMarkerCase struct {
 
 func sketchMarkerCases() []sketchMarkerCase {
 	return []sketchMarkerCase{
-		{"arrow", func(id string) Marker { return sketchArrowMarker(id, 8, "#333") }, ArrowMarker("m", 8, "#333"), 1, 8},
-		{"thick arrow", func(id string) Marker { return sketchArrowMarker(id, 20, "#333") }, ArrowMarker("m", 20, "#333"), 2.5, 20},
-		{"open arrow", func(id string) Marker { return sketchOpenArrowMarker(id, 8, "#333") }, OpenArrowMarker("m", 8, "#333"), 1.5, 8},
-		{"triangle", func(id string) Marker { return sketchTriangleMarker(id, "#333", 1.8) }, TriangleMarker("m", "#333", 1.8), 1.8, umlTriangleDepth},
-		{"diamond", func(id string) Marker { return sketchDiamondMarker(id, "#333", 1.8, false) }, DiamondMarker("m", "#333", 1.8, false), 1.8, umlDiamondDepth},
-		{"filled diamond", func(id string) Marker { return sketchDiamondMarker(id, "#333", 1.8, true) }, DiamondMarker("m", "#333", 1.8, true), 1.8, umlDiamondDepth},
+		{"arrow", func(id string) Marker { return sketchArrowMarker(id, 8, "#333") }, plainArrowMarker("m", 8, "#333"), 1, 8},
+		{"thick arrow", func(id string) Marker { return sketchArrowMarker(id, 20, "#333") }, plainArrowMarker("m", 20, "#333"), 2.5, 20},
+		{"open arrow", func(id string) Marker { return sketchOpenArrowMarker(id, 8, "#333") }, plainOpenArrowMarker("m", 8, "#333"), 1.5, 8},
+		{"triangle", func(id string) Marker { return sketchTriangleMarker(id, "#333", 1.8) }, triangleMarker("m", "#333", 1.8), 1.8, umlTriangleDepth},
+		{"diamond", func(id string) Marker { return sketchDiamondMarker(id, "#333", 1.8, false) }, diamondMarker("m", "#333", 1.8, false), 1.8, umlDiamondDepth},
+		{"filled diamond", func(id string) Marker { return sketchDiamondMarker(id, "#333", 1.8, true) }, diamondMarker("m", "#333", 1.8, true), 1.8, umlDiamondDepth},
 	}
 }
 

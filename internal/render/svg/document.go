@@ -127,7 +127,7 @@ func (d SVGDoc) Render() string {
 
 	// Emit <metadata id="diago-layout"> carrying the anchoring carrier (C18).
 	if d.Metadata != "" {
-		fmt.Fprintf(&sb, `<metadata id="%s">%s</metadata>`, LayoutMetadataID, escapeXML(d.Metadata))
+		fmt.Fprintf(&sb, `<metadata id="%s">%s</metadata>`, layoutMetadataID, escapeXML(d.Metadata))
 	}
 
 	// Emit children.

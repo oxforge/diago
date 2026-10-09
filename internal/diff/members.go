@@ -96,9 +96,9 @@ func unionCompartment(compartment string, before, after []model.Member) ([]model
 	return union, status, records
 }
 
-// UnionMembers unions two member sets; the union
+// unionMembers unions two member sets; the union
 // carries the after side's stereotype and type parameters.
-func UnionMembers(before, after *model.Members) MemberUnion {
+func unionMembers(before, after *model.Members) MemberUnion {
 	attrs, attrStatus, attrRecords := unionCompartment("attributes", before.Attributes, after.Attributes)
 	methods, methodStatus, methodRecords := unionCompartment("methods", before.Methods, after.Methods)
 	u := MemberUnion{
@@ -120,7 +120,7 @@ func membersChanged(before, after *model.Members) bool {
 	case before == nil || after == nil:
 		return true
 	}
-	return UnionMembers(before, after).Changed
+	return unionMembers(before, after).Changed
 }
 
 // memberText is the composed member line without mark or suffix: the

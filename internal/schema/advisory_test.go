@@ -10,7 +10,7 @@ import (
 )
 
 func TestRules_SortedAndComplete(t *testing.T) {
-	assert.True(t, sort.StringsAreSorted(Rules), "Rules must be sorted")
+	assert.True(t, sort.StringsAreSorted(ruleNames), "ruleNames must be sorted")
 	for _, r := range []string{
 		RuleDeepNesting, RuleDuplicateEdge, RuleEdgeWithoutID, RuleEmptyGroup, RuleFlatEdgeRanked,
 		RuleGodClass, RuleIsolatedClass, RuleIsolatedNode, RuleLongLabel, RuleNoEntry,
@@ -18,9 +18,9 @@ func TestRules_SortedAndComplete(t *testing.T) {
 		RuleShapeSoup, RuleTextLabelDropped, RuleTooLarge, RuleUnbreakableToken, RuleUnknownField,
 		RuleUnlabeledAltSection, RuleUnlabeledBranch, RuleVagueEdgeLabel, RuleVagueMessageLabel,
 	} {
-		assert.Contains(t, Rules, r)
+		assert.Contains(t, ruleNames, r)
 	}
-	assert.Len(t, Rules, 23)
+	assert.Len(t, ruleNames, 23)
 }
 
 func TestSortAdvisories_RuleThenNaturalFieldThenMessage(t *testing.T) {
@@ -135,6 +135,6 @@ func TestValidateIgnore_RetiredHintRulesAccepted(t *testing.T) {
 	// hint rules; those names validate but match nothing.
 	assert.Empty(t, validateIgnore([]string{"duplicate-hint", "hint-no-effect"}))
 	assert.NotEmpty(t, validateIgnore([]string{"no-such-rule"}))
-	assert.NotContains(t, Rules, "duplicate-hint")
-	assert.NotContains(t, Rules, "hint-no-effect")
+	assert.NotContains(t, ruleNames, "duplicate-hint")
+	assert.NotContains(t, ruleNames, "hint-no-effect")
 }

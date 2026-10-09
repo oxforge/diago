@@ -2,12 +2,12 @@ package svg
 
 import "fmt"
 
-// ArrowMarker returns a <marker> element with a filled triangular arrowhead.
+// plainArrowMarker returns a <marker> element with a filled triangular arrowhead.
 // The marker is sized relative to the stroke width (markerUnits="strokeWidth").
 // id is the marker's SVG id (referenced as "url(#id)").
 // size controls the marker dimensions.
 // color is the fill color of the arrowhead.
-func ArrowMarker(id string, size float64, color string) Marker {
+func plainArrowMarker(id string, size float64, color string) Marker {
 	// The triangle path occupies a viewBox of "0 0 10 10".
 	// The tip of the arrow is at x=10, y=5 (the refX/refY point).
 	// markerUnits=strokeWidth means marker dimensions scale with the edge stroke.
@@ -30,10 +30,10 @@ func ArrowMarker(id string, size float64, color string) Marker {
 	}
 }
 
-// OpenArrowMarker returns a <marker> element with an open (chevron) arrowhead.
+// plainOpenArrowMarker returns a <marker> element with an open (chevron) arrowhead.
 // Used for async interactions in sequence diagrams.
 // The arrowhead is stroke-only — two lines forming a ">" shape — with no fill.
-func OpenArrowMarker(id string, size float64, color string) Marker {
+func plainOpenArrowMarker(id string, size float64, color string) Marker {
 	half := size / 2.0
 	return Marker{
 		ID:          id,
@@ -67,11 +67,11 @@ const (
 	umlDiamondHalf   = 6.0
 )
 
-// TriangleMarker returns the hollow inheritance/realization triangle. The
+// triangleMarker returns the hollow inheritance/realization triangle. The
 // viewBox is padded by 1 on every side so the stroke is not clipped;
 // refX = 0 (base) and refY = half so orient="auto-start-reverse" at
 // marker-start puts the tip on the node border.
-func TriangleMarker(id, stroke string, strokeWidth float64) Marker {
+func triangleMarker(id, stroke string, strokeWidth float64) Marker {
 	return Marker{
 		ID:      id,
 		ViewBox: fmt.Sprintf("-1 -1 %s %s", ff(umlTriangleDepth+2), ff(2*umlTriangleHalf+2)),
@@ -85,9 +85,9 @@ func TriangleMarker(id, stroke string, strokeWidth float64) Marker {
 	}
 }
 
-// DiamondMarker returns the aggregation (hollow) or composition (filled)
-// diamond, laid out like TriangleMarker.
-func DiamondMarker(id, stroke string, strokeWidth float64, filled bool) Marker {
+// diamondMarker returns the aggregation (hollow) or composition (filled)
+// diamond, laid out like triangleMarker.
+func diamondMarker(id, stroke string, strokeWidth float64, filled bool) Marker {
 	fill := "none"
 	if filled {
 		fill = stroke
@@ -106,20 +106,20 @@ func DiamondMarker(id, stroke string, strokeWidth float64, filled bool) Marker {
 	}
 }
 
-// arrowMarker is ArrowMarker, drawn by hand in a sketch theme.
+// arrowMarker is plainArrowMarker, drawn by hand in a sketch theme.
 func arrowMarker(id string, size float64, color string, sketch bool) Marker {
 	if sketch {
 		return sketchArrowMarker(id, size, color)
 	}
-	return ArrowMarker(id, size, color)
+	return plainArrowMarker(id, size, color)
 }
 
-// openArrowMarker is OpenArrowMarker, drawn by hand in a sketch theme.
+// openArrowMarker is plainOpenArrowMarker, drawn by hand in a sketch theme.
 func openArrowMarker(id string, size float64, color string, sketch bool) Marker {
 	if sketch {
 		return sketchOpenArrowMarker(id, size, color)
 	}
-	return OpenArrowMarker(id, size, color)
+	return plainOpenArrowMarker(id, size, color)
 }
 
 // sketchMarker lays a hand-drawn marker out like its clean counterpart:
@@ -136,7 +136,7 @@ func sketchMarker(id string, w, h, pad, refX, refY float64, shape Path) Marker {
 	}
 }
 
-// sketchArrowMarker is ArrowMarker drawn by hand: an uneven triangle with
+// sketchArrowMarker is plainArrowMarker drawn by hand: an uneven triangle with
 // a thin rounded outline in its fill color.
 func sketchArrowMarker(id string, size float64, color string) Marker {
 	outline := size * sketchArrowOutline
@@ -146,7 +146,7 @@ func sketchArrowMarker(id string, size float64, color string) Marker {
 	})
 }
 
-// sketchOpenArrowMarker is OpenArrowMarker drawn by hand: two strokes with
+// sketchOpenArrowMarker is plainOpenArrowMarker drawn by hand: two strokes with
 // round ends.
 func sketchOpenArrowMarker(id string, size float64, color string) Marker {
 	const strokeWidth = 1.5
@@ -164,14 +164,14 @@ func sketchUMLPad(strokeWidth float64) float64 {
 	return sketchUMLJitter + max(sketchUMLBow, sketchUMLOvershoot) + strokeWidth/2
 }
 
-// sketchTriangleMarker is TriangleMarker drawn by hand.
+// sketchTriangleMarker is triangleMarker drawn by hand.
 func sketchTriangleMarker(id, stroke string, strokeWidth float64) Marker {
 	return sketchMarker(id, umlTriangleDepth, 2*umlTriangleHalf, sketchUMLPad(strokeWidth), 0, umlTriangleHalf, Path{
 		D: sketchTriangle(id, strokeWidth, asDrawn), Fill: "none", Stroke: stroke, StrokeWidth: strokeWidth, LineCap: "round", LineJoin: "round",
 	})
 }
 
-// sketchDiamondMarker is DiamondMarker drawn by hand.
+// sketchDiamondMarker is diamondMarker drawn by hand.
 func sketchDiamondMarker(id, stroke string, strokeWidth float64, filled bool) Marker {
 	fill := "none"
 	if filled {

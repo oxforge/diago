@@ -136,10 +136,10 @@ func TestRenderClassNode_NilGuards(t *testing.T) {
 	style := th.Node
 	// No Members: fall back to the plain shape render, not a nil dereference.
 	plain := model.PositionedNode{ID: "n", Label: "N", Shape: model.ShapeRect, X: 50, Y: 50, Width: 80, Height: 40}
-	assert.Equal(t, elementString(RenderNode(plain, style, false)), elementString(RenderClassNode(plain, style, th.Class, false, "", nil)))
+	assert.Equal(t, elementString(renderNode(plain, style, false)), elementString(renderClassNode(plain, style, th.Class, false, "", nil)))
 	// Members but no memberClass: every line keeps the bare class.
 	withMembers := classGraph().Nodes[0]
-	out := elementString(RenderClassNode(withMembers, style, th.Class, false, "", nil))
+	out := elementString(renderClassNode(withMembers, style, th.Class, false, "", nil))
 	assert.Contains(t, out, `class="member"`)
 	assert.NotContains(t, out, `class="member `)
 }

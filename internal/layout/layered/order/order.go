@@ -11,11 +11,11 @@ import (
 	"github.com/oxforge/diago/internal/layoutdbg"
 )
 
-// Sweeps is a fresh layout's sweep budget (S6), AnchoredSweeps an
+// defaultSweeps is a fresh layout's sweep budget (S6), anchoredSweeps an
 // anchored one's (S13).
 const (
-	Sweeps         = 8
-	AnchoredSweeps = 2
+	defaultSweeps  = 8
+	anchoredSweeps = 2
 )
 
 // transposeRounds caps the passes of one crossing transposition; the
@@ -32,14 +32,14 @@ const maxReplacements = 100
 // cross (S6); g and its Layers are left untouched (S0: every stage is a
 // pure function of its inputs). The order of g.Layers on entry is the
 // seed, and anchored tells that a previous layout seeded it (S13). Up to
-// Sweeps median sweeps, AnchoredSweeps when anchored, alternate downward
+// defaultSweeps median sweeps, anchoredSweeps when anchored, alternate downward
 // and upward, each followed by a transposition. The ordering with the
 // fewest crossings wins, ties going to the one nearest the seed and then
 // to the earliest; the seed competes, and the sweeps stop once the best
 // ordering has no crossing. When crossings remain, the sweeps run again
 // from the seed, the first one upward, and that run's best replaces the
 // first's only with fewer crossings. The best ordering then seeds a run
-// of AnchoredSweeps, and each run's best the next; when a run finds no
+// of anchoredSweeps, and each run's best the next; when a run finds no
 // ordering with fewer crossings, the counter-flow side moves (sides) try
 // to, and when neither does, the loop transposition (keepLoops) tries to
 // enclose fewer vertices, unless anchored, where the previous order wins
@@ -56,9 +56,9 @@ func Minimize(ctx context.Context, g *lgraph.Graph, anchored bool) [][]int {
 
 // settle is Minimize with at most most orderings replacing the best.
 func settle(ctx context.Context, g *lgraph.Graph, anchored bool, most int) [][]int {
-	sweeps := Sweeps
+	sweeps := defaultSweeps
 	if anchored {
-		sweeps = AnchoredSweeps
+		sweeps = anchoredSweeps
 	}
 	best, crossings, ran := run(ctx, g, sweeps)
 	restarts, moves, loops := 0, 0, 0
@@ -73,7 +73,7 @@ func settle(ctx context.Context, g *lgraph.Graph, anchored bool, most int) [][]i
 		work := *g
 		work.Layers = best
 		if crossings > 0 {
-			next, c, r := run(ctx, &work, AnchoredSweeps)
+			next, c, r := run(ctx, &work, anchoredSweeps)
 			ran += r
 			if c < crossings {
 				restarts++
@@ -109,7 +109,7 @@ func settle(ctx context.Context, g *lgraph.Graph, anchored bool, most int) [][]i
 // sides tries S6's counter-flow side moves on g's order: each chain that
 // movers names, in turn, has its dummies moved to the left ends of their
 // layers, then to the right ends, and each ordering seeds a run of
-// AnchoredSweeps. It returns the first run's best with fewer crossings
+// anchoredSweeps. It returns the first run's best with fewer crossings
 // than crossings, with its crossings and the sweeps run, or g's order
 // when none has, or when ctx is done before the next move.
 func sides(ctx context.Context, g *lgraph.Graph, crossings int) ([][]int, int, int) {
@@ -121,7 +121,7 @@ func sides(ctx context.Context, g *lgraph.Graph, crossings int) ([][]int, int, i
 			}
 			work := *g
 			work.Layers = moveChain(g, e, right)
-			next, c, r := run(ctx, &work, AnchoredSweeps)
+			next, c, r := run(ctx, &work, anchoredSweeps)
 			ran += r
 			if c < crossings {
 				return next, c, ran

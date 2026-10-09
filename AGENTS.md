@@ -108,7 +108,7 @@ ignored, so a typo degrades rather than errors.
 Two things `internal/theme/validate.go` **rejects**: a `style` other than
 `clean` or `sketch` (the field is required: it selects the sketch renderer),
 and a font family other than `Inter` or `Pangolin`, the only two embedded
-faces. `Validate` also requires the `class` section (member font from the two
+faces. The validator also requires the `class` section (member font from the two
 embedded faces, positive separator width). It also bounds the paddings:
 `node.padding` x and y at least 0, `group.padding` at least 12 (the node
 clearance a group's own wires keep to its border).

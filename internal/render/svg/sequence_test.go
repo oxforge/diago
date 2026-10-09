@@ -167,7 +167,7 @@ func TestRenderSequenceWithActivationBoxes(t *testing.T) {
 }
 
 func TestOpenArrowMarkerRender(t *testing.T) {
-	marker := OpenArrowMarker("test-open", 8, "#ff0000")
+	marker := plainOpenArrowMarker("test-open", 8, "#ff0000")
 
 	var sb strings.Builder
 	marker.Render(&sb)

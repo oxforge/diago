@@ -38,7 +38,7 @@ func TestLoadUnknownThemeError(t *testing.T) {
 func TestValidateRejectsEmptyBackground(t *testing.T) {
 	th := DefaultTheme()
 	th.Background = ""
-	err := Validate(th)
+	err := validate(th)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "background")
 }
@@ -46,7 +46,7 @@ func TestValidateRejectsEmptyBackground(t *testing.T) {
 func TestValidateRejectsInvalidColor(t *testing.T) {
 	th := DefaultTheme()
 	th.Background = "notacolor"
-	err := Validate(th)
+	err := validate(th)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "notacolor")
 }
@@ -54,7 +54,7 @@ func TestValidateRejectsInvalidColor(t *testing.T) {
 func TestValidateRejectsInvalidDiffRemoved(t *testing.T) {
 	th := DefaultTheme()
 	th.Diff.Removed = "notacolor"
-	err := Validate(th)
+	err := validate(th)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "diff.removed")
 }
@@ -62,7 +62,7 @@ func TestValidateRejectsInvalidDiffRemoved(t *testing.T) {
 func TestValidateRejectsNegativeStrokeWidth(t *testing.T) {
 	th := DefaultTheme()
 	th.Node.StrokeWidth = -1
-	err := Validate(th)
+	err := validate(th)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "stroke_width")
 }
@@ -70,7 +70,7 @@ func TestValidateRejectsNegativeStrokeWidth(t *testing.T) {
 func TestValidateRejectsUnknownStyle(t *testing.T) {
 	th := DefaultTheme()
 	th.Style = "fancy"
-	err := Validate(th)
+	err := validate(th)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "fancy")
 }
@@ -78,7 +78,7 @@ func TestValidateRejectsUnknownStyle(t *testing.T) {
 func TestValidateRejectsUnknownFontFamily(t *testing.T) {
 	th := DefaultTheme()
 	th.Node.Font.Family = "Comic Sans"
-	err := Validate(th)
+	err := validate(th)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Comic Sans")
 }
@@ -163,7 +163,7 @@ func TestAllEmbeddedThemesValid(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			th, err := Load(name)
 			require.NoError(t, err)
-			err = Validate(th)
+			err = validate(th)
 			assert.NoError(t, err)
 		})
 	}
@@ -172,12 +172,12 @@ func TestAllEmbeddedThemesValid(t *testing.T) {
 func TestValidateRejectsMissingClassSection(t *testing.T) {
 	th := DefaultTheme()
 	th.Class.MemberFont.Family = ""
-	err := Validate(th)
+	err := validate(th)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "class.member_font.family")
 	th = DefaultTheme()
 	th.Class.SeparatorWidth = 0
-	err = Validate(th)
+	err = validate(th)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "class.separator_width")
 }
@@ -199,7 +199,7 @@ func TestValidate_PaddingBounds(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			th := DefaultTheme()
 			tt.edit(&th)
-			err := Validate(th)
+			err := validate(th)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				return

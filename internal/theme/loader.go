@@ -49,7 +49,7 @@ func Load(name string) (Theme, error) {
 
 	th := toTheme(jt)
 
-	if err := Validate(th); err != nil {
+	if err := validate(th); err != nil {
 		return Theme{}, fmt.Errorf("theme %q: %w", name, err)
 	}
 

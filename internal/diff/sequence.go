@@ -16,7 +16,7 @@ type ActorStatus struct {
 	Status Status
 }
 
-// SeqAlignment is the result of AlignSequences: Steps in union order,
+// SeqAlignment is the result of alignSequences: Steps in union order,
 // Actors in column order.
 type SeqAlignment struct {
 	Steps  []AlignedStep
@@ -72,10 +72,10 @@ func alignActors(before, after *model.SequenceDiagram) []ActorStatus {
 	return out
 }
 
-// AlignSequences aligns two interaction lists by an LCS over the strong key
+// alignSequences aligns two interaction lists by an LCS over the strong key
 // from|to|label|style, then pairs leftovers inside each gap on from|to, in
 // order, as changed. Ties prefer the earliest before index.
-func AlignSequences(before, after *model.SequenceDiagram) SeqAlignment {
+func alignSequences(before, after *model.SequenceDiagram) SeqAlignment {
 	b, a := before.Interactions, after.Interactions
 	n, m := len(b), len(a)
 	// dp[i][j] = LCS length of b[i:] and a[j:].

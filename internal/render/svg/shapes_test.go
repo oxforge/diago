@@ -81,7 +81,7 @@ func TestEachShapeRender(t *testing.T) {
 	for _, tc := range allShapes {
 		t.Run(tc.name, func(t *testing.T) {
 			node := testNode("n1", tc.shape)
-			grp := RenderNode(node, style, false)
+			grp := renderNode(node, style, false)
 			out := renderGroupToString(grp)
 			assert.NotEmpty(t, out, "output should not be empty")
 			for _, want := range tc.expected {
@@ -95,7 +95,7 @@ func TestEachShapeRender(t *testing.T) {
 func TestRenderRectAttributes(t *testing.T) {
 	style := testStyle()
 	node := testNode("r1", model.ShapeRect)
-	grp := RenderRect(node, style, false)
+	grp := renderRect(node, style, false)
 	out := renderGroupToString(grp)
 	// Node is 120x48 centered at (100,100) — top-left should be at (40, 76).
 	assert.Contains(t, out, `x="40"`)
@@ -108,7 +108,7 @@ func TestRenderRoundedHasRadius(t *testing.T) {
 	style := testStyle()
 	style.CornerRadius = 8
 	node := testNode("r2", model.ShapeRounded)
-	grp := RenderRounded(node, style, false)
+	grp := renderRounded(node, style, false)
 	out := renderGroupToString(grp)
 	assert.Contains(t, out, `rx="8"`)
 }
@@ -116,7 +116,7 @@ func TestRenderRoundedHasRadius(t *testing.T) {
 func TestRenderCircleCenteredCorrectly(t *testing.T) {
 	style := testStyle()
 	node := testNode("c1", model.ShapeCircle)
-	grp := RenderCircle(node, style, false)
+	grp := renderCircle(node, style, false)
 	out := renderGroupToString(grp)
 	assert.Contains(t, out, `cx="100"`)
 	assert.Contains(t, out, `cy="100"`)
@@ -125,7 +125,7 @@ func TestRenderCircleCenteredCorrectly(t *testing.T) {
 func TestRenderDiamondFourPoints(t *testing.T) {
 	style := testStyle()
 	node := testNode("d1", model.ShapeDiamond)
-	grp := RenderDiamond(node, style, false)
+	grp := renderDiamond(node, style, false)
 	out := renderGroupToString(grp)
 	// Diamond has 4 points: top (100,76), right (160,100), bottom (100,124), left (40,100)
 	assert.Contains(t, out, `<polygon`)
@@ -134,7 +134,7 @@ func TestRenderDiamondFourPoints(t *testing.T) {
 func TestRenderCylinderHasEllipse(t *testing.T) {
 	style := testStyle()
 	node := testNode("cy1", model.ShapeCylinder)
-	grp := RenderCylinder(node, style, false)
+	grp := renderCylinder(node, style, false)
 	out := renderGroupToString(grp)
 	assert.Contains(t, out, `<ellipse`)
 	assert.Contains(t, out, `<path`)
@@ -148,9 +148,9 @@ func TestRenderNodeDispatch(t *testing.T) {
 		model.ShapeParallelogram,
 	} {
 		node := testNode("x", shape)
-		grp := RenderNode(node, style, false)
+		grp := renderNode(node, style, false)
 		out := renderGroupToString(grp)
-		assert.NotEmpty(t, out, "RenderNode should produce output for shape %v", shape)
+		assert.NotEmpty(t, out, "renderNode should produce output for shape %v", shape)
 	}
 }
 
@@ -160,7 +160,7 @@ func TestRenderParallelogramWithinBBox(t *testing.T) {
 	// slant = 0.3*48 = 14.4.
 	style := testStyle()
 	node := testNode("p1", model.ShapeParallelogram)
-	grp := RenderParallelogram(node, style, false)
+	grp := renderParallelogram(node, style, false)
 	poly, ok := grp.Children[0].(Polygon)
 	if !ok {
 		t.Fatalf("expected Polygon child, got %T", grp.Children[0])

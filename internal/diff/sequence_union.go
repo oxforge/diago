@@ -117,7 +117,7 @@ func overlaps(a, b model.FragmentSection) bool { return a.Start <= b.End && b.St
 // BuildUnionSequence merges before and after into one timeline with a
 // status per actor, message, fragment and section.
 func BuildUnionSequence(before, after *model.SequenceDiagram) UnionSequence {
-	al := AlignSequences(before, after)
+	al := alignSequences(before, after)
 	u := UnionSequence{
 		Actors:       map[string]Status{},
 		BeforeLabels: map[string]string{},

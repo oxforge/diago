@@ -9,7 +9,7 @@ import (
 
 // TestDefaultThemeSetsWhatValidateDoesNot: Load validates a theme, so the
 // default's colors, strokes and fonts are already checked; these are the
-// fields Validate leaves open.
+// fields validate leaves open.
 func TestDefaultThemeSetsWhatValidateDoesNot(t *testing.T) {
 	th := DefaultTheme()
 	assert.Equal(t, "default", th.Name)

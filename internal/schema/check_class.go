@@ -29,9 +29,9 @@ func checkClass(spec *ClassSpec, opts CheckOptions) []Advisory {
 	}
 	for i, c := range spec.Classes {
 		field := fmt.Sprintf("classes[%d]", i)
-		if n := len(c.Attributes) + len(c.Methods); n > MaxClassMembers {
+		if n := len(c.Attributes) + len(c.Methods); n > maxClassMembers {
 			out = append(out, Advisory{Rule: RuleGodClass, Field: field,
-				Message: fmt.Sprintf("class %q has %d members (advice threshold: %d); it is likely doing too much, split its responsibilities into smaller classes", c.ID, n, MaxClassMembers)})
+				Message: fmt.Sprintf("class %q has %d members (advice threshold: %d); it is likely doing too much, split its responsibilities into smaller classes", c.ID, n, maxClassMembers)})
 		}
 		if len(spec.Classes) >= 2 && !touched[c.ID] {
 			out = append(out, Advisory{Rule: RuleIsolatedClass, Field: field,
@@ -43,16 +43,16 @@ func checkClass(spec *ClassSpec, opts CheckOptions) []Advisory {
 		}{{"attributes", c.Attributes}, {"methods", c.Methods}} {
 			for j, m := range comp.members {
 				line := memberLine(m)
-				if n := utf8.RuneCountInString(line); n > MaxMemberRunes {
+				if n := utf8.RuneCountInString(line); n > maxMemberRunes {
 					out = append(out, Advisory{Rule: RuleOverlongMember, Field: fmt.Sprintf("%s.%s[%d].text", field, comp.name, j),
-						Message: fmt.Sprintf("member %q is %d runes long (advice threshold: %d); it widens the box, shorten the signature or its types", line, n, MaxMemberRunes)})
+						Message: fmt.Sprintf("member %q is %d runes long (advice threshold: %d); it widens the box, shorten the signature or its types", line, n, maxMemberRunes)})
 				}
 			}
 		}
 	}
-	if len(spec.Classes) > MaxNodes {
+	if len(spec.Classes) > maxNodes {
 		out = append(out, Advisory{Rule: RuleOversizedClassDiagram,
-			Message: fmt.Sprintf("%d classes is a lot for one diagram (advice threshold: %d); consider decomposing into linked sub-diagrams", len(spec.Classes), MaxNodes)})
+			Message: fmt.Sprintf("%d classes is a lot for one diagram (advice threshold: %d); consider decomposing into linked sub-diagrams", len(spec.Classes), maxNodes)})
 	}
 	if opts.Anchored {
 		for i, r := range spec.Relations {

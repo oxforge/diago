@@ -355,7 +355,7 @@ func sketchClosed(pts []model.Point, bows []float64, overshoot float64, place fu
 // asDrawn places marker coordinates as they are.
 func asDrawn(p model.Point) model.Point { return p }
 
-// sketchArrowhead is the filled arrowhead of ArrowMarker drawn by hand: its
+// sketchArrowhead is the filled arrowhead of plainArrowMarker drawn by hand: its
 // tip, rounded by an outline of width outline, reaches (size, size/2).
 func sketchArrowhead(id string, size, outline float64) string {
 	rng := seedRNG(id)
@@ -368,7 +368,7 @@ func sketchArrowhead(id string, size, outline float64) string {
 	return sketchClosed([]model.Point{top, tip, bottom}, bows, 0, asDrawn)
 }
 
-// sketchOpenArrowhead is the open arrowhead of OpenArrowMarker drawn by
+// sketchOpenArrowhead is the open arrowhead of plainOpenArrowMarker drawn by
 // hand: two strokes of slightly uneven length meeting at a tip that, with
 // its round cap, reaches (size, size/2).
 func sketchOpenArrowhead(id string, size, strokeWidth float64) string {
@@ -389,7 +389,7 @@ func sketchOpenArrowhead(id string, size, strokeWidth float64) string {
 	return sb.String()
 }
 
-// sketchTriangle is TriangleMarker's hollow triangle drawn by hand, base at
+// sketchTriangle is triangleMarker's hollow triangle drawn by hand, base at
 // x = 0 on the wire's start and tip, rounded by the stroke, reaching
 // x = umlTriangleDepth on the node border; the base runs on past its top
 // corner.
@@ -404,7 +404,7 @@ func sketchTriangle(id string, strokeWidth float64, place func(model.Point) mode
 	return sketchClosed([]model.Point{top, tip, bottom}, bows, sketchUMLOvershoot, place)
 }
 
-// sketchDiamond is DiamondMarker's diamond drawn by hand, back corner at
+// sketchDiamond is diamondMarker's diamond drawn by hand, back corner at
 // x = 0 on the wire's start and tip, rounded by the stroke, reaching
 // x = umlDiamondDepth on the node border; the last side runs on past the
 // back corner.

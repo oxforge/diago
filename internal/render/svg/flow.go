@@ -269,11 +269,11 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 		}
 		var grp SVGGroup
 		if n.Members != nil {
-			grp = RenderClassNode(n, nodeStyle, th.Class, sketch, opts.class("node", n.ID), func(compartment string, i int) string {
+			grp = renderClassNode(n, nodeStyle, th.Class, sketch, opts.class("node", n.ID), func(compartment string, i int) string {
 				return opts.class("member", n.ID+"/"+compartment+"/"+strconv.Itoa(i))
 			})
 		} else {
-			grp = RenderNode(n, nodeStyle, sketch)
+			grp = renderNode(n, nodeStyle, sketch)
 			grp.Class = opts.class("node", n.ID)
 		}
 		doc.Children = append(doc.Children, grp)

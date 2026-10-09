@@ -41,7 +41,7 @@ func TestResvgNotFound(t *testing.T) {
 			}
 			_, err := Render(context.Background(), []byte("<svg></svg>"), Options{})
 			require.Error(t, err)
-			assert.True(t, errors.Is(err, ErrResvgNotFound), "expected ErrResvgNotFound, got: %v", err)
+			assert.True(t, errors.Is(err, errResvgNotFound), "expected errResvgNotFound, got: %v", err)
 			for _, m := range tt.mentions {
 				assert.Contains(t, err.Error(), m)
 			}

@@ -53,9 +53,9 @@ func umlMarkers(suffix, stroke string, strokeWidth float64, sketch bool) []Eleme
 		}
 	}
 	return []Element{
-		TriangleMarker(umlMarkerID(model.RelationInheritance, suffix), stroke, strokeWidth),
-		DiamondMarker(umlMarkerID(model.RelationAggregation, suffix), stroke, strokeWidth, false),
-		DiamondMarker(umlMarkerID(model.RelationComposition, suffix), stroke, strokeWidth, true),
+		triangleMarker(umlMarkerID(model.RelationInheritance, suffix), stroke, strokeWidth),
+		diamondMarker(umlMarkerID(model.RelationAggregation, suffix), stroke, strokeWidth, false),
+		diamondMarker(umlMarkerID(model.RelationComposition, suffix), stroke, strokeWidth, true),
 	}
 }
 
@@ -124,17 +124,17 @@ func shortenStartWithCrossings(pts []model.Point, depth float64, crossings []mod
 	return out, remapped
 }
 
-// RenderClassNode draws a UML record box (S1 sizes it): a square-cornered
+// renderClassNode draws a UML record box (S1 sizes it): a square-cornered
 // rect, the header lines, a separator above each non-empty compartment and
 // the left-aligned member lines. status is the node-level diff class (on
 // the inner group; "" for none); memberClass returns the per-line class
 // suffix ("" for none). Exported, so both optional inputs are guarded: a node
 // with no Members falls back to the plain shape render, and a nil memberClass
 // is read as "no class on any line".
-func RenderClassNode(node model.PositionedNode, style theme.NodeStyle, class theme.ClassStyle, sketch bool, status string, memberClass func(compartment string, i int) string) SVGGroup {
+func renderClassNode(node model.PositionedNode, style theme.NodeStyle, class theme.ClassStyle, sketch bool, status string, memberClass func(compartment string, i int) string) SVGGroup {
 	m := node.Members
 	if m == nil {
-		return RenderNode(node, style, sketch)
+		return renderNode(node, style, sketch)
 	}
 	if memberClass == nil {
 		memberClass = func(string, int) string { return "" }

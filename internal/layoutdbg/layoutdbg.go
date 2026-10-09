@@ -1,6 +1,6 @@
 // Package layoutdbg provides a thin helper for layout/routing decision
 // logging. A *slog.Logger is carried in context.Context and accessed via
-// From/With/Decision. When the logger's level is above DEBUG, Decision
+// from/With/Decision. When the logger's level is above DEBUG, Decision
 // short-circuits before any allocation, so call sites are cheap when
 // debug is off.
 package layoutdbg
@@ -13,7 +13,7 @@ import (
 
 type ctxKey struct{}
 
-// nopLogger is a shared no-op logger returned by From when no logger is
+// nopLogger is a shared no-op logger returned by from when no logger is
 // attached to ctx. It writes to io.Discard at LevelError (so any future
 // non-debug log call is also dropped).
 var nopLogger = slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{
@@ -28,9 +28,9 @@ func NewContext(parent context.Context, logger *slog.Logger) context.Context {
 	return context.WithValue(parent, ctxKey{}, logger)
 }
 
-// From returns the logger attached to ctx, or a no-op logger if none.
+// from returns the logger attached to ctx, or a no-op logger if none.
 // Never returns nil.
-func From(ctx context.Context) *slog.Logger {
+func from(ctx context.Context) *slog.Logger {
 	if ctx == nil {
 		return nopLogger
 	}
@@ -46,7 +46,7 @@ func From(ctx context.Context) *slog.Logger {
 // (e.g. running the output-contract checker). Cost when unarmed is one
 // context lookup and one level comparison.
 func Armed(ctx context.Context) bool {
-	return From(ctx).Enabled(ctx, slog.LevelDebug)
+	return from(ctx).Enabled(ctx, slog.LevelDebug)
 }
 
 // Decision emits a single layout/routing decision via slog.Debug. The
@@ -57,7 +57,7 @@ func Armed(ctx context.Context) bool {
 // before constructing attrs. Cost in that path is one method call and
 // one comparison.
 func Decision(ctx context.Context, decision string, attrs ...any) {
-	logger := From(ctx)
+	logger := from(ctx)
 	if !logger.Enabled(ctx, slog.LevelDebug) {
 		return
 	}

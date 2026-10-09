@@ -73,10 +73,10 @@ func checkFlowNodes(spec *FlowSpec, ids []string) []Advisory {
 			}
 		}
 	}
-	if len(spec.Nodes) > MaxNodes {
+	if len(spec.Nodes) > maxNodes {
 		out = append(out, Advisory{Rule: RuleTooLarge,
 			Message: fmt.Sprintf("%d nodes is a lot for one diagram (advice threshold: %d); consider decomposing into linked sub-diagrams",
-				len(spec.Nodes), MaxNodes)})
+				len(spec.Nodes), maxNodes)})
 	}
 	if len(spec.Nodes) >= 2 && len(spec.Edges) >= 1 {
 		all := true
@@ -91,7 +91,7 @@ func checkFlowNodes(spec *FlowSpec, ids []string) []Advisory {
 				Message: "flow has no clear entry: every node has an incoming edge; add a start node or break a cycle so readers know where to begin"})
 		}
 	}
-	if len(shapes) > MaxShapes {
+	if len(shapes) > maxShapes {
 		names := make([]string, 0, len(shapes))
 		for s := range shapes {
 			names = append(names, s)
@@ -99,7 +99,7 @@ func checkFlowNodes(spec *FlowSpec, ids []string) []Advisory {
 		sort.Strings(names)
 		out = append(out, Advisory{Rule: RuleShapeSoup,
 			Message: fmt.Sprintf("%d distinct shapes (%s); more than %d dilutes meaning, reserve each shape for one consistent role",
-				len(names), strings.Join(names, ", "), MaxShapes)})
+				len(names), strings.Join(names, ", "), maxShapes)})
 	}
 	return out
 }

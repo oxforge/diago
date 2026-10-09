@@ -6,8 +6,8 @@ import (
 	"github.com/oxforge/diago/internal/model"
 )
 
-// TextPrefix is the marker text art stamps on a non-same label.
-func TextPrefix(s Status) string {
+// textPrefix is the marker text art stamps on a non-same label.
+func textPrefix(s Status) string {
 	switch s {
 	case Added:
 		return "+ "
@@ -30,14 +30,14 @@ func StampLabels(u UnionGraph) model.Graph {
 	g.Nodes = append([]model.Node(nil), u.Graph.Nodes...)
 	for i := range g.Nodes {
 		n := &g.Nodes[i]
-		n.Label = TextPrefix(u.Nodes[n.ID]) + n.Label
+		n.Label = textPrefix(u.Nodes[n.ID]) + n.Label
 		if n.Members == nil {
 			continue
 		}
 		mu, hasUnion := u.Members[n.ID]
 		mark := func(comp []Status, k int) string {
 			if hasUnion && k < len(comp) && comp[k] != Same {
-				return TextPrefix(comp[k])
+				return textPrefix(comp[k])
 			}
 			return "  "
 		}
@@ -54,7 +54,7 @@ func StampLabels(u UnionGraph) model.Graph {
 	}
 	g.Groups = append([]model.Group(nil), u.Graph.Groups...)
 	for i := range g.Groups {
-		g.Groups[i].Label = TextPrefix(u.Groups[g.Groups[i].ID]) + g.Groups[i].Label
+		g.Groups[i].Label = textPrefix(u.Groups[g.Groups[i].ID]) + g.Groups[i].Label
 	}
 	return g
 }
