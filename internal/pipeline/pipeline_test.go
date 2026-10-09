@@ -7,7 +7,9 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -658,5 +660,27 @@ func TestRenderWithOptions_ControlCharactersPrintAsEscapes(t *testing.T) {
 			break
 		}
 		require.NoError(t, err, "the SVG is well-formed XML")
+	}
+}
+
+// A crossing point takes one hop, however many edges cross there: n7->n9
+// crosses the run n3->n8 and n6->n8 share into diamond n8, two crossings
+// at one point, and draws one arc there; n5->n10, crossing one edge, one.
+func TestRenderWithOptions_ACrossingPointTakesOneHop(t *testing.T) {
+	spec, err := os.ReadFile("testdata/crossing-shared-run.json")
+	require.NoError(t, err)
+	out, err := RenderWithOptions(context.Background(), spec, Options{})
+	require.NoError(t, err)
+	for _, id := range []string{"edge-n7-n9", "edge-n5-n10"} {
+		m := regexp.MustCompile(`<g id="` + id + `"><path d="([^"]*)"`).FindSubmatch(out)
+		require.NotNil(t, m, "no path for %s", id)
+		arcs := regexp.MustCompile(`A[^A-Z]*`).FindAllString(string(m[1]), -1)
+		require.NotEmpty(t, arcs, "%s hops", id)
+		seen := map[string]bool{}
+		for _, a := range arcs {
+			a = strings.TrimSpace(a)
+			assert.False(t, seen[a], "%s draws %q twice: %v", id, a, arcs)
+			seen[a] = true
+		}
 	}
 }

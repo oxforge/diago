@@ -1,0 +1,148 @@
+{
+  "type": "flow",
+  "direction": "DOWN",
+  "nodes": [
+    {
+      "id": "n0",
+      "label": "n0",
+      "shape": "diamond"
+    },
+    {
+      "id": "n1",
+      "label": "n1",
+      "shape": "rect"
+    },
+    {
+      "id": "n2",
+      "label": "n2",
+      "shape": "rect"
+    },
+    {
+      "id": "n3",
+      "label": "n3",
+      "shape": "diamond"
+    },
+    {
+      "id": "n4",
+      "label": "n4",
+      "shape": "diamond"
+    },
+    {
+      "id": "n5",
+      "label": "n5",
+      "shape": "diamond"
+    },
+    {
+      "id": "n6",
+      "label": "n6",
+      "shape": "rect"
+    },
+    {
+      "id": "n7",
+      "label": "n7",
+      "shape": "rect"
+    },
+    {
+      "id": "n8",
+      "label": "n8",
+      "shape": "diamond"
+    },
+    {
+      "id": "n9",
+      "label": "n9",
+      "shape": "rect"
+    },
+    {
+      "id": "n10",
+      "label": "n10",
+      "shape": "rect"
+    }
+  ],
+  "edges": [
+    {
+      "id": "n0-\u003en1#0",
+      "from": "n0",
+      "to": "n1",
+      "label": "yes"
+    },
+    {
+      "id": "n0-\u003en8#0",
+      "from": "n0",
+      "to": "n8",
+      "label": "no"
+    },
+    {
+      "id": "n1-\u003en8#0",
+      "from": "n1",
+      "to": "n8"
+    },
+    {
+      "id": "n2-\u003en3#0",
+      "from": "n2",
+      "to": "n3"
+    },
+    {
+      "id": "n3-\u003en8#0",
+      "from": "n3",
+      "to": "n8",
+      "label": "yes"
+    },
+    {
+      "id": "n3-\u003en4#0",
+      "from": "n3",
+      "to": "n4",
+      "label": "no"
+    },
+    {
+      "id": "n4-\u003en6#0",
+      "from": "n4",
+      "to": "n6",
+      "label": "yes"
+    },
+    {
+      "id": "n4-\u003en7#0",
+      "from": "n4",
+      "to": "n7",
+      "label": "no"
+    },
+    {
+      "id": "n5-\u003en6#0",
+      "from": "n5",
+      "to": "n6",
+      "label": "yes"
+    },
+    {
+      "id": "n5-\u003en10#0",
+      "from": "n5",
+      "to": "n10",
+      "label": "no"
+    },
+    {
+      "id": "n6-\u003en8#0",
+      "from": "n6",
+      "to": "n8"
+    },
+    {
+      "id": "n7-\u003en9#0",
+      "from": "n7",
+      "to": "n9"
+    },
+    {
+      "id": "n8-\u003en9#0",
+      "from": "n8",
+      "to": "n9",
+      "label": "yes"
+    },
+    {
+      "id": "n8-\u003en10#0",
+      "from": "n8",
+      "to": "n10",
+      "label": "no"
+    },
+    {
+      "id": "n9-\u003en10#0",
+      "from": "n9",
+      "to": "n10"
+    }
+  ]
+}

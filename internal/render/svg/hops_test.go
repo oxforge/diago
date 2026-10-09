@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/oxforge/diago/internal/model"
 )
 
@@ -145,5 +147,30 @@ func TestPolylineWithHops_MultipleSegmentsHopOnSecond(t *testing.T) {
 	// Second segment must contain an arc.
 	if !strings.Contains(got, "A") {
 		t.Errorf("expected arc on second segment, got: %q", got)
+	}
+}
+
+// Crossings whose hops would overlap on one segment merge into one wider
+// hop over all of them: the path never steps back. Hops that only touch
+// (10 px apart) stay two, drawn as before.
+func TestPolylineWithHops_CloseCrossingsMergeIntoOneHop(t *testing.T) {
+	seg := []model.Point{{X: 0, Y: 0}, {X: 100, Y: 0}}
+	for _, tc := range []struct {
+		name string
+		ts   []float64
+		want string
+	}{
+		{"2 px apart", []float64{0.5, 0.52}, "M0,0 L45,0 A6,6 0 0 1 57,0 L100,0"},
+		{"one point", []float64{0.5, 0.5}, "M0,0 L45,0 A5,5 0 0 1 55,0 L100,0"},
+		{"three chained", []float64{0.3, 0.38, 0.46}, "M0,0 L25,0 A13,13 0 0 1 51,0 L100,0"},
+		{"10 px apart", []float64{0.5, 0.6}, "M0,0 L45,0 A5,5 0 0 1 55,0 L55,0 A5,5 0 0 1 65,0 L100,0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var cs []model.Crossing
+			for _, x := range tc.ts {
+				cs = append(cs, model.Crossing{SegmentIndex: 0, T: x})
+			}
+			assert.Equal(t, tc.want, polylineWithHops(seg, cs))
+		})
 	}
 }
