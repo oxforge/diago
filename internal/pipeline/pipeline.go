@@ -120,6 +120,9 @@ func RenderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte,
 	return data, nil
 }
 
+// renderWithOptions is RenderWithOptions before its advisories: the
+// rendered bytes, the text renderer's dropped labels and the layout's
+// ranked flat edges.
 func renderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte, []textrender.DroppedLabel, []flatRankedField, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, nil, nil, fmt.Errorf("render: %w", err)
@@ -136,11 +139,9 @@ func renderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte,
 			return nil, nil, nil, fmt.Errorf("render: previous: %w", err)
 		}
 	}
-	themeName := opts.Theme
 
-	// Normalize and validate the format. An unrecognised value used to fall
-	// through to the SVG return below, so a typo produced SVG and exited 0.
-	// "txt" is accepted as an alias for "text".
+	// Normalize and validate the format: an unknown one is an error, never
+	// SVG. "txt" is accepted as an alias for "text".
 	format := opts.Format
 	if format == "" {
 		format = "svg"
@@ -149,84 +150,94 @@ func renderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte,
 		format = "text"
 	}
 	switch format {
-	case "svg", "png", "text":
+	case "svg", "png":
+		data, flatRanked, err := renderImage(ctx, input, kind, format, &opts)
+		return data, nil, flatRanked, err
+	case "text":
+		return renderTextArt(ctx, input, kind, &opts)
 	case "drawio", "excalidraw":
-		data, flatRanked, err := renderExport(ctx, input, kind, format, themeName, &opts)
+		data, flatRanked, err := renderExport(ctx, input, kind, format, opts.Theme, &opts)
 		return data, nil, flatRanked, err
 	default:
 		return nil, nil, nil, fmt.Errorf("render: unsupported format %q: want svg, png, text, drawio, or excalidraw", opts.Format)
 	}
+}
 
-	if format == "text" {
-		// Text art takes no theme, but a theme the spec or -theme names must load.
-		if _, err := specTheme(input, themeName); err != nil {
-			return nil, nil, nil, err
-		}
-		switch kind {
-		case "flow":
-			res, hints, flatRanked, err := renderFlowText(ctx, input, opts.Previous)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-			if opts.LayoutHints != nil && hints != nil {
-				*opts.LayoutHints = *hints
-			}
-			return []byte(res.Art), res.DroppedLabels, flatRanked, nil
-		case "sequence":
-			discardPreviousForSequence(&opts)
-			res, err := renderSequenceText(ctx, input)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-			return []byte(res.Art), res.DroppedLabels, nil, nil
-		case "class":
-			res, hints, flatRanked, err := renderGraphText(ctx, input, "class", schema.ParseClass, opts.Previous)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-			if opts.LayoutHints != nil && hints != nil {
-				*opts.LayoutHints = *hints
-			}
-			// A legend is one row per relation kind, under the art.
-			art := res.Art
-			if len(res.Legend) > 0 {
-				art = strings.TrimRight(art, "\n") + "\n\n" + strings.Join(res.Legend, "\n") + "\n"
-			}
-			return []byte(art), res.DroppedLabels, flatRanked, nil
-		default:
-			return nil, nil, nil, fmt.Errorf("render: unknown diagram type: %q", kind)
-		}
+// renderTextArt renders a spec of the given kind as text art. Text art
+// takes no theme, but a theme the spec or -theme names must load. A flow
+// or class layout's carrier goes to opts.LayoutHints, and a class
+// diagram's legend, one row per relation kind, under the art.
+func renderTextArt(ctx context.Context, input []byte, kind string, opts *Options) ([]byte, []textrender.DroppedLabel, []flatRankedField, error) {
+	if _, err := specTheme(input, opts.Theme); err != nil {
+		return nil, nil, nil, err
 	}
-
-	var svg string
-	var flatRanked []flatRankedField
 	switch kind {
 	case "flow":
-		var hints *model.LayoutHints
-		svg, hints, flatRanked, err = renderFlowFull(ctx, input, themeName, opts.Previous)
-		if err == nil && opts.LayoutHints != nil && hints != nil {
-			*opts.LayoutHints = *hints
+		res, hints, flatRanked, err := renderFlowText(ctx, input, opts.Previous)
+		if err != nil {
+			return nil, nil, nil, err
 		}
+		opts.keepHints(hints)
+		return []byte(res.Art), res.DroppedLabels, flatRanked, nil
 	case "sequence":
-		discardPreviousForSequence(&opts)
-		svg, err = renderSequenceFull(ctx, input, themeName)
-	case "class":
-		var hints *model.LayoutHints
-		svg, hints, flatRanked, err = renderGraphFull(ctx, input, "class", schema.ParseClass, themeName, opts.Previous)
-		if err == nil && opts.LayoutHints != nil && hints != nil {
-			*opts.LayoutHints = *hints
+		discardPreviousForSequence(opts)
+		res, err := renderSequenceText(ctx, input)
+		if err != nil {
+			return nil, nil, nil, err
 		}
+		return []byte(res.Art), res.DroppedLabels, nil, nil
+	case "class":
+		res, hints, flatRanked, err := renderGraphText(ctx, input, "class", schema.ParseClass, opts.Previous)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		opts.keepHints(hints)
+		art := res.Art
+		if len(res.Legend) > 0 {
+			art = strings.TrimRight(art, "\n") + "\n\n" + strings.Join(res.Legend, "\n") + "\n"
+		}
+		return []byte(art), res.DroppedLabels, flatRanked, nil
 	default:
 		return nil, nil, nil, fmt.Errorf("render: unknown diagram type: %q", kind)
 	}
-	if err != nil {
-		return nil, nil, nil, err
+}
+
+// renderImage renders a spec of the given kind as SVG, or as PNG
+// rasterized from the SVG when format is "png". A flow or class layout's
+// carrier goes to opts.LayoutHints.
+func renderImage(ctx context.Context, input []byte, kind, format string, opts *Options) ([]byte, []flatRankedField, error) {
+	var svg string
+	var hints *model.LayoutHints
+	var flatRanked []flatRankedField
+	var err error
+	switch kind {
+	case "flow":
+		svg, hints, flatRanked, err = renderFlowFull(ctx, input, opts.Theme, opts.Previous)
+	case "sequence":
+		discardPreviousForSequence(opts)
+		svg, err = renderSequenceFull(ctx, input, opts.Theme)
+	case "class":
+		svg, hints, flatRanked, err = renderGraphFull(ctx, input, "class", schema.ParseClass, opts.Theme, opts.Previous)
+	default:
+		return nil, nil, fmt.Errorf("render: unknown diagram type: %q", kind)
 	}
+	if err != nil {
+		return nil, nil, err
+	}
+	opts.keepHints(hints)
 	if format == "png" {
 		png, err := pngrender.Render(ctx, []byte(svg), opts.PNG)
-		return png, nil, flatRanked, err
+		return png, flatRanked, err
 	}
-	return []byte(svg), nil, flatRanked, nil
+	return []byte(svg), flatRanked, nil
+}
+
+// keepHints copies the carrier a flow or class layout emitted into the
+// LayoutHints sink, when there are both.
+func (o *Options) keepHints(hints *model.LayoutHints) {
+	if o.LayoutHints != nil && hints != nil {
+		*o.LayoutHints = *hints
+	}
 }
 
 // discardPreviousForSequence discards opts.Previous for a sequence render:
@@ -255,9 +266,7 @@ func renderExport(ctx context.Context, input []byte, diagType, format, themeName
 	if err != nil {
 		return nil, nil, err
 	}
-	if opts.LayoutHints != nil && pg.LayoutHints != nil {
-		*opts.LayoutHints = *pg.LayoutHints
-	}
+	opts.keepHints(pg.LayoutHints)
 	flatRanked := flatRankedFields(pg, opts.Previous)
 	if format == "drawio" {
 		return drawio.Export(pg, th), flatRanked, nil
