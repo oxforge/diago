@@ -157,3 +157,20 @@ func TestClass_InheritanceRendersSupertypeAbove(t *testing.T) {
 	}
 	assert.Less(t, animalY, dogY, "supertype above subtype")
 }
+
+// Mermaid's ~T~ generics nest: List~List~int~~ is List<List<int>>. A
+// member's visibility ~ is untouched, and an unbalanced ~ is left as
+// written, with a report.
+func TestClass_NestedGenerics(t *testing.T) {
+	spec, reports := parseCls(t, "classDiagram\n  class Repo {\n    +List~List~int~~ rows\n    +Map~string, List~int~~ index\n    +List~int~ ids\n    ~internal int\n    +List~int broken\n  }\n")
+	require.Len(t, spec.Classes, 1)
+	var texts []string
+	for _, m := range spec.Classes[0].Attributes {
+		texts = append(texts, m.Text)
+	}
+	assert.Equal(t, []string{"List<List<int>> rows", "Map<string, List<int>> index", "List<int> ids", "internal int", "List~int broken"}, texts)
+	assert.Equal(t, "~", spec.Classes[0].Attributes[3].Visibility)
+	require.Len(t, reports, 1)
+	assert.Equal(t, 7, reports[0].Line)
+	assert.Contains(t, reports[0].Message, "~")
+}

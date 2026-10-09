@@ -267,3 +267,24 @@ func TestFlowchart_Errors(t *testing.T) {
 	require.NoError(t, json.Unmarshal(res.JSON, &spec))
 	assert.Empty(t, spec.Nodes)
 }
+
+// An @ inside a node's label is not an edge id: only an id shaped like a
+// node id, right before the arrow, is one.
+func TestFlowchart_AnAtSignInALabelIsNotAnEdgeID(t *testing.T) {
+	id := func(s string) *string { return &s }
+	spec, reports := parseFlow(t, "flowchart LR\n  a-->d[me@x.org]\n  b e1@--> c")
+	assert.Equal(t, []schema.EdgeSpec{edge("a", "d"), {ID: id("e1"), From: "b", To: "c"}}, spec.Edges)
+	labels := map[string]string{}
+	for _, n := range spec.Nodes {
+		labels[n.ID] = n.Label
+	}
+	assert.Equal(t, "me@x.org", labels["d"])
+	assert.Empty(t, reports)
+}
+
+// A %% inside a quoted label is text, not a comment.
+func TestFlowchart_PercentPercentInAQuotedLabelIsText(t *testing.T) {
+	spec, _ := parseFlow(t, "flowchart TD\n  A[\"50%% done\"] --> B %% a real comment")
+	assert.Equal(t, "50%% done", spec.Nodes[0].Label)
+	assert.Len(t, spec.Nodes, 2)
+}

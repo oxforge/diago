@@ -11,6 +11,7 @@
 package mermaid
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -67,7 +68,20 @@ type dialectParser func(title string, body []line) (spec any, reports []Report, 
 
 var dialects = map[Kind]dialectParser{}
 
-var commentRE = regexp.MustCompile(`%%.*$`)
+// stripComment cuts r at its first %% outside a double-quoted run: a %%
+// inside a quoted label is text.
+func stripComment(r string) string {
+	quoted := false
+	for i := 0; i < len(r); i++ {
+		switch {
+		case r[i] == '"':
+			quoted = !quoted
+		case !quoted && strings.HasPrefix(r[i:], "%%"):
+			return r[:i]
+		}
+	}
+	return r
+}
 
 // splitLines strips a leading UTF-8 BOM, splits src on "\n", trims a
 // trailing "\r", strips comments and trims whitespace.
@@ -76,7 +90,7 @@ func splitLines(src []byte) []line {
 	out := make([]line, len(raw))
 	for i, r := range raw {
 		r = strings.TrimSuffix(r, "\r")
-		out[i] = line{n: i + 1, text: strings.TrimSpace(commentRE.ReplaceAllString(r, ""))}
+		out[i] = line{n: i + 1, text: strings.TrimSpace(stripComment(r))}
 	}
 	return out
 }
@@ -180,9 +194,12 @@ func Parse(src []byte) (*Result, error) {
 		return nil, err
 	}
 	sort.SliceStable(reports, func(i, j int) bool { return reports[i].Line < reports[j].Line })
-	js, err := json.MarshalIndent(spec, "", "  ")
-	if err != nil {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(spec); err != nil {
 		return nil, fmt.Errorf("mermaid: encode spec: %w", err)
 	}
-	return &Result{Kind: kind, JSON: append(js, '\n'), Reports: reports}, nil
+	return &Result{Kind: kind, JSON: buf.Bytes(), Reports: reports}, nil
 }

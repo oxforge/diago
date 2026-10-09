@@ -149,3 +149,24 @@ func TestCorpus_InlineSourcesAreValid(t *testing.T) {
 		requireValid(t, res.Kind, res.JSON)
 	}
 }
+
+// splitLines strips a %% comment only outside a double-quoted run; a line
+// with an unbalanced quote keeps its tail.
+func TestSplitLines_PercentPercentInsideQuotes(t *testing.T) {
+	got := splitLines([]byte("flowchart TD\n  A[\"50%% done\"] --> B[\"a %% b\"] %% real comment\n  C --> D %% tail\n%% whole line\n  A->>B: say \"hi %% x\n"))
+	assert.Equal(t, `A["50%% done"] --> B["a %% b"]`, got[1].text)
+	assert.Equal(t, "C --> D", got[2].text)
+	assert.Equal(t, "", got[3].text)
+	assert.Equal(t, `A->>B: say "hi %% x`, got[4].text)
+}
+
+// The import JSON keeps <, > and & as written.
+func TestParse_TheSpecKeepsAngleBracketsAndAmpersands(t *testing.T) {
+	res, err := Parse([]byte("classDiagram\n  class Repo {\n    +List~T~ items\n  }\n"))
+	require.NoError(t, err)
+	assert.Contains(t, string(res.JSON), "List<T> items")
+	res, err = Parse([]byte("flowchart LR\n  a[a & b] --> c\n"))
+	require.NoError(t, err)
+	assert.Contains(t, string(res.JSON), `"a & b"`)
+	assert.NotContains(t, string(res.JSON), `\u00`)
+}

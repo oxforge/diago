@@ -1,6 +1,7 @@
 package mermaid
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -18,7 +19,6 @@ var (
 	classMemberRE      = regexp.MustCompile(`^([+\-#~])?\s*(.+?)\s*([*$])?$`)
 	classRelationRE    = regexp.MustCompile(`^(\w+)\s*(?:"([^"]*)"\s*)?(<\|--|<\|\.\.|--\|>|\.\.\|>|\*--|--\*|o--|--o|-->|<--|\.\.>|<\.\.|--)\s*(?:"([^"]*)"\s*)?(\w+)\s*(?::\s*(.+))?$`)
 	classUnsupportedRE = regexp.MustCompile(`^(note|namespace|cssClass|click)\b`)
-	classGenericRE     = regexp.MustCompile(`~([^~]+)~`)
 	classKeywordRE     = regexp.MustCompile(`^class\s`)
 )
 
@@ -47,6 +47,7 @@ type classParser struct {
 	classes map[string]*schema.ClassNodeSpec
 	order   []string
 	rels    []schema.RelationSpec
+	reports []Report
 }
 
 func (p *classParser) ensure(id string) *schema.ClassNodeSpec {
@@ -60,10 +61,15 @@ func (p *classParser) ensure(id string) *schema.ClassNodeSpec {
 }
 
 // addMember parses "[+-#~] text [*|$]"; a "(" in the text makes it a
-// method; "~T~" inside the text becomes "<T>".
-func (p *classParser) addMember(c *schema.ClassNodeSpec, text string) {
+// method; "~T~" inside the text becomes "<T>", nested generics included.
+func (p *classParser) addMember(c *schema.ClassNodeSpec, text string, line int) {
 	m := classMemberRE.FindStringSubmatch(text)
-	member := schema.MemberSpec{Visibility: m[1], Text: classGenericRE.ReplaceAllString(m[2], "<$1>")}
+	member := schema.MemberSpec{Visibility: m[1], Text: m[2]}
+	if s, ok := genericsToAngle(m[2]); ok {
+		member.Text = s
+	} else {
+		p.reports = append(p.reports, Report{Line: line, Message: fmt.Sprintf("unbalanced \"~\" generic in %q left as written", m[2])})
+	}
 	switch m[3] {
 	case "*":
 		member.Abstract = true
@@ -108,7 +114,7 @@ func parseClass(title string, body []line) (any, []Report, error) {
 			if classKeywordRE.MatchString(text) {
 				return nil, nil, perr(ln.n, "unclosed class block %q", current)
 			}
-			p.addMember(p.ensure(current), text)
+			p.addMember(p.ensure(current), text, ln.n)
 			continue
 		}
 		if m := classDirectionRE.FindStringSubmatch(text); m != nil {
@@ -154,7 +160,7 @@ func parseClass(title string, body []line) (any, []Report, error) {
 			continue
 		}
 		if m := classInlineRE.FindStringSubmatch(text); m != nil {
-			p.addMember(p.ensure(m[1]), strings.TrimSpace(m[2]))
+			p.addMember(p.ensure(m[1]), strings.TrimSpace(m[2]), ln.n)
 			continue
 		}
 		if strings.Contains(text, "<-->") {
@@ -179,5 +185,38 @@ func parseClass(title string, body []line) (any, []Report, error) {
 		spec.Classes = append(spec.Classes, *p.classes[id])
 	}
 	spec.Relations = p.rels
-	return spec, nil, nil
+	return spec, p.reports, nil
 }
+
+// genericsToAngle writes Mermaid's ~T~ generics as <T>, nested ones
+// included (List~List~int~~ is List<List<int>>): a ~ between an identifier
+// and an identifier's start opens one, any other ~ closes the innermost
+// open one. It reports whether every ~ was paired.
+func genericsToAngle(s string) (string, bool) {
+	var b strings.Builder
+	depth := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] != '~' {
+			b.WriteByte(s[i])
+			continue
+		}
+		switch {
+		case i > 0 && identByte(s[i-1]) && i+1 < len(s) && identStart(s[i+1]):
+			b.WriteByte('<')
+			depth++
+		case depth > 0:
+			b.WriteByte('>')
+			depth--
+		default:
+			b.WriteByte('~')
+			return s, false
+		}
+	}
+	return b.String(), depth == 0
+}
+
+// identByte reports whether c may be part of an identifier.
+func identByte(c byte) bool { return identStart(c) || c >= '0' && c <= '9' }
+
+// identStart reports whether c may start an identifier.
+func identStart(c byte) bool { return c == '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' }
