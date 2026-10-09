@@ -180,7 +180,7 @@ word: a long one widens the frame, and the art with it.
 | `sketch` | a draft: it says "not final" |
 
 Set it with the spec's top-level `theme` or `-theme` (the flag wins). Text
-art takes no theme. Add a `title` when the diagram stands alone in a file: a
+art takes no theme, but a name it is given must still exist. Add a `title` when the diagram stands alone in a file: a
 band above the diagram, a centered first line in text art.
 
 ## CLI reference
@@ -203,7 +203,7 @@ check the file they write; `diff` takes
 layout so unchanged elements keep their places; a sequence render ignores
 it with a warning), `-debug`.
 
-Exit codes: 0 ok, 1 a validation error (JSON on stderr naming the `field`),
-2 a usage or internal error. Advisories print on stderr as
+Exit codes: 0 ok, 1 an invalid spec (JSON on stderr naming the `field`),
+2 a usage or internal error, or a render that ran past its 10-second limit. Advisories print on stderr as
 `warning: <rule> <field>: <message>`; `cheatsheet.md` lists the common ones. Output is
 deterministic: the same spec and theme give the same bytes.

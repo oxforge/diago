@@ -1,7 +1,9 @@
 # diago JSON cheatsheet
 
 Three diagram types, selected by `type`. Every id is a stable identity: keep it
-across versions when the thing is the same. How to draw well: `SKILL.md` beside
+across versions when the thing is the same. A node, group, class or package id
+must not contain `->` or end in `@` and digits (`db@2`). Only a flow node's
+`label` breaks into lines at `\n`; other text prints a newline as `\n`. How to draw well: `SKILL.md` beside
 this file; full reference: https://diago.dev/docs/.
 
 ## Flow (architecture, states, task DAGs)
@@ -44,7 +46,7 @@ Groups nest up to 3 levels (a group id inside another group's `contains`).
 ```
 
 Fragment sections cover interactions by zero-based index, `start` to `end`
-inclusive. Self-messages use the same actor for `from` and `to`.
+inclusive, in order without overlapping; two fragments nest or stay apart. Self-messages use the same actor for `from` and `to`.
 
 ## Class (data model)
 

@@ -82,7 +82,7 @@ diago/
 │   ├── theme/            # Theme loading, validation, conversion
 │   ├── model/            # Internal graph model (nodes, edges, groups, positioned variants) + enums_gen.go
 │   ├── font/             # Embedded Inter + Pangolin fonts and text measurement
-│   └── pipeline/         # Orchestration: pipeline.go (RenderWithOptions, every format), diff.go (RenderDiff), previous.go (-previous parsing), advisories.go, engine.go (`layoutWith`: the layered engine under the text Config or a theme's screen Config)
+│   └── pipeline/         # Orchestration: pipeline.go (RenderWithOptions, every format), diff.go (RenderDiff), previous.go (-previous parsing), validate.go (`Validate`: what `check` runs), advisories.go, engine.go (`layoutWith`: the layered engine under the text Config or a theme's screen Config)
 ├── schemas/              # Generated JSON schema files
 ├── themes/               # Built-in theme JSON files (default, dark, midnight, sketch)
 ├── .claude-plugin/       # plugin.json + marketplace.json (the plugin is the repo root)
@@ -120,9 +120,10 @@ An optional `"diff": {"added", "changed", "removed"}` block sets the diff palett
 **Choosing one:** every diagram type takes an optional top-level `theme`
 field; `-theme` overrides it, else `default` (`pipeline.RenderTheme`).
 `diago diff` reads the new spec's field, and a `-previous` spec is laid out
-under the render's theme, never its own field. Text art takes no theme. A
-name the spec gives that does not load is a validation error on `theme`;
-an unknown `-theme` stays an invocation error.
+under the render's theme, never its own field. Text art takes no theme,
+but a name it is given must still load: a name the spec gives that does
+not load is a validation error on `theme` (in `check` too), and an unknown
+`-theme` stays an invocation error.
 
 Themes must be self-contained JSON: no inheritance, no imports, no overrides
 between themes. Each theme is a complete standalone definition.
@@ -133,7 +134,7 @@ between themes. Each theme is a complete standalone definition.
 - **SVG**: Generate SVG as structured Go types, then serialize to XML. Do not use string concatenation to build SVG. Each visual primitive (rect, text, path, line, group) should be a Go struct with a `Render() string` method. Status-aware renders pass `svg.RenderOptions`; nil is the plain render and must stay byte-identical.
 - **Naming**: Packages are short, lowercase, single-word where possible (`layout`, `render`, `theme`, `model`, `schema`).
 - **Config**: Env vars with `DIAGO_` prefix. Only two exist: `DIAGO_RESVG_PATH` (override the `PATH` lookup for the resvg binary) and `DIAGO_THEME_DIR` (fallback directory for theme names not in the embedded set; built-ins always win).
-- **CLI exit codes**: 0 ok, 1 validation error (structured JSON on stderr with a `field`), 2 usage or internal error. Advisories go to stderr as `warning: <rule> <field>: <message>`; findings are returned, never logged.
+- **CLI exit codes**: 0 ok, 1 an invalid spec in any verb: not JSON, a missing or unknown `type`, a field of the wrong JSON type, or a validation error (structured JSON on stderr with a `field`; every verb validates through `schema.DiagramType` and the per-type parsers), 2 usage or internal error, or a `render` or `diff` stopped by its 10-second deadline (`renderTimeout`). Advisories go to stderr as `warning: <rule> <field>: <message>`; findings are returned, never logged.
 - **Testing**: Every package needs `_test.go`. A layout or routing rule is tested on the JSON layout (positioned nodes, edges, groups, ports), never on rendered SVG bytes; the tests live beside the implementation in `internal/layout/.../*_test.go`. An output-contract rule changes `internal/layout/contract` and its tests in the same commit.
 - **Probe**: the random-graph probe (`internal/layout/layered/probe_test.go`, `TestProbe_Contract`, `TestProbe_Anchor`, `TestProbe_Dump`) lays out random flow graphs and counts their contract violations by rule; it runs only with `-probe` (`go test ./internal/layout/layered/ -run TestProbe_Contract -probe -v`; the flags are listed at the top of the file). It is a dev tool for finding layout and routing gaps, not a gate.
 
