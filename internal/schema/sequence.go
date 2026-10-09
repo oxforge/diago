@@ -178,6 +178,7 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 	// Validate fragments.
 	interactionCount := len(spec.Interactions)
 	fragments := make([]model.Fragment, 0, len(spec.Fragments))
+	spans := make([][2]int, 0, len(spec.Fragments))
 	for i, f := range spec.Fragments {
 		field := fmt.Sprintf("fragments[%d]", i)
 
@@ -213,10 +214,7 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 		}
 
 		sections := make([]model.FragmentSection, 0, len(f.Sections))
-		// Track interaction index ranges to detect overlaps.
-		type indexRange struct{ start, end int }
-		usedRanges := make([]indexRange, 0, len(f.Sections))
-
+		prevEnd := -1
 		for j, sec := range f.Sections {
 			secField := fmt.Sprintf("%s.sections[%d]", field, j)
 			missing := false
@@ -256,17 +254,13 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 				})
 			}
 
-			// Check for overlaps with already-validated sections.
-			for _, r := range usedRanges {
-				if sec.Start <= r.end && sec.End >= r.start {
-					errs = append(errs, ValidationError{
-						Field:   secField,
-						Message: fmt.Sprintf("section range [%d..%d] overlaps with another section", sec.Start, sec.End),
-					})
-					break
-				}
+			if sec.Start <= prevEnd {
+				errs = append(errs, ValidationError{
+					Field:   secField + ".start",
+					Message: fmt.Sprintf("must come after the previous section's end (%d): sections run in order without overlapping", prevEnd),
+				})
 			}
-			usedRanges = append(usedRanges, indexRange{sec.Start, sec.End})
+			prevEnd = max(prevEnd, sec.End)
 
 			sections = append(sections, model.FragmentSection{
 				Label: singleLine(sec.Label),
@@ -280,6 +274,27 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 			Over:     f.Over,
 			Sections: sections,
 		})
+		span := [2]int{-1, -1}
+		if len(sections) > 0 && len(sections) == len(f.Sections) {
+			span = [2]int{sections[0].Start, sections[len(sections)-1].End}
+		}
+		spans = append(spans, span)
+	}
+
+	// Fragments nest or stay apart: two whose spans cross would draw one
+	// frame through the other.
+	for j, b := range spans {
+		for i, a := range spans[:j] {
+			if a[0] < 0 || b[0] < 0 {
+				continue
+			}
+			if (a[0] < b[0] && b[0] <= a[1] && a[1] < b[1]) || (b[0] < a[0] && a[0] <= b[1] && b[1] < a[1]) {
+				errs = append(errs, ValidationError{
+					Field:   fmt.Sprintf("fragments[%d]", j),
+					Message: fmt.Sprintf("spans interactions %d..%d, which cross fragments[%d]'s %d..%d: fragments must nest or stay apart", b[0], b[1], i, a[0], a[1]),
+				})
+			}
+		}
 	}
 
 	errs = append(errs, validateIgnore(spec.Ignore)...)

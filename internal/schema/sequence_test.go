@@ -335,3 +335,43 @@ func TestParseSequence_Title(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Login", d.Title)
 }
+
+// seqWithFragments is a two-actor, five-message sequence spec whose
+// fragments are the JSON array fragments.
+func seqWithFragments(fragments string) string {
+	return `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"interactions":[` +
+		`{"from":"a","to":"b"},{"from":"b","to":"a"},{"from":"a","to":"b"},{"from":"b","to":"a"},{"from":"a","to":"b"}],` +
+		`"fragments":` + fragments + `}`
+}
+
+func TestParseSequence_FragmentRangesMustNotCross(t *testing.T) {
+	for _, tc := range []struct{ name, fragments, field, msg string }{
+		{"sections out of order", `[{"type":"alt","over":["a"],"sections":[{"label":"late","start":2,"end":3},{"label":"early","start":0,"end":1}]}]`,
+			"fragments[0].sections[1].start", "must come after the previous section's end (3)"},
+		{"sections overlapping", `[{"type":"alt","over":["a"],"sections":[{"label":"x","start":0,"end":2},{"label":"y","start":2,"end":3}]}]`,
+			"fragments[0].sections[1].start", "must come after the previous section's end (2)"},
+		{"fragments crossing", `[{"type":"loop","over":["a"],"sections":[{"start":0,"end":1}]},{"type":"opt","over":["b"],"sections":[{"start":1,"end":3}]}]`,
+			"fragments[1]", "cross fragments[0]"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := schema.ParseSequence([]byte(seqWithFragments(tc.fragments)))
+			var ve schema.ValidationErrors
+			require.True(t, errors.As(err, &ve), "a validation error, got %v", err)
+			require.Len(t, ve, 1, "%v", ve)
+			assert.Equal(t, tc.field, ve[0].Field)
+			assert.Contains(t, ve[0].Message, tc.msg)
+		})
+	}
+}
+
+func TestParseSequence_FragmentsMayNestOrCoincide(t *testing.T) {
+	for _, fragments := range []string{
+		`[{"type":"loop","over":["a"],"sections":[{"start":0,"end":3}]},{"type":"opt","over":["b"],"sections":[{"start":1,"end":2}]}]`,
+		`[{"type":"loop","over":["a"],"sections":[{"start":0,"end":2}]},{"type":"opt","over":["b"],"sections":[{"start":0,"end":2}]}]`,
+		`[{"type":"loop","over":["a"],"sections":[{"start":0,"end":1}]},{"type":"opt","over":["b"],"sections":[{"start":2,"end":4}]}]`,
+		`[{"type":"alt","over":["a"],"sections":[{"label":"x","start":0,"end":1},{"label":"y","start":3,"end":4}]}]`,
+	} {
+		_, err := schema.ParseSequence([]byte(seqWithFragments(fragments)))
+		assert.NoError(t, err, fragments)
+	}
+}
