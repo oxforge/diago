@@ -39,6 +39,10 @@ func TestIDs_RejectTheFormsLayoutsKeyOn(t *testing.T) {
 		{"package slot", `{"type":"class","classes":[{"id":"a"}],"packages":[{"id":"p@0","label":"P","contains":["a"]}]}`, "packages[0].id", `"@" and digits`},
 		{"edge control", `{"type":"flow","nodes":[{"id":"a","label":"A"}],"edges":[{"id":"e\u0007","from":"a","to":"a"}]}`, "edges[0].id", "control characters"},
 		{"actor control", `{"type":"sequence","actors":[{"id":"a\u0007","label":"A"}],"interactions":[]}`, "actors[0].id", "control characters"},
+		{"node U+FFFE", flowWithNode(`a\ufffe`), "nodes[0].id", "U+FFFE"},
+		{"group U+FFFF", `{"type":"flow","nodes":[{"id":"a","label":"A"}],"edges":[],"groups":[{"id":"g\uffff","label":"G","contains":["a"]}]}`, "groups[0].id", "U+FFFF"},
+		{"actor U+FFFE", `{"type":"sequence","actors":[{"id":"a\ufffe","label":"A"}],"interactions":[]}`, "actors[0].id", "U+FFFE"},
+		{"relation U+FFFF", `{"type":"class","classes":[{"id":"a"},{"id":"b"}],"relations":[{"id":"r\uffff","from":"a","to":"b"}]}`, "relations[0].id", "U+FFFF"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var ve ValidationErrors

@@ -10,10 +10,13 @@ import (
 // its row, and no character XML forbids reaches an SVG.
 func singleLine(s string) string { return escapeControls(s, false) }
 
-// hasControl reports whether s holds a control character.
-func hasControl(s string) bool {
-	return strings.ContainsFunc(s, func(r rune) bool { return r < 0x20 || r == 0x7f })
-}
+// escaped reports whether r is a character no id may hold and a text field
+// writes as its escape: a C0 control character, DEL, or one of the
+// noncharacters U+FFFE and U+FFFF, which XML forbids.
+func escaped(r rune) bool { return r < 0x20 || r == 0x7f || r == 0xfffe || r == 0xffff }
+
+// hasControl reports whether s holds a character escaped reports.
+func hasControl(s string) bool { return strings.ContainsFunc(s, escaped) }
 
 // multiLine is singleLine for a node's label, whose "\n" (or "\r\n") breaks
 // it into lines.
@@ -26,7 +29,7 @@ func escapeControls(s string, keepNewline bool) string {
 		if r == '\n' {
 			return !keepNewline
 		}
-		return r < 0x20 || r == 0x7f || r == 0xfffe || r == 0xffff
+		return escaped(r)
 	}
 	if !strings.ContainsFunc(s, needs) {
 		return s

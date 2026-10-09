@@ -20,6 +20,7 @@ func TestSingleLine_EscapesEveryControlCharacter(t *testing.T) {
 		{"bell \u0007", `bell \u0007`},
 		{"del \u007f", `del \u007f`},
 		{"x\ufffe", `x\ufffe`},
+		{"x\uffff", `x\uffff`},
 		{"日本 é → ✓", "日本 é → ✓"},
 	} {
 		assert.Equal(t, tc.want, singleLine(tc.in), "%q", tc.in)
