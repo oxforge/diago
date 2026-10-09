@@ -195,3 +195,29 @@ func TestAlignSequences_GapPairsNeverCross(t *testing.T) {
 	assert.IsIncreasing(t, bi)
 	assert.IsIncreasing(t, ai)
 }
+
+// A gap with one side empty emits the other side's messages in order, and a
+// pair at either end of a gap keeps the leftovers on their own side of it.
+func TestAlignSequences_GapEdges(t *testing.T) {
+	seq := func(msgs string) *model.SequenceDiagram {
+		return parseSeq(t, `{"type":"sequence",`+gapActors+`,"interactions":[
+ {"from":"a","to":"b","label":"start"},`+msgs+`{"from":"b","to":"a","label":"end"}]}`)
+	}
+	two := `{"from":"a","to":"b","label":"x"},{"from":"a","to":"c","label":"y"},`
+	for _, tc := range []struct {
+		name          string
+		before, after string
+		want          [][3]any
+	}{
+		{"after side only", "", two, [][3]any{{Same, 0, 0}, {Added, -1, 1}, {Added, -1, 2}, {Same, 1, 3}}},
+		{"before side only", two, "", [][3]any{{Same, 0, 0}, {Removed, 1, -1}, {Removed, 2, -1}, {Same, 3, 1}}},
+		{"pair first", `{"from":"a","to":"b","label":"old"},`, `{"from":"a","to":"b","label":"new"},{"from":"a","to":"c","label":"extra"},`,
+			[][3]any{{Same, 0, 0}, {Changed, 1, 1}, {Added, -1, 2}, {Same, 2, 3}}},
+		{"pair last", `{"from":"a","to":"c","label":"gone"},{"from":"a","to":"b","label":"old"},`, `{"from":"a","to":"b","label":"new"},`,
+			[][3]any{{Same, 0, 0}, {Removed, 1, -1}, {Changed, 2, 1}, {Same, 3, 2}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, steps(AlignSequences(seq(tc.before), seq(tc.after))))
+		})
+	}
+}

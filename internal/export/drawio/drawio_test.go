@@ -563,4 +563,13 @@ func TestExport_EveryCellIDIsUniqueAndEveryReferenceResolves(t *testing.T) {
 			}
 		}
 	}
+	var idless *mxCell
+	for i := range cells {
+		if cells[i].ID == "e#1" {
+			idless = &cells[i]
+		}
+	}
+	require.NotNil(t, idless, "the edge without an id is the cell e#<its index>")
+	assert.Equal(t, "n:1", idless.Source)
+	assert.Equal(t, "n:edge_0", idless.Target)
 }

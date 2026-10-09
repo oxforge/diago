@@ -656,4 +656,18 @@ func TestExport_EveryElementIDIsUniqueAndEveryReferenceResolves(t *testing.T) {
 			}
 		}
 	}
+
+	// Each shape lists exactly the arrows that end on it, a self-loop once,
+	// and the edge without an id is the arrow e#<its index>.
+	arrows := map[string][]string{}
+	for _, el := range doc.Elements {
+		for _, b := range el.BoundElements {
+			if b.Type == "arrow" {
+				arrows[el.ID] = append(arrows[el.ID], b.ID)
+			}
+		}
+	}
+	assert.ElementsMatch(t, []string{"e:0->1#0", "e:loop"}, arrows[shapeID("0")])
+	assert.ElementsMatch(t, []string{"e:0->1#0", "e#1"}, arrows[shapeID("1")])
+	assert.ElementsMatch(t, []string{"e#1"}, arrows[shapeID("edge_0")])
 }
