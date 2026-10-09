@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -117,18 +118,26 @@ func overlaps(a, b model.FragmentSection) bool { return a.Start <= b.End && b.St
 // BuildUnionSequence merges before and after into one timeline with a
 // status per actor, message, fragment and section.
 func BuildUnionSequence(before, after *model.SequenceDiagram) UnionSequence {
-	al := alignSequences(before, after)
 	u := UnionSequence{
 		Actors:       map[string]Status{},
 		BeforeLabels: map[string]string{},
-		Alignment:    al,
+		Alignment:    alignSequences(before, after),
 		Diff:         SequenceDiff{ActorFields: map[string][]FieldChange{}},
 	}
 	for _, a := range before.Actors {
 		u.BeforeLabels[a.ID] = a.Label
 	}
+	u.unionActors(before, after)
+	beforeToUnion, afterToUnion := u.unionInteractions(before, after)
+	u.Diagram.Activations = after.Activations
+	u.unionFragments(before.Fragments, after.Fragments, beforeToUnion, afterToUnion)
+	return u
+}
 
-	// Actors.
+// unionActors appends the aligned actors in column order, a removed one
+// with before's content and every other with after's, and records each
+// one's status and a changed one's fields.
+func (u *UnionSequence) unionActors(before, after *model.SequenceDiagram) {
 	beforeActor := make(map[string]model.Actor, len(before.Actors))
 	for _, a := range before.Actors {
 		beforeActor[a.ID] = a
@@ -137,7 +146,7 @@ func BuildUnionSequence(before, after *model.SequenceDiagram) UnionSequence {
 	for _, a := range after.Actors {
 		afterActor[a.ID] = a
 	}
-	for _, as := range al.Actors {
+	for _, as := range u.Alignment.Actors {
 		u.Actors[as.ID] = as.Status
 		if as.Status == Removed {
 			u.Diagram.Actors = append(u.Diagram.Actors, beforeActor[as.ID])
@@ -154,11 +163,16 @@ func BuildUnionSequence(before, after *model.SequenceDiagram) UnionSequence {
 			u.Diff.ActorFields[as.ID] = actorFields(beforeActor[as.ID], afterActor[as.ID])
 		}
 	}
+}
 
-	// Interactions and the index maps.
-	beforeToUnion := make([]int, len(before.Interactions))
-	afterToUnion := make([]int, len(after.Interactions))
-	for i, st := range al.Steps {
+// unionInteractions appends the aligned steps' messages in union order, a
+// removed one from before and every other from after, records each one's
+// status, and returns the maps from before's and after's message indices
+// to the union's.
+func (u *UnionSequence) unionInteractions(before, after *model.SequenceDiagram) (beforeToUnion, afterToUnion []int) {
+	beforeToUnion = make([]int, len(before.Interactions))
+	afterToUnion = make([]int, len(after.Interactions))
+	for i, st := range u.Alignment.Steps {
 		u.Interactions = append(u.Interactions, st.Status)
 		u.Removed = append(u.Removed, st.Status == Removed)
 		if st.BeforeIdx >= 0 {
@@ -181,85 +195,100 @@ func BuildUnionSequence(before, after *model.SequenceDiagram) UnionSequence {
 			u.Diagram.Interactions = append(u.Diagram.Interactions, after.Interactions[st.AfterIdx])
 		}
 	}
-	u.Diagram.Activations = after.Activations
+	return beforeToUnion, afterToUnion
+}
 
-	// Fragments: after's (matched or added) in after order, then before-only.
-	afterToBefore, leftover := matchFragments(before.Fragments, after.Fragments)
-	emit := func(f model.Fragment, secs []unionSection, status Status) {
-		sort.SliceStable(secs, func(i, j int) bool { return secs[i].sec.Start < secs[j].sec.Start })
-		out := model.Fragment{Type: f.Type, Over: append([]string(nil), f.Over...)}
-		fs := FragmentStatus{Status: status}
-		for _, s := range secs {
-			out.Sections = append(out.Sections, s.sec)
-			fs.Sections = append(fs.Sections, s.status)
-		}
-		u.Diagram.Fragments = append(u.Diagram.Fragments, out)
-		u.Fragments = append(u.Fragments, fs)
-	}
-	for ai, af := range after.Fragments {
+// unionFragments appends after's fragments, matched or added, in after
+// order, then the before fragments no after fragment matched, as removed;
+// their sections map onto the union's messages through beforeToUnion and
+// afterToUnion.
+func (u *UnionSequence) unionFragments(before, after []model.Fragment, beforeToUnion, afterToUnion []int) {
+	afterToBefore, leftover := matchFragments(before, after)
+	for ai, af := range after {
 		idx := len(u.Diagram.Fragments)
 		bi := afterToBefore[ai]
 		if bi < 0 {
-			var secs []unionSection
-			for _, s := range af.Sections {
-				secs = append(secs, unionSection{remap(s, afterToUnion), Added})
-			}
-			emit(af, secs, Added)
+			u.addFragment(af, sectionsAs(af.Sections, afterToUnion, Added), Added)
 			u.Diff.AddedFragments = append(u.Diff.AddedFragments, idx)
 			continue
 		}
-		bf := before.Fragments[bi]
-		usedBefore := make([]bool, len(bf.Sections))
-		var secs []unionSection
-		changed := false
-		for _, s := range af.Sections {
-			status := Added
-			for k, bs := range bf.Sections {
-				if !usedBefore[k] && bs.Label == s.Label {
-					usedBefore[k] = true
-					status = Same
-					break
-				}
-			}
-			if status == Added {
-				changed = true
-				u.Diff.AddedSections = append(u.Diff.AddedSections, SectionRef{idx, s.Label, af.Type})
-			}
-			secs = append(secs, unionSection{remap(s, afterToUnion), status})
-		}
-		for k, bs := range bf.Sections {
-			if usedBefore[k] {
-				continue
-			}
-			changed = true
-			u.Diff.RemovedSections = append(u.Diff.RemovedSections, SectionRef{idx, bs.Label, af.Type})
-			r := remap(bs, beforeToUnion)
-			dropped := false
-			for _, kept := range secs {
-				if kept.status != Removed && overlaps(kept.sec, r) {
-					dropped = true // kept in the legend only
-					break
-				}
-			}
-			if !dropped {
-				secs = append(secs, unionSection{r, Removed})
-			}
-		}
+		secs, changed := u.unionSections(idx, before[bi], af, beforeToUnion, afterToUnion)
 		status := Same
 		if changed {
 			status = Changed
 		}
-		emit(af, secs, status)
+		u.addFragment(af, secs, status)
 	}
 	for _, bi := range leftover {
-		bf := before.Fragments[bi]
+		bf := before[bi]
 		idx := len(u.Diagram.Fragments)
-		var secs []unionSection
-		for _, s := range bf.Sections {
-			secs = append(secs, unionSection{remap(s, beforeToUnion), Removed})
-		}
-		emit(bf, secs, Removed)
+		u.addFragment(bf, sectionsAs(bf.Sections, beforeToUnion, Removed), Removed)
 		u.Diff.RemovedFragments = append(u.Diff.RemovedFragments, idx)
 	}
-	return u
+}
+
+// sectionsAs maps sections onto the union's messages through toUnion, each
+// with status s.
+func sectionsAs(sections []model.FragmentSection, toUnion []int, s Status) []unionSection {
+	var out []unionSection
+	for _, sec := range sections {
+		out = append(out, unionSection{remap(sec, toUnion), s})
+	}
+	return out
+}
+
+// unionSections pairs the sections of after fragment af with those of its
+// matched before fragment bf by label, the first free one in order: a
+// paired section is the same, an unpaired after section added and an
+// unpaired before section removed, where a removed section overlapping a
+// kept one stays in the legend only. It records the added and removed
+// sections under union fragment idx and reports whether there were any.
+func (u *UnionSequence) unionSections(idx int, bf, af model.Fragment, beforeToUnion, afterToUnion []int) ([]unionSection, bool) {
+	usedBefore := make([]bool, len(bf.Sections))
+	var secs []unionSection
+	changed := false
+	for _, s := range af.Sections {
+		status := Added
+		for k, bs := range bf.Sections {
+			if !usedBefore[k] && bs.Label == s.Label {
+				usedBefore[k] = true
+				status = Same
+				break
+			}
+		}
+		if status == Added {
+			changed = true
+			u.Diff.AddedSections = append(u.Diff.AddedSections, SectionRef{idx, s.Label, af.Type})
+		}
+		secs = append(secs, unionSection{remap(s, afterToUnion), status})
+	}
+	for k, bs := range bf.Sections {
+		if usedBefore[k] {
+			continue
+		}
+		changed = true
+		u.Diff.RemovedSections = append(u.Diff.RemovedSections, SectionRef{idx, bs.Label, af.Type})
+		r := remap(bs, beforeToUnion)
+		overlapsKept := slices.ContainsFunc(secs, func(kept unionSection) bool {
+			return kept.status != Removed && overlaps(kept.sec, r)
+		})
+		if !overlapsKept {
+			secs = append(secs, unionSection{r, Removed})
+		}
+	}
+	return secs, changed
+}
+
+// addFragment appends fragment f to the union diagram with sections secs,
+// in start order, and its status with theirs.
+func (u *UnionSequence) addFragment(f model.Fragment, secs []unionSection, status Status) {
+	sort.SliceStable(secs, func(i, j int) bool { return secs[i].sec.Start < secs[j].sec.Start })
+	out := model.Fragment{Type: f.Type, Over: append([]string(nil), f.Over...)}
+	fs := FragmentStatus{Status: status}
+	for _, s := range secs {
+		out.Sections = append(out.Sections, s.sec)
+		fs.Sections = append(fs.Sections, s.status)
+	}
+	u.Diagram.Fragments = append(u.Diagram.Fragments, out)
+	u.Fragments = append(u.Fragments, fs)
 }
