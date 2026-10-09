@@ -183,3 +183,23 @@ func TestMetrics_ParseRoundTrip(t *testing.T) {
 	_, err = Parse("garbage")
 	assert.Error(t, err)
 }
+
+// TestMeasure_FansReadTheContractsForwardEdges: a fan's neighbors are
+// forward by C0 as the contract reads it (C8.5 counts the same edges).
+func TestMeasure_FansReadTheContractsForwardEdges(t *testing.T) {
+	// d spans y 20..66; b and c reach 0.03 px over its bottom.
+	d := model.PositionedNode{ID: "d", Shape: model.ShapeDiamond, X: 200, Y: 43, Width: 80, Height: 46}
+	b, c := rect("b", 100, 66-0.03+20), rect("c", 300, 66-0.03+20)
+	m := measure([]model.PositionedNode{d, b, c},
+		wire("d", "b", 200, 66, 200, 200, 100, 200, 100, 106-0.03),
+		wire("d", "c", 200, 66, 200, 210, 300, 210, 300, 106-0.03))
+	assert.Equal(t, 1, m.Fans)
+}
+
+// TestMeasure_ARepeatedPointIsNoJog: a point repeated draws nothing; the
+// bend at it still counts.
+func TestMeasure_ARepeatedPointIsNoJog(t *testing.T) {
+	m := measure(nil, wire("a", "b", 60, 60, 60, 100, 60, 100, 140, 100, 140, 120))
+	assert.Equal(t, 2, m.Bends)
+	assert.Equal(t, 0, m.Jogs)
+}

@@ -41,6 +41,13 @@ func edgeKind(from, to model.PositionedNode, dir model.Direction) kind {
 	return lateral
 }
 
+// Forward reports whether an edge from from to to is forward under dir
+// (C0): the target's box lies wholly downstream of the source's, within
+// the distance-floor tolerance. The metrics count fans by it (Q4).
+func Forward(from, to model.PositionedNode, dir model.Direction) bool {
+	return edgeKind(from, to, dir) == forward
+}
+
 // inVertex is the vertex that faces upstream: where forward edges enter.
 func inVertex(dir model.Direction) side {
 	switch dir {

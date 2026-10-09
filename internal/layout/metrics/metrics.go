@@ -59,7 +59,7 @@ const (
 func Measure(pg *model.PositionedGraph, o Options) Metrics {
 	m := Metrics{Area: pg.Width * pg.Height}
 	for _, e := range pg.Edges {
-		pts := e.Points
+		pts := drawn(e.Points)
 		if len(pts) == 2 {
 			m.Straight++
 		}
@@ -142,6 +142,20 @@ func Parse(s string) (Metrics, error) {
 
 func length(p, q model.Point) float64 { return math.Hypot(q.X-p.X, q.Y-p.Y) }
 
+// drawn is pts without a point within tol of the one before it: a
+// repeated point draws nothing, so it neither hides a bend nor makes a
+// zero-length jog (Q2).
+func drawn(pts []model.Point) []model.Point {
+	out := make([]model.Point, 0, len(pts))
+	for _, p := range pts {
+		if n := len(out); n > 0 && length(out[n-1], p) <= tol {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
 // turns reports whether a route changes direction at b.
 func turns(a, b, c model.Point) bool {
 	cross := (b.X-a.X)*(c.Y-b.Y) - (b.Y-a.Y)*(c.X-b.X)
@@ -205,17 +219,6 @@ func fans(pg *model.PositionedGraph, dir model.Direction) (fans, centered int) {
 		byID[n.ID] = i
 	}
 	sideways := dir == model.Right || dir == model.Left
-	flow := func(n model.PositionedNode) (lo, hi float64) {
-		c, ext := n.Y, n.Height
-		if sideways {
-			c, ext = n.X, n.Width
-		}
-		lo, hi = c-ext/2, c+ext/2
-		if dir == model.Up || dir == model.Left {
-			lo, hi = -hi, -lo
-		}
-		return lo, hi
-	}
 	crossC := func(n model.PositionedNode) float64 {
 		if sideways {
 			return n.Y
@@ -230,10 +233,8 @@ func fans(pg *model.PositionedGraph, dir model.Direction) (fans, centered int) {
 		if !okf || !okt || f == t {
 			continue
 		}
-		_, fHi := flow(pg.Nodes[f])
-		tLo, _ := flow(pg.Nodes[t])
-		if tLo < fHi-tol {
-			continue // not forward
+		if !contract.Forward(pg.Nodes[f], pg.Nodes[t], dir) {
+			continue
 		}
 		if !slices.Contains(down[f], t) {
 			down[f] = append(down[f], t)
