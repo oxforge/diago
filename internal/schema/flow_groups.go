@@ -105,7 +105,6 @@ func validateGroupsPrefixed(specs []GroupSpec, nodeIDs map[string]bool, prefix s
 	// Phase 3: detect cycles and compute top-down depth.
 	groupDepth := make(map[string]int)
 	visitedGroups := make(map[string]bool)
-	visitingGroups := make(map[string]bool)
 
 	// index is each registered group's position in specs: its error field.
 	index := make(map[string]int, len(specs))
@@ -116,24 +115,18 @@ func validateGroupsPrefixed(specs []GroupSpec, nodeIDs map[string]bool, prefix s
 	}
 	field := func(id string) string { return fmt.Sprintf("%s[%d]", prefix, index[id]) }
 
-	var assignDepth func(id string, depth int) string // the group a containment cycle runs through, or ""
-	assignDepth = func(id string, depth int) string {
-		if visitingGroups[id] {
-			return id
-		}
+	// Every group has at most one parent, so a walk down from a root never
+	// enters a cycle; the unvisited loop below reports the cycles.
+	var assignDepth func(id string, depth int)
+	assignDepth = func(id string, depth int) {
 		if visitedGroups[id] {
-			return ""
+			return
 		}
-		visitingGroups[id] = true
 		groupDepth[id] = depth
 		for _, childID := range gm.groupChildren[id] {
-			if c := assignDepth(childID, depth+1); c != "" {
-				return c
-			}
+			assignDepth(childID, depth+1)
 		}
-		visitingGroups[id] = false
 		visitedGroups[id] = true
-		return ""
 	}
 
 	for _, g := range specs {
@@ -141,9 +134,7 @@ func validateGroupsPrefixed(specs []GroupSpec, nodeIDs map[string]bool, prefix s
 			continue
 		}
 		if _, hasParent := gm.groupInGroup[g.ID]; !hasParent {
-			if c := assignDepth(g.ID, 1); c != "" {
-				errs = append(errs, ValidationError{Field: field(c), Message: fmt.Sprintf("group containment cycle detected involving %q", c)})
-			}
+			assignDepth(g.ID, 1)
 		}
 	}
 

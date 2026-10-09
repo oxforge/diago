@@ -83,7 +83,7 @@ func ParsePrevious(ctx context.Context, data []byte, specType, format, themeName
 // profile or under the theme's screen profile (S13), and returns its
 // carrier.
 func previousFromSpec(ctx context.Context, spec []byte, specType, format, themeName string) (*model.LayoutHints, error) {
-	parse := graphParser(schema.ParseFlow)
+	parse := schema.ParseFlow
 	if specType == "class" {
 		parse = schema.ParseClass
 	}

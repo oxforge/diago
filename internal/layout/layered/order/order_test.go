@@ -131,15 +131,15 @@ func TestTranspose_TriesTheOnlyPairOfATwoVertexLayer(t *testing.T) {
 
 func TestMedian(t *testing.T) {
 	tests := []struct {
-		positions []int
+		positions []float64
 		want      float64
 	}{
-		{[]int{3}, 3},
-		{[]int{1, 5}, 3},
-		{[]int{0, 2, 9}, 2},
-		{[]int{0, 1, 5, 6}, 3},
-		{[]int{0, 4, 5, 6}, 4.8},
-		{[]int{2, 2, 2, 2}, 2},
+		{[]float64{3}, 3},
+		{[]float64{1, 5}, 3},
+		{[]float64{0, 2, 9}, 2},
+		{[]float64{0, 1, 5, 6}, 3},
+		{[]float64{0, 4, 5, 6}, 4.8},
+		{[]float64{2, 2, 2, 2}, 2},
 	}
 	for _, tt := range tests {
 		assert.InDelta(t, tt.want, median(tt.positions), 1e-12, "%v", tt.positions)

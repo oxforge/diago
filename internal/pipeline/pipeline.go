@@ -164,7 +164,7 @@ func renderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte,
 		}
 		switch kind {
 		case "flow":
-			res, hints, flatRanked, err := renderFlowText(ctx, input, themeName, opts.Previous)
+			res, hints, flatRanked, err := renderFlowText(ctx, input, opts.Previous)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -173,9 +173,7 @@ func renderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte,
 			}
 			return []byte(res.Art), res.DroppedLabels, flatRanked, nil
 		case "sequence":
-			if err := discardPreviousForSequence(&opts); err != nil {
-				return nil, nil, nil, err
-			}
+			discardPreviousForSequence(&opts)
 			res, err := renderSequenceText(ctx, input)
 			if err != nil {
 				return nil, nil, nil, err
@@ -210,9 +208,7 @@ func renderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte,
 			*opts.LayoutHints = *hints
 		}
 	case "sequence":
-		if err = discardPreviousForSequence(&opts); err != nil {
-			return nil, nil, nil, err
-		}
+		discardPreviousForSequence(&opts)
 		svg, err = renderSequenceFull(ctx, input, themeName)
 	case "class":
 		var hints *model.LayoutHints
@@ -238,14 +234,13 @@ func renderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte,
 // opts.Previous already happened once, up front, in renderWithOptions, so
 // this only appends the discard warning to opts.Warnings when one was
 // supplied.
-func discardPreviousForSequence(opts *Options) error {
+func discardPreviousForSequence(opts *Options) {
 	if opts.Previous == nil {
-		return nil
+		return
 	}
 	if opts.Warnings != nil {
 		*opts.Warnings = append(*opts.Warnings, PreviousIgnoredSequence)
 	}
-	return nil
 }
 
 // renderExport lays a flow spec out under the theme's screen profile and
@@ -450,7 +445,7 @@ func renderGraphFull(ctx context.Context, input []byte, kind string, parse graph
 	return svgrender.Render(positioned, th), positioned.LayoutHints, flatRankedFields(positioned, previous), nil
 }
 
-func renderFlowText(ctx context.Context, input []byte, _ string, previous *model.LayoutHints) (textrender.Result, *model.LayoutHints, []flatRankedField, error) {
+func renderFlowText(ctx context.Context, input []byte, previous *model.LayoutHints) (textrender.Result, *model.LayoutHints, []flatRankedField, error) {
 	return renderGraphText(ctx, input, "flow", schema.ParseFlow, previous)
 }
 

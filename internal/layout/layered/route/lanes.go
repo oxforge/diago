@@ -98,11 +98,9 @@ func (r *router) packLanes() {
 	r.lanes = laneMap{}
 	r.nLanes = make([]int, len(channels))
 	for c, jogs := range channels {
-		var loops []int
-		if c+1 < len(loopsIn) {
-			loops = loopsIn[c+1]
-		}
-		r.nLanes[c] = r.pack(c, jogs, loops)
+		// channels has len(Layers)-1 entries and loopsIn has len(Layers), so
+		// loopsIn[c+1] exists.
+		r.nLanes[c] = r.pack(c, jogs, loopsIn[c+1])
 	}
 	if len(loopsIn) > 0 {
 		r.pack(-1, nil, loopsIn[0]) // above layer 0, where nothing else runs

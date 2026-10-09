@@ -223,7 +223,7 @@ func TestEdgeLabelPositionZeroLengthSegment(t *testing.T) {
 		{X: 100, Y: 100},
 		{X: 100, Y: 200},
 	}
-	x, y, _ := edgeLabelPosition(pts)
+	x, y := edgeLabelPosition(pts)
 	assert.False(t, math.IsNaN(x), "x should not be NaN")
 	assert.False(t, math.IsNaN(y), "y should not be NaN")
 }

@@ -23,13 +23,12 @@ type enumDef struct {
 	TypeName   string      // Go type name, e.g. "Direction"
 	Receiver   string      // single-char receiver, e.g. "d"
 	ErrorLabel string      // label in error messages, e.g. "direction"
-	BaseType   string      // "int" or "string" — string enums skip Parse/JSON
 	Values     []enumValue // ordered list of values
 }
 
 var enums = []enumDef{
 	{
-		TypeName: "Direction", Receiver: "d", ErrorLabel: "direction", BaseType: "int",
+		TypeName: "Direction", Receiver: "d", ErrorLabel: "direction",
 		Values: []enumValue{
 			{Name: "Auto", Strings: []string{"AUTO", "UNDEFINED"}, Default: true},
 			{Name: "Down", Strings: []string{"DOWN"}},
@@ -39,7 +38,7 @@ var enums = []enumDef{
 		},
 	},
 	{
-		TypeName: "Shape", Receiver: "s", ErrorLabel: "shape", BaseType: "int",
+		TypeName: "Shape", Receiver: "s", ErrorLabel: "shape",
 		Values: []enumValue{
 			{Name: "ShapeRect", Strings: []string{"rect"}, Default: true},
 			{Name: "ShapeRounded", Strings: []string{"rounded"}},
@@ -51,7 +50,7 @@ var enums = []enumDef{
 		},
 	},
 	{
-		TypeName: "EdgeStyle", Receiver: "e", ErrorLabel: "edge style", BaseType: "int",
+		TypeName: "EdgeStyle", Receiver: "e", ErrorLabel: "edge style",
 		Values: []enumValue{
 			{Name: "EdgeSolid", Strings: []string{"solid"}, Default: true},
 			{Name: "EdgeDashed", Strings: []string{"dashed"}},
@@ -60,7 +59,7 @@ var enums = []enumDef{
 		},
 	},
 	{
-		TypeName: "EdgeDirection", Receiver: "d", ErrorLabel: "edge direction", BaseType: "int",
+		TypeName: "EdgeDirection", Receiver: "d", ErrorLabel: "edge direction",
 		Values: []enumValue{
 			{Name: "EdgeForward", Strings: []string{"forward"}, Default: true},
 			{Name: "EdgeBackward", Strings: []string{"backward"}},
@@ -69,7 +68,7 @@ var enums = []enumDef{
 		},
 	},
 	{
-		TypeName: "InteractionStyle", Receiver: "s", ErrorLabel: "interaction style", BaseType: "int",
+		TypeName: "InteractionStyle", Receiver: "s", ErrorLabel: "interaction style",
 		Values: []enumValue{
 			{Name: "InteractionSolid", Strings: []string{"solid"}, Default: true},
 			{Name: "InteractionDashed", Strings: []string{"dashed"}},
@@ -77,7 +76,7 @@ var enums = []enumDef{
 		},
 	},
 	{
-		TypeName: "FragmentType", Receiver: "f", ErrorLabel: "fragment type", BaseType: "int",
+		TypeName: "FragmentType", Receiver: "f", ErrorLabel: "fragment type",
 		Values: []enumValue{
 			{Name: "FragmentAlt", Strings: []string{"alt"}},
 			{Name: "FragmentOpt", Strings: []string{"opt"}},
@@ -87,7 +86,7 @@ var enums = []enumDef{
 		},
 	},
 	{
-		TypeName: "Relation", Receiver: "r", ErrorLabel: "relation", BaseType: "int",
+		TypeName: "Relation", Receiver: "r", ErrorLabel: "relation",
 		Values: []enumValue{
 			// RelationNone is the zero value: a flow edge. Its canonical
 			// string is "" so ParseRelation("") is RelationNone and the
@@ -140,7 +139,7 @@ func Parse{{ .TypeName }}(s string) ({{ .TypeName }}, error) {
 		return {{ (index .Values 0).Name }}, fmt.Errorf("unknown {{ .ErrorLabel }}: %q", s)
 	}
 }
-{{ if eq .BaseType "int" }}
+
 // MarshalJSON encodes {{ .TypeName }} as its canonical string representation.
 func ({{ .Receiver }} {{ .TypeName }}) MarshalJSON() ([]byte, error) {
 	return json.Marshal({{ .Receiver }}.String())
@@ -159,7 +158,7 @@ func ({{ .Receiver }} *{{ .TypeName }}) UnmarshalJSON(data []byte) error {
 	*{{ .Receiver }} = v
 	return nil
 }
-{{ end }}{{ end }}
+{{ end }}
 `))
 
 func main() {

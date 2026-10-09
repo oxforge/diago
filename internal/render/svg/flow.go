@@ -220,7 +220,7 @@ func RenderWithOptions(graph *model.PositionedGraph, th theme.Theme, opts *Rende
 			}
 			adornRef = fmt.Sprintf("url(#%s)", umlMarkerID(e.Relation, suffix))
 		}
-		edgeGroup, label := renderEdge(e, edgeStyle, th.Background, sketch, markerIDOverride, markerThickIDOverride, adornRef)
+		edgeGroup, label := renderEdge(e, edgeStyle, sketch, markerIDOverride, markerThickIDOverride, adornRef)
 		edgeGroup.ID = ids.claim(edgeGroup.ID)
 		edgeGroup.Class = cls
 		doc.Children = append(doc.Children, edgeGroup)
@@ -387,7 +387,7 @@ func edgeElementID(e model.PositionedEdge) string {
 
 // renderEdge renders an edge as a polyline with an arrowhead. The label is
 // returned separately so the caller can render all labels in a higher z-layer.
-func renderEdge(e model.PositionedEdge, style theme.EdgeAppearance, background string, sketch bool, markerIDOverride, markerThickIDOverride, adornmentRef string) (SVGGroup, Element) {
+func renderEdge(e model.PositionedEdge, style theme.EdgeAppearance, sketch bool, markerIDOverride, markerThickIDOverride, adornmentRef string) (SVGGroup, Element) {
 	if len(e.Points) < 2 {
 		return SVGGroup{}, nil
 	}
@@ -484,7 +484,7 @@ func renderEdge(e model.PositionedEdge, style theme.EdgeAppearance, background s
 		if e.LabelPos != nil {
 			lx, ly = e.LabelPos.X, e.LabelPos.Y
 		} else {
-			lx, ly, _ = edgeLabelPosition(e.Points)
+			lx, ly = edgeLabelPosition(e.Points)
 		}
 		label = Text{
 			X:                lx,
@@ -525,14 +525,13 @@ func themeFontFamilies(th theme.Theme) []string {
 	return families
 }
 
-// edgeLabelPosition returns the midpoint of the polyline (by total path length)
-// and the angle of the segment at that point.
-func edgeLabelPosition(pts []model.Point) (x, y, angle float64) {
+// edgeLabelPosition returns the midpoint of the polyline, by total path length.
+func edgeLabelPosition(pts []model.Point) (x, y float64) {
 	if len(pts) < 2 {
 		if len(pts) == 1 {
-			return pts[0].X, pts[0].Y, 0
+			return pts[0].X, pts[0].Y
 		}
-		return 0, 0, 0
+		return 0, 0
 	}
 
 	// Compute total length.
@@ -556,19 +555,12 @@ func edgeLabelPosition(pts []model.Point) (x, y, angle float64) {
 			}
 			x = pts[i].X + t*(pts[i+1].X-pts[i].X)
 			y = pts[i].Y + t*(pts[i+1].Y-pts[i].Y)
-			dx := pts[i+1].X - pts[i].X
-			dy := pts[i+1].Y - pts[i].Y
-			angle = math.Atan2(dy, dx)
-			return x, y, angle
+			return x, y
 		}
 		cum += seg
 	}
 
 	// Fallback: last point.
 	last := len(pts) - 1
-	x, y = pts[last].X, pts[last].Y
-	dx := pts[last].X - pts[last-1].X
-	dy := pts[last].Y - pts[last-1].Y
-	angle = math.Atan2(dy, dx)
-	return x, y, angle
+	return pts[last].X, pts[last].Y
 }

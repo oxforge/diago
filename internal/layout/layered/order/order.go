@@ -404,20 +404,20 @@ func (s *sweeper) median(l int, nbrs [][]nbr, seed []int) {
 // median is the median of sorted positions: the middle one for an odd
 // count, the mean for two, and dot's weighted median above that, which
 // leans toward the side where the positions pack tighter.
-func median[T int | float64](positions []T) float64 {
+func median(positions []float64) float64 {
 	m := len(positions) / 2
 	switch {
 	case len(positions)%2 == 1:
-		return float64(positions[m])
+		return positions[m]
 	case len(positions) == 2:
-		return float64(positions[0]+positions[1]) / 2
+		return (positions[0] + positions[1]) / 2
 	}
-	left := float64(positions[m-1] - positions[0])
-	right := float64(positions[len(positions)-1] - positions[m])
+	left := positions[m-1] - positions[0]
+	right := positions[len(positions)-1] - positions[m]
 	if left+right == 0 {
-		return float64(positions[m-1]+positions[m]) / 2
+		return (positions[m-1] + positions[m]) / 2
 	}
-	return (float64(positions[m-1])*right + float64(positions[m])*left) / (left + right)
+	return (positions[m-1]*right + positions[m]*left) / (left + right)
 }
 
 // transpose swaps adjacent pairs, the last pair of a layer included,

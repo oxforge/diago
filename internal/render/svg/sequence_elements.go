@@ -174,7 +174,7 @@ func renderInteraction(idx int, it model.PositionedInteraction, style theme.Edge
 	var children []Element
 
 	if it.IsSelf {
-		children = renderSelfInteraction(it, style, background, strokeDash, markerRef, sketch)
+		children = renderSelfInteraction(it, style, strokeDash, markerRef, sketch)
 	} else {
 		children = renderNormalInteraction(it, style, background, strokeDash, markerRef, sketch, backingClass)
 	}
@@ -256,7 +256,6 @@ func renderNormalInteraction(
 func renderSelfInteraction(
 	it model.PositionedInteraction,
 	style theme.EdgeAppearance,
-	background string,
 	strokeDash string,
 	markerRef string,
 	sketch bool,

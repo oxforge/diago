@@ -209,18 +209,18 @@ func (p *placer) pick(ctx context.Context, e int, what string, spots iter.Seq[sp
 	}
 	var best spot
 	var onBorder *spot // the first spot of the ring clear but for the frame sides it covers
-	var tried bool
 	var bestCost float64
 	climb := func() {
-		best, onBorder, tried, bestCost = spot{}, nil, false, math.Inf(1)
+		best, onBorder, bestCost = spot{}, nil, math.Inf(1)
 		ring := 0
+		first := true
 		for s := range spots {
 			if onBorder != nil && s.ring != ring {
 				break
 			}
 			ring = s.ring
-			if !tried {
-				best, tried = s, true
+			if first {
+				best, first = s, false
 			}
 			c := 0.0
 			for j, k := range all {
@@ -252,13 +252,10 @@ func (p *placer) pick(ctx context.Context, e int, what string, spots iter.Seq[sp
 	climb()
 	// a home group binds while some spot inside it is clear, outright or
 	// but for a border: else the ladder runs again without it (S10)
-	if tried && bestCost > 0 && onBorder == nil && slices.ContainsFunc(all, func(k int) bool { return p.edges[k].Home != nil }) {
+	if bestCost > 0 && onBorder == nil && slices.ContainsFunc(all, func(k int) bool { return p.edges[k].Home != nil }) {
 		p.homeless = true
 		climb()
 		p.homeless = false
-	}
-	if !tried {
-		return nil, false
 	}
 	if onBorder != nil {
 		best, bestCost = *onBorder, 0

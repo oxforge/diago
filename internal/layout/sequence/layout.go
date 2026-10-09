@@ -76,7 +76,7 @@ func LayoutWithOptions(diagram model.SequenceDiagram, p Profile, opts LayoutOpti
 
 	// 5. Finalize dimensions and lifelines.
 	width, height := calculateDimensions(
-		diagram, posActors, posInteractions, posFragments,
+		diagram, posActors, posFragments,
 		actorIndex, centerX, actorBoxWidths, interactionY, maxHeaderH,
 		p,
 	)
@@ -300,7 +300,6 @@ func layoutInteractions(
 func calculateDimensions(
 	diagram model.SequenceDiagram,
 	posActors []model.PositionedActor,
-	posInteractions []model.PositionedInteraction,
 	posFragments []model.PositionedFragment,
 	actorIndex map[string]int,
 	centerX []float64,
