@@ -78,7 +78,8 @@ func writeFontFiles() (dir string, cleanup func(), err error) {
 	return dir, cleanup, nil
 }
 
-// Render converts SVG bytes to PNG by invoking resvg.
+// Render converts SVG bytes to PNG by invoking resvg. A run that ctx stops
+// returns ctx's error, wrapped, not the signal that killed resvg.
 func Render(ctx context.Context, svgBytes []byte, opts Options) ([]byte, error) {
 	if err := validateOpts(opts); err != nil {
 		return nil, err
@@ -104,6 +105,9 @@ func Render(ctx context.Context, svgBytes []byte, opts Options) ([]byte, error) 
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("png render: %w", ctx.Err())
+		}
 		return nil, fmt.Errorf("png render: %s: %w", stderr.String(), err)
 	}
 

@@ -4,8 +4,12 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -133,4 +137,22 @@ func TestRenderInvalidOptions(t *testing.T) {
 	_, err = Render(context.Background(), svg, Options{Scale: -1})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid scale")
+}
+
+// TestRender_ARunPastTheDeadlineReportsTheDeadline: a resvg run the
+// context's deadline kills reports the deadline, not the kill's signal,
+// so the CLI tells the user the render ran out of time. A stand-in resvg
+// that outlives the deadline plays the slow run.
+func TestRender_ARunPastTheDeadlineReportsTheDeadline(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the stand-in resvg is a shell script")
+	}
+	slow := filepath.Join(t.TempDir(), "resvg")
+	require.NoError(t, os.WriteFile(slow, []byte("#!/bin/sh\nexec sleep 10\n"), 0o755))
+	t.Setenv("DIAGO_RESVG_PATH", slow)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	_, err := Render(ctx, []byte("<svg></svg>"), Options{})
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Equal(t, "png render: context deadline exceeded", err.Error())
 }
