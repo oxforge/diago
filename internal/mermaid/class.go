@@ -189,9 +189,10 @@ func parseClass(title string, body []line) (any, []Report, error) {
 }
 
 // genericsToAngle writes Mermaid's ~T~ generics as <T>, nested ones
-// included (List~List~int~~ is List<List<int>>): a ~ between an identifier
-// and an identifier's start opens one, any other ~ closes the innermost
-// open one. It reports whether every ~ was paired.
+// included (List~List~int~~ is List<List<int>>): a ~ after an identifier
+// opens one, before any argument (Result~[]User~) outside a generic and
+// before an identifier's start inside one; any other ~ closes the
+// innermost open one. It reports whether every ~ was paired.
 func genericsToAngle(s string) (string, bool) {
 	var b strings.Builder
 	depth := 0
@@ -201,7 +202,7 @@ func genericsToAngle(s string) (string, bool) {
 			continue
 		}
 		switch {
-		case i > 0 && identByte(s[i-1]) && i+1 < len(s) && identStart(s[i+1]):
+		case i > 0 && identByte(s[i-1]) && i+1 < len(s) && (depth == 0 || identStart(s[i+1])):
 			b.WriteByte('<')
 			depth++
 		case depth > 0:

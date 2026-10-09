@@ -174,3 +174,16 @@ func TestClass_NestedGenerics(t *testing.T) {
 	assert.Equal(t, 7, reports[0].Line)
 	assert.Contains(t, reports[0].Message, "~")
 }
+
+// A generic whose argument does not start with a letter ([]T, *T, 1)
+// translates as a plain one does, with no report.
+func TestClass_GenericsWithANonIdentifierArgument(t *testing.T) {
+	spec, reports := parseCls(t, "classDiagram\n  class Repo {\n    +Result~[]User~ users\n    +Option~*Node~ head\n    +Array~1~ one\n  }\n")
+	require.Len(t, spec.Classes, 1)
+	var texts []string
+	for _, m := range spec.Classes[0].Attributes {
+		texts = append(texts, m.Text)
+	}
+	assert.Equal(t, []string{"Result<[]User> users", "Option<*Node> head", "Array<1> one"}, texts)
+	assert.Empty(t, reports)
+}
