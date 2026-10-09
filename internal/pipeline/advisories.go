@@ -96,7 +96,7 @@ func appendFlatRanked(advs []schema.Advisory, data []byte, fields []flatRankedFi
 
 // flatRankedFields returns the field path ("edges[i]") and kept status of
 // every edge pg's layout ranked (model.PositionedEdge.FlatRanked). pg's
-// edges are in the spec's edge order (nested.go's assemble, flat.go's
+// edges are in the spec's edge order (compose.go's assemble, flat.go's
 // nestedRanked), so i is the edge's index in the spec. prev is the carrier
 // the render was anchored on (opts.Previous), or nil for a fresh render.
 func flatRankedFields(pg *model.PositionedGraph, prev *model.LayoutHints) []flatRankedField {

@@ -126,3 +126,46 @@ func (g *grid) touching(x0, y0, x1, y1 float64) []int {
 
 // nearBox is near for box r.
 func (g *grid) nearBox(r Rect) []int { return g.near(r.X, r.Y, r.X+r.W, r.Y+r.H) }
+
+// index builds the grids over the node boxes and the segments, and their
+// cells in the text profile, with cells about as large as the labels'
+// boxes; the placed labels join theirs as they are placed.
+func (p *placer) index(gridded bool) {
+	var bounds Rect
+	empty := true
+	for _, set := range [][]Rect{p.nodes, p.segs, p.drawn} {
+		for _, r := range set {
+			if empty {
+				bounds, empty = r, false
+				continue
+			}
+			x0, y0 := min(bounds.X, r.X), min(bounds.Y, r.Y)
+			x1, y1 := max(bounds.X+bounds.W, r.X+r.W), max(bounds.Y+bounds.H, r.Y+r.H)
+			bounds = Rect{x0, y0, x1 - x0, y1 - y0}
+		}
+	}
+	side, n := 0.0, 0
+	for _, e := range p.edges {
+		for _, z := range []Size{e.Label, e.From, e.To} {
+			if z.W > 0 {
+				side += max(z.W, z.H)
+				n++
+			}
+		}
+	}
+	if n > 0 && gridded {
+		side /= float64(n)
+	} else {
+		side = 0
+	}
+	p.nodeGrid, p.placedGrid, p.segGrid, p.drawnGrid = newGrid(bounds, side), newGrid(bounds, side), newGrid(bounds, side), newGrid(bounds, side)
+	for i, r := range p.nodes {
+		p.nodeGrid.add(i, r)
+	}
+	for i, r := range p.segs {
+		p.segGrid.add(i, r)
+	}
+	for i, r := range p.drawn {
+		p.drawnGrid.add(i, r)
+	}
+}
