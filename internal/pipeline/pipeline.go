@@ -5,23 +5,17 @@ package pipeline
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/oxforge/diago/internal/export/drawio"
 	"github.com/oxforge/diago/internal/export/excalidraw"
-	"github.com/oxforge/diago/internal/font"
-	"github.com/oxforge/diago/internal/layout/contract"
-	"github.com/oxforge/diago/internal/layout/layered/frame"
 	seqlayout "github.com/oxforge/diago/internal/layout/sequence"
-	"github.com/oxforge/diago/internal/layoutdbg"
 	"github.com/oxforge/diago/internal/model"
 	pngrender "github.com/oxforge/diago/internal/render/png"
 	svgrender "github.com/oxforge/diago/internal/render/svg"
 	textrender "github.com/oxforge/diago/internal/render/text"
 	"github.com/oxforge/diago/internal/schema"
-	"github.com/oxforge/diago/internal/theme"
 )
 
 // Options holds optional overrides for rendering.
@@ -43,62 +37,6 @@ const PreviousIgnoredSequence = "-previous ignored: sequence diagrams have no la
 // graphParser parses a spec into a flow-shaped graph: schema.ParseFlow or
 // schema.ParseClass.
 type graphParser = func([]byte) (*model.Graph, error)
-
-func resolveTheme(name string) (theme.Theme, error) {
-	if name == "" {
-		name = "default"
-	}
-	return theme.Load(name)
-}
-
-// specThemeName is the theme a render of spec uses: override (the -theme flag)
-// when set, else the spec's top-level theme field, else "default". A spec
-// that is not valid JSON names no theme; its parse reports the error.
-func specThemeName(spec []byte, override string) string {
-	if override != "" {
-		return override
-	}
-	var probe struct {
-		Theme string `json:"theme"`
-	}
-	if json.Unmarshal(spec, &probe) == nil && probe.Theme != "" {
-		return probe.Theme
-	}
-	return "default"
-}
-
-// specTheme loads the theme a render of spec uses (specThemeName). A theme the
-// spec names that does not load is a validation error on its field "theme";
-// one override names stays the error theme.Load returns.
-func specTheme(spec []byte, override string) (theme.Theme, error) {
-	th, err := theme.Load(specThemeName(spec, override))
-	if err != nil && override == "" {
-		return theme.Theme{}, schema.ValidationErrors{{Field: "theme", Message: err.Error()}}
-	}
-	return th, err
-}
-
-// RenderTheme names the theme a render of spec in format uses, override
-// (the -theme flag) when set, else the spec's theme field, else "default",
-// checked to load as the render checks it, in every format: a spec's name
-// that does not load is a validation error on "theme", an override's the
-// error theme.Load returns. Text art takes no theme, so for it the name is
-// "". ParsePrevious lays a previous spec out under it.
-func RenderTheme(spec []byte, format, override string) (string, error) {
-	if _, err := specTheme(spec, override); err != nil {
-		return "", err
-	}
-	if isTextFormat(format) {
-		return "", nil
-	}
-	return specThemeName(spec, override), nil
-}
-
-// graphLayout lays out a flow-shaped graph (flow or class) under the screen
-// profile of th.
-func graphLayout(ctx context.Context, g model.Graph, th theme.Theme, previous *model.LayoutHints) (*model.PositionedGraph, error) {
-	return layoutWith(ctx, g, th, false, previous)
-}
 
 // RenderWithOptions renders with the given options. When opts.Advisories is
 // set, a successful render also runs schema.Check on the input (anchored
@@ -279,130 +217,6 @@ func renderExport(ctx context.Context, input []byte, diagType, format, themeName
 // "txt").
 func isTextFormat(format string) bool {
 	return format == "txt" || format == "text"
-}
-
-// LayoutGraphForFormat parses a flow-shaped spec with parse and lays it out
-// with the output format known: text art lays out under the text profile
-// (S14); every other format uses the screen profile of the default theme.
-// Every edge routes orthogonally regardless of format.
-func LayoutGraphForFormat(ctx context.Context, input []byte, parse graphParser, format string, previous *model.LayoutHints) (*model.PositionedGraph, error) {
-	graph, err := parse(input)
-	if err != nil {
-		return nil, fmt.Errorf("parse: %w", err)
-	}
-	text := isTextFormat(format)
-	var pg *model.PositionedGraph
-	if text {
-		pg, err = layoutWith(ctx, *graph, theme.Theme{}, true, previous)
-	} else {
-		th, tErr := resolveTheme("default")
-		if tErr != nil {
-			return nil, fmt.Errorf("theme: %w", tErr)
-		}
-		pg, err = graphLayout(ctx, *graph, th, previous)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("layout: %w", err)
-	}
-	reportContract(ctx, pg, *graph, text)
-	return pg, nil
-}
-
-// reportContract runs the output-contract checker (internal/layout/contract,
-// rules C2-C17) on the final positioned graph, laid out from g, and emits
-// one debug decision per violation. It only runs when a debug logger is
-// armed on ctx (--debug), so a render without --debug emits no decision
-// records and costs one Armed check.
-// A text layout is checked against the text profile's limits
-// (contract.TextLimits, C0) rather than the screen ones.
-func reportContract(ctx context.Context, pg *model.PositionedGraph, g model.Graph, text bool) {
-	if !layoutdbg.Armed(ctx) {
-		return
-	}
-	// AUTO resolves the same way the layered engine resolved it for the
-	// layout itself (frame.Resolve, S11), so C8.2-C8.5 orient correctly.
-	// ResolveQuiet is frame.Resolve without its own "direction_resolved"
-	// record: the layout run that produced pg already emitted that record,
-	// so this call must not add a second.
-	dir := frame.ResolveQuiet(g)
-	limits := contract.ScreenLimits()
-	if text {
-		limits = contract.TextLimits(dir)
-	}
-	opts := contract.Options{
-		Limits:    limits,
-		Direction: dir,
-		EdgeIDs:   edgeIDs(g),
-		Text:      text,
-	}
-	for _, v := range contract.Check(pg, opts) {
-		layoutdbg.Decision(ctx, "contract_violation",
-			"phase", "contract",
-			"module", "diago",
-			"spec_ref", v.Rule,
-			"subject", v.Subject,
-			"detail", v.Detail,
-		)
-	}
-}
-
-// edgeIDs lists g's edge ids, in edge order: the ids a contract check
-// expects in the layout (C2.1). Mirrors corpus.EdgeIDs, which pipeline
-// cannot import (corpus imports pipeline).
-func edgeIDs(g model.Graph) []string {
-	ids := make([]string, len(g.Edges))
-	for i, e := range g.Edges {
-		ids[i] = e.ID
-	}
-	return ids
-}
-
-// sequenceScreenProfile is the timeline engine's screen profile for th: its
-// fonts and its activation bar width.
-func sequenceScreenProfile(th theme.Theme) seqlayout.Profile {
-	p := seqlayout.ScreenProfile(seqlayout.LayoutFonts{
-		Family:        th.Actor.Font.Family,
-		HeaderSize:    th.Actor.Font.Size,
-		LabelSize:     th.Edge.LabelFont.Size,
-		FragLabelSize: th.Fragment.LabelFont.Size,
-	})
-	p.MeasureText = font.MeasureText
-	p.ActivationWidth = th.Activation.Width
-	return p
-}
-
-// layoutSequenceScreen lays a sequence diagram out under th's screen profile
-// and normalizes it.
-func layoutSequenceScreen(d model.SequenceDiagram, th theme.Theme) *model.PositionedSequence {
-	p := sequenceScreenProfile(th)
-	positioned := seqlayout.LayoutWithProfile(d, p)
-	seqlayout.NormalizeSequenceWithProfile(positioned, p)
-	return positioned
-}
-
-// layoutGraph parses a flow-shaped spec with parse, validates it, and lays it
-// out under the theme the render uses (themeName, else the spec's field),
-// returning the positioned graph and that theme. kind ("flow" or "class")
-// names the diagram in error messages. Shared by the SVG, PNG and export
-// renderers.
-func layoutGraph(ctx context.Context, input []byte, kind string, parse graphParser, themeName string, previous *model.LayoutHints) (*model.PositionedGraph, theme.Theme, error) {
-	graph, err := parse(input)
-	if err != nil {
-		return nil, theme.Theme{}, fmt.Errorf("render %s: %w", kind, err)
-	}
-
-	th, err := specTheme(input, themeName)
-	if err != nil {
-		return nil, theme.Theme{}, fmt.Errorf("render %s: %w", kind, err)
-	}
-
-	positioned, err := graphLayout(ctx, *graph, th, previous)
-	if err != nil {
-		return nil, theme.Theme{}, fmt.Errorf("render %s: %w", kind, err)
-	}
-
-	reportContract(ctx, positioned, *graph, false)
-	return positioned, th, nil
 }
 
 func renderFlowFull(ctx context.Context, input []byte, themeName string, previous *model.LayoutHints) (string, *model.LayoutHints, []flatRankedField, error) {

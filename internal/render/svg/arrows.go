@@ -1,6 +1,12 @@
 package svg
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+	"strings"
+
+	"github.com/oxforge/diago/internal/theme"
+)
 
 // plainArrowMarker returns a <marker> element with a filled triangular arrowhead.
 // The marker is sized relative to the stroke width (markerUnits="strokeWidth").
@@ -180,4 +186,97 @@ func sketchDiamondMarker(id, stroke string, strokeWidth float64, filled bool) Ma
 	return sketchMarker(id, umlDiamondDepth, 2*umlDiamondHalf, sketchUMLPad(strokeWidth), 0, umlDiamondHalf, Path{
 		D: sketchDiamond(id, strokeWidth, asDrawn), Fill: fill, Stroke: stroke, StrokeWidth: strokeWidth, LineCap: "round", LineJoin: "round",
 	})
+}
+
+// openArrowMarkerID is the SVG marker ID used for open (async) arrowheads.
+const openArrowMarkerID = "diago-arrow-open"
+
+// arrowMarkerID is the SVG marker ID used for arrowheads.
+const arrowMarkerID = "diago-arrow"
+
+const arrowMarkerThickID = "diago-arrow-thick"
+
+// thickArrowScale is the multiplier applied to arrow size for thick edges,
+// matching the stroke width multiplier so the arrowhead stays proportional.
+const thickArrowScale = 2.5
+
+// markerUse is an edge's or interaction's use of an arrowhead pair beyond
+// the base one: the suffix that names the pair (an accent color's hex
+// digits or a status class), the fill it is drawn in, and whether the
+// element is an adorned class relation, which also uses the suffix's UML
+// trio.
+type markerUse struct {
+	suffix, fill string
+	adorned      bool
+}
+
+// markerSet is the markers a render's edges or interactions use beyond the
+// base ones, per accent color and per status class: a pair (a filled and a
+// thick arrowhead in a flow render, a filled and an open one in a sequence
+// render) and, where an adorned class relation uses it, a UML trio.
+type markerSet struct {
+	accents, statuses []markerUse // in element order
+}
+
+// add records an element's uses: its accent's pair, drawn in the edge
+// stroke the accent derives, and its status class's pair, in the fill the
+// render gives that class, when it gives one.
+func (m *markerSet) add(accent, cls string, adorned bool, th theme.Theme, opts *RenderOptions) {
+	if accent != "" {
+		stroke := theme.DeriveColors(accent, th.Background, theme.ElementEdge).Stroke
+		m.accents = append(m.accents, markerUse{accent[1:], stroke, adorned})
+	}
+	if fill, ok := opts.markerFill(cls); ok {
+		m.statuses = append(m.statuses, markerUse{cls, fill, adorned})
+	}
+}
+
+// defs returns the marker defs of the set: the accents' in the order the
+// elements first use them, then the status classes' in sorted order, so
+// the emission is deterministic. pair builds a suffix's pair in a fill;
+// trio its UML trio, nil when no element is adorned.
+func (m *markerSet) defs(pair, trio func(suffix, fill string) []Element) []Element {
+	slices.SortStableFunc(m.statuses, func(a, b markerUse) int { return strings.Compare(a.suffix, b.suffix) })
+	return append(markerDefs(m.accents, pair, trio), markerDefs(m.statuses, pair, trio)...)
+}
+
+// markerDefs returns the marker defs uses need, each once: a suffix's pair
+// at its first use, its UML trio at its first adorned use.
+func markerDefs(uses []markerUse, pair, trio func(suffix, fill string) []Element) []Element {
+	var defs []Element
+	pairs, trios := map[string]bool{}, map[string]bool{}
+	for _, u := range uses {
+		if !pairs[u.suffix] {
+			pairs[u.suffix] = true
+			defs = append(defs, pair(u.suffix, u.fill)...)
+		}
+		if u.adorned && !trios[u.suffix] {
+			trios[u.suffix] = true
+			defs = append(defs, trio(u.suffix, u.fill)...)
+		}
+	}
+	return defs
+}
+
+// markerFill is the arrowhead fill the render gives status class cls.
+func (o *RenderOptions) markerFill(cls string) (string, bool) {
+	if o == nil {
+		return "", false
+	}
+	fill, ok := o.MarkerFills[cls]
+	return fill, ok
+}
+
+// markerSuffix names the markers an edge or interaction of status class
+// cls and accent color references: its class's when the render gives the
+// class a marker fill, since status outranks the element's own color, else
+// its accent's, else "" for the base markers.
+func markerSuffix(opts *RenderOptions, cls, accent string) string {
+	if _, ok := opts.markerFill(cls); ok && cls != "" {
+		return cls
+	}
+	if accent != "" {
+		return accent[1:]
+	}
+	return ""
 }

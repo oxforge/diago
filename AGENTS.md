@@ -73,7 +73,7 @@ diago/
 │   ├── mermaid/          # Mermaid importer: Sniff/Parse, flowchart, sequence and class dialects → schema spec structs; depends on schema only
 │   ├── source/           # Spec arguments: stdin, a file, or REV:PATH read with the git binary; Latest, a file's latest change for diago diff PATH; sourcetest/ builds test repositories
 │   ├── render/
-│   │   ├── svg/          # SVG rendering (flow.go, sequence.go, class.go, elements, shapes, text, sketch, arrows, hops, ids, diffstyle, changelist, metadata)
+│   │   ├── svg/          # SVG rendering (flow.go with edge.go and group.go, sequence.go, class.go, elements, shapes, text, sketch, arrows (the markers and the set a document defines), hops, ids, diffstyle, changelist, metadata)
 │   │   ├── png/          # SVG→PNG rasterization via resvg subprocess
 │   │   └── text/         # Unicode box-drawing text art renderer (flag-based char grid; flow, sequence, class; laid out under a text profile, always orthogonal)
 │   ├── export/
@@ -82,7 +82,7 @@ diago/
 │   ├── theme/            # Theme loading, validation, conversion; themetest/ gives tests the embedded default theme
 │   ├── model/            # Internal graph model (nodes, edges, groups, positioned variants) + enums_gen.go
 │   ├── font/             # Embedded Inter + Pangolin fonts and text measurement
-│   └── pipeline/         # Orchestration: pipeline.go (RenderWithOptions, every format), diff.go (RenderDiff), previous.go (-previous parsing), validate.go (`Validate`: what `check` runs), advisories.go, engine.go (`layoutWith`: the layered engine under the text Config or a theme's screen Config)
+│   └── pipeline/         # Orchestration: pipeline.go (RenderWithOptions, every format), theme.go (`RenderTheme`: the render's theme), diff.go (RenderDiff), previous.go (-previous parsing), validate.go (`Validate`: what `check` runs), advisories.go, engine.go (`layoutWith`: the layered engine under the text Config or a theme's screen Config; `LayoutGraphForFormat` and the sequence layout)
 ├── schemas/              # Generated JSON schema files
 ├── themes/               # Built-in theme JSON files (default, dark, midnight, sketch)
 ├── .claude-plugin/       # plugin.json + marketplace.json (the plugin is the repo root)
@@ -209,7 +209,7 @@ output-contract checker) and `internal/layout/metrics/` (the quality metrics).
 
 | Package | Owns |
 |---------|------|
-| `internal/layout/layered/` | The layered engine, the only flow and class engine: one package per stage, the Config (S14) in `config.go`. `Layout` runs S1–S11, laying groups out level by level (`nested.go`, the `nest` package: S9), routing the flat edges on the composed layout with their fallback (`flat.go`, the `flat` package: S9), copying congruent sibling groups (`congruent.go`: S12) and anchoring on a previous carrier (`anchor.go`: S13); the pipeline calls it from `internal/pipeline/engine.go`. Debug records carry `module: diago` and the stage's name as `phase`. |
+| `internal/layout/layered/` | The layered engine, the only flow and class engine: one package per stage, the Config (S14) in `config.go`. `Layout` runs S1–S11, laying groups out level by level (`nested.go`, `seed.go` and `compose.go`, the `nest` package: S9), routing the flat edges on the composed layout with their fallback (`flat.go`, the `flat` package: S9), copying congruent sibling groups (`congruent.go`, `copy.go` and `fan.go`: S12) and anchoring on a previous carrier (`anchor.go`: S13); the pipeline calls it from `internal/pipeline/engine.go`. Debug records carry `module: diago` and the stage's name as `phase`. |
 | `internal/layout/sequence/` | The timeline engine for sequence diagrams; `LayoutWithOptions` takes an activation mask for diff renders. Sequence diagrams emit no debug records. |
 
 Put a change where its stage already lives; the debug `phase` name tells you
