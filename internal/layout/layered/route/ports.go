@@ -288,61 +288,87 @@ func exitsAmong(cx, band float64, exits []ports.Exit, freeLeft, freeRight bool) 
 // port. In replay (Options.Side), exactly the recorded ends attach, each
 // on its recorded side. Every column then settles in columns, where one
 // that does not keep the row clear stays Reach out, the room place kept
-// for it (S7).
+// for it (S7). Each end attaches on its own, head first (attachRect).
 func (r *router) attachRects() {
-	g := r.g
-	for e, chain := range g.Chains {
+	for e, chain := range r.g.Chains {
 		if len(chain) < 2 || !r.reversed(e) {
 			continue
 		}
 		for which := range 2 {
-			v, adjacent := chain[0], chain[1]
-			if which == ports.Tail {
-				v, adjacent = chain[len(chain)-1], chain[len(chain)-2]
-			}
-			if r.pinned(v) || r.attach[e][which] != nil || r.node(v).Group || r.node(v).Terminal {
-				continue
-			}
-			forced := r.sideFace(e, which)
-			if r.o.Side != nil && !forced {
-				continue
-			}
-			cx, half := r.x[v], r.node(v).W/2
-			ax := r.x[adjacent]
-			if len(chain) == 2 && r.ranks[e][1-which].Anchored {
-				ax = r.port[e][1-which] // its anchored port on the group (S9)
-			}
-			partner := r.attach[e][1-which]
-			if len(chain) == 2 && partner != nil {
-				ax = partner.vx
-			}
-			side := ports.Left
-			switch {
-			case forced:
-				side = r.o.Side[e][which]
-			case len(chain) == 2 && partner != nil:
-				side = partner.side
-			case ax > cx:
-				side = ports.Right
-			}
-			if !forced && len(chain) == 2 && partner == nil && !r.usable(v, side) {
-				side = other(side)
-			}
-			if !forced && len(chain) > 2 && sign(side)*(ax-cx) < half+r.o.Reach {
-				continue
-			}
-			if !r.usable(v, side) {
-				continue
-			}
-			vx, blocked := r.columnFor(v, side, ax)
-			if blocked && !forced {
-				continue
-			}
-			r.taken[v][slot(side)] = e + 1
-			r.attach[e][which] = &attachment{side: side, vx: vx, rect: true, aim: ax, partner: len(chain) == 2 && partner != nil}
-			r.port[e][which] = vx
+			r.attachRect(e, which)
 		}
 	}
+}
+
+// attachRect attaches counter-flow end which (its head or its tail) of
+// edge e at a side face of its node (attachRects), on the side and aiming
+// over the x rectSide gives it: none on a pinned node, a group or a
+// terminal, nor an end attached already, nor, in replay, an end the
+// replay does not record at a side face. A longer chain's end attaches
+// only when its aim clears the face by Reach; no end takes a side that is
+// not usable; and only a recorded end attaches where the row blocks its
+// column (columnFor).
+func (r *router) attachRect(e, which int) {
+	chain := r.g.Chains[e]
+	v, adjacent := chain[0], chain[1]
+	if which == ports.Tail {
+		v, adjacent = chain[len(chain)-1], chain[len(chain)-2]
+	}
+	if r.pinned(v) || r.attach[e][which] != nil || r.node(v).Group || r.node(v).Terminal {
+		return
+	}
+	forced := r.sideFace(e, which)
+	if r.o.Side != nil && !forced {
+		return
+	}
+	side, ax, partner := r.rectSide(e, which, v, adjacent, forced)
+	if !forced && len(chain) > 2 && sign(side)*(ax-r.x[v]) < r.node(v).W/2+r.o.Reach {
+		return
+	}
+	if !r.usable(v, side) {
+		return
+	}
+	vx, blocked := r.columnFor(v, side, ax)
+	if blocked && !forced {
+		return
+	}
+	r.taken[v][slot(side)] = e + 1
+	r.attach[e][which] = &attachment{side: side, vx: vx, rect: true, aim: ax, partner: partner}
+	r.port[e][which] = vx
+}
+
+// rectSide is the side face that counter-flow end which of edge e, on
+// node v, takes (attachRect), and the x its column aims over: the x of
+// adjacent, the next vertex along its chain; on a one-hop edge, its other
+// end's anchored port on a group (S9), or, when that end attached first,
+// its column (partner). The end takes the side the replay records for it
+// (forced), else its partner's side, else the side its aim lies on; a
+// one-hop edge's end without a partner takes the other side where that
+// one is not usable.
+func (r *router) rectSide(e, which, v, adjacent int, forced bool) (side ports.Vertex, ax float64, partner bool) {
+	chain := r.g.Chains[e]
+	ax = r.x[adjacent]
+	if len(chain) == 2 && r.ranks[e][1-which].Anchored {
+		ax = r.port[e][1-which] // its anchored port on the group (S9)
+	}
+	peer := r.attach[e][1-which]
+	partner = len(chain) == 2 && peer != nil
+	if partner {
+		ax = peer.vx
+	}
+	side = ports.Left
+	switch {
+	case forced:
+		side = r.o.Side[e][which]
+	case partner:
+		side = peer.side
+	case ax > r.x[v]:
+		side = ports.Right
+	}
+	if !forced && len(chain) == 2 && peer == nil && !r.usable(v, side) {
+		side = other(side)
+	}
+	return side, ax, partner
 }
 
 // columns settles every side column once every end has attached and every

@@ -378,85 +378,107 @@ func (r *router) onSpan(v, which int, x float64) bool {
 // a wire whose stops spread no wider than Span runs straight on its
 // in-port's x, or else on its out-port's, when every other stop may move
 // there: a dummy stop when it is free to, a side column (shifts), a port
-// that slides along its face (slides). Otherwise, walking up from the
-// in-port, each dummy stop moves onto the stop below it when that is
-// within Span and free.
+// that slides along its face (slides). Each runs straight through unify.
+// Otherwise, walking up from the in-port, each dummy stop moves onto the
+// stop below it when that is within Span and free (walkUp).
 func (r *router) straighten() {
-	g := r.g
-	for e, chain := range g.Chains {
+	for e, chain := range r.g.Chains {
 		if len(chain) < 2 {
 			continue
 		}
 		w := r.wires[e]
 		stops := w.stops
-		last := len(stops) - 1
 		lo, hi := slices.Min(stops), slices.Max(stops)
 		if hi-lo <= r.o.Snap {
 			continue
 		}
-		// far: target may lie beyond Span, where a dummy stop moves only
-		// where its row stays clear
-		unify := func(target float64, far bool) bool {
-			var moved [2]bool
-			for which, i := range [2]int{0, last} {
-				switch {
-				case r.attach[e][which] != nil:
-					// a side column moves only where it may, however
-					// close the x: never inward of Reach, nor into its
-					// row's clearance
-					if stops[i] != target {
-						if !r.shifts(w, e, i, which, target) {
-							return false
-						}
-						moved[which] = true
-					}
-				case math.Abs(stops[i]-target) > r.o.Snap:
-					if !r.slides(w, e, i, which, target) {
-						return false
-					}
-					moved[which] = true
-				case !r.withinFace(r.end(e, which), target):
-					return false
-				case r.ranks[e][which].Anchored && stops[i] != target:
-					return false
-				}
-			}
-			for i := 1; i < last; i++ {
-				if math.Abs(stops[i]-target) > r.o.Snap && !r.free(w, i, target, e) {
-					return false
-				}
-				if far && !r.dummyRoom(chain[i], target) {
-					return false
-				}
-			}
-			for which, i := range [2]int{0, last} {
-				if moved[which] && r.attach[e][which] == nil {
-					r.move(w.channels(i)[0], e, i, target)
-				} else if a := r.attach[e][which]; a != nil {
-					a.vx = target
-				}
-			}
-			for i := range stops {
-				stops[i] = target
-				r.hold(e, i, target)
-			}
-			return true
-		}
-		if column, ok := r.backColumn(e); ok && unify(column, true) {
+		if column, ok := r.backColumn(e); ok && r.unify(e, w, column, true) {
 			continue
 		}
-		if hi-lo <= r.o.Span && (unify(stops[len(stops)-1], false) || unify(stops[0], false)) {
+		if hi-lo <= r.o.Span && (r.unify(e, w, stops[len(stops)-1], false) || r.unify(e, w, stops[0], false)) {
 			continue
 		}
-		for i := len(stops) - 2; i >= 1; i-- {
-			next := stops[i+1]
-			d := math.Abs(stops[i] - next)
-			if d <= r.o.Snap || d > r.o.Span || !r.free(w, i, next, e) {
-				continue
-			}
-			stops[i] = next
-			r.hold(e, i, next)
+		r.walkUp(e, w)
+	}
+}
+
+// unify runs edge e's wire w straight on target when every stop may move
+// there (straighten), and reports whether it did: each end as endMoves
+// allows, and each dummy stop farther than Snap from target when it is
+// free to; when far, where target may lie beyond Span, a dummy stop only
+// where its row stays clear at target too (dummyRoom).
+func (r *router) unify(e int, w wire, target float64, far bool) bool {
+	stops, last := w.stops, len(w.stops)-1
+	var moved [2]bool
+	for which, i := range [2]int{0, last} {
+		moves, ok := r.endMoves(e, w, which, i, target)
+		if !ok {
+			return false
 		}
+		moved[which] = moves
+	}
+	chain := r.g.Chains[e]
+	for i := 1; i < last; i++ {
+		if math.Abs(stops[i]-target) > r.o.Snap && !r.free(w, i, target, e) {
+			return false
+		}
+		if far && !r.dummyRoom(chain[i], target) {
+			return false
+		}
+	}
+	for which, i := range [2]int{0, last} {
+		if moved[which] && r.attach[e][which] == nil {
+			r.move(w.channels(i)[0], e, i, target)
+		} else if a := r.attach[e][which]; a != nil {
+			a.vx = target
+		}
+	}
+	for i := range stops {
+		stops[i] = target
+		r.hold(e, i, target)
+	}
+	return true
+}
+
+// endMoves reports whether end stop i of edge e's wire w (which, its head
+// or its tail) may run on target (unify), and whether it moves to get
+// there rather than snap: a side column moves only where it shifts,
+// however close the x, never inward of Reach nor into its row's
+// clearance; a port farther than Snap from target moves only where it
+// slides along its face; and a port within Snap snaps where target lies
+// over the middle nine tenths of its face, an anchored one only when it
+// lies on target already.
+func (r *router) endMoves(e int, w wire, which, i int, target float64) (moves, ok bool) {
+	stops := w.stops
+	switch {
+	case r.attach[e][which] != nil:
+		if stops[i] == target {
+			return false, true
+		}
+		return true, r.shifts(w, e, i, which, target)
+	case math.Abs(stops[i]-target) > r.o.Snap:
+		return true, r.slides(w, e, i, which, target)
+	case !r.withinFace(r.end(e, which), target):
+		return false, false
+	case r.ranks[e][which].Anchored && stops[i] != target:
+		return false, false
+	}
+	return false, true
+}
+
+// walkUp walks edge e's wire w up from its in-port (straighten): each
+// dummy stop moves onto the stop below it when that lies more than Snap
+// and no more than Span away and the stop is free to move there.
+func (r *router) walkUp(e int, w wire) {
+	stops := w.stops
+	for i := len(stops) - 2; i >= 1; i-- {
+		next := stops[i+1]
+		d := math.Abs(stops[i] - next)
+		if d <= r.o.Snap || d > r.o.Span || !r.free(w, i, next, e) {
+			continue
+		}
+		stops[i] = next
+		r.hold(e, i, next)
 	}
 }
 
@@ -592,70 +614,17 @@ func (r *router) pullRun(w wire, e, i, j int) {
 // otherwise the one that does not carry the arrowhead. An anchored port
 // never gives way (S9): the stop it meets moves onto it, except a side
 // column inward; there, and against another end that never moves, the
-// jog stays, beyond float noise, and takes a lane.
+// jog stays, beyond float noise, and takes a lane. Each wire settles on
+// its own (settleWire, meet); its ports and side columns then take its
+// end stops' x.
 func (r *router) settle() {
 	for e, w := range r.wires {
 		stops := w.stops
 		if len(stops) < 2 {
 			continue
 		}
+		r.settleWire(e, stops)
 		last := len(stops) - 1
-		locked := make([]bool, len(stops))
-		locked[0], locked[last] = true, true
-		arrowhead := last
-		if r.reversed(e) {
-			arrowhead = 0
-		}
-		for range len(stops) + 1 {
-			changed := false
-			for i := range last {
-				a, b := stops[i], stops[i+1]
-				if a == b || math.Abs(a-b) > r.o.Snap {
-					continue
-				}
-				runStart := i
-				for runStart > 0 && stops[runStart-1] == a {
-					runStart--
-				}
-				keepsArrowhead := locked[arrowhead] && arrowhead >= runStart && arrowhead <= i
-				moveRun := locked[i+1] && !keepsArrowhead
-				if locked[i+1] {
-					runEnd := i + 1
-					for runEnd < last && stops[runEnd+1] == b {
-						runEnd++
-					}
-					runAnchored, bAnchored := r.anchoredIn(e, runStart, i, last), r.anchoredIn(e, i+1, runEnd, last)
-					switch {
-					case math.Abs(a-b) > noise && ((runAnchored && (r.stuckIn(e, i+1, runEnd, last) || r.inward(e, stops, runEnd, a))) ||
-						(bAnchored && (r.stuckIn(e, runStart, i, last) || r.inward(e, stops, runStart, b)))):
-						continue
-					case runAnchored:
-						moveRun = false
-					case bAnchored:
-						moveRun = true
-					default:
-						if runYields, bYields := r.yields(e, stops, runStart, i, b), r.yields(e, stops, i+1, runEnd, a); runYields != bYields {
-							moveRun = runYields
-						}
-					}
-				}
-				if moveRun {
-					for k := i; k >= 0 && stops[k] == a; k-- {
-						stops[k] = b
-						locked[k] = true
-					}
-				} else {
-					stops[i+1] = a
-					if locked[i] {
-						locked[i+1] = true
-					}
-				}
-				changed = true
-			}
-			if !changed {
-				break
-			}
-		}
 		for _, which := range [2]int{ports.Head, ports.Tail} {
 			i := 0
 			if which == ports.Tail {
@@ -667,6 +636,91 @@ func (r *router) settle() {
 			}
 		}
 	}
+}
+
+// settleWire settles the stops of edge e's wire (settle), its two ends
+// locked: pass after pass, at most one per stop and one more, until a
+// pass changes nothing, every two consecutive stops apart by no more than
+// Snap meet, and one gives way to the other (meet). The run of stops on
+// the upper one's x, which ends there, moves onto the lower one's and
+// locks; or the lower one moves onto the upper one's and locks when that
+// one is locked.
+func (r *router) settleWire(e int, stops []float64) {
+	last := len(stops) - 1
+	locked := make([]bool, len(stops))
+	locked[0], locked[last] = true, true
+	arrowhead := last
+	if r.reversed(e) {
+		arrowhead = 0
+	}
+	for range len(stops) + 1 {
+		changed := false
+		for i := range last {
+			a, b := stops[i], stops[i+1]
+			if a == b || math.Abs(a-b) > r.o.Snap {
+				continue
+			}
+			moveRun, ok := r.meet(e, stops, locked, i, arrowhead)
+			if !ok {
+				continue
+			}
+			if moveRun {
+				for k := i; k >= 0 && stops[k] == a; k-- {
+					stops[k] = b
+					locked[k] = true
+				}
+			} else {
+				stops[i+1] = a
+				if locked[i] {
+					locked[i+1] = true
+				}
+			}
+			changed = true
+		}
+		if !changed {
+			break
+		}
+	}
+}
+
+// meet decides which of stops i and i+1 of edge e's wire, apart by no
+// more than Snap, gives way (settle): moveRun moves the run of stops on
+// stop i's x, which ends at i, onto stop i+1's x, else stop i+1 moves onto
+// stop i's; ok is false where the jog stays. An unlocked stop i+1 moves.
+// A locked one and the run meet as their ends allow: where either holds
+// an anchored end, the other side moves onto it, unless, beyond float
+// noise, that side holds an end that never moves (stuckIn) or a side
+// column it would move inward (inward), where the jog stays; else the
+// side that may move gives way when exactly one may (yields); and else
+// the run, unless it holds the stop that carries the arrowhead, locked.
+func (r *router) meet(e int, stops []float64, locked []bool, i, arrowhead int) (moveRun, ok bool) {
+	if !locked[i+1] {
+		return false, true
+	}
+	a, b := stops[i], stops[i+1]
+	last := len(stops) - 1
+	runStart, runEnd := i, i+1
+	for runStart > 0 && stops[runStart-1] == a {
+		runStart--
+	}
+	for runEnd < last && stops[runEnd+1] == b {
+		runEnd++
+	}
+	runAnchored, bAnchored := r.anchoredIn(e, runStart, i, last), r.anchoredIn(e, i+1, runEnd, last)
+	switch {
+	case math.Abs(a-b) > noise && ((runAnchored && (r.stuckIn(e, i+1, runEnd, last) || r.inward(e, stops, runEnd, a))) ||
+		(bAnchored && (r.stuckIn(e, runStart, i, last) || r.inward(e, stops, runStart, b)))):
+		return false, false
+	case runAnchored:
+		return false, true
+	case bAnchored:
+		return true, true
+	}
+	if runYields, bYields := r.yields(e, stops, runStart, i, b), r.yields(e, stops, i+1, runEnd, a); runYields != bYields {
+		return runYields, true
+	}
+	keepsArrowhead := locked[arrowhead] && arrowhead >= runStart && arrowhead <= i
+	return !keepsArrowhead, true
 }
 
 // inward reports whether moving stop i of edge e's wire to x would move a

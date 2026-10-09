@@ -108,12 +108,51 @@ func (r *router) packLanes() {
 }
 
 // pack assigns the lanes of channel c to its jogs and to the self-loops
-// that rise into it, and returns the channel's lane count.
+// that rise into it, and returns the channel's lane count: the units
+// (units) take their lanes in the order their constraints (constraints)
+// sort them in (stackOrder), the pairs of a fan agreeing on one lane
+// where they can (agree).
 func (r *router) pack(c int, jogs []jog, loops []int) int {
 	units := r.units(jogs, loops)
-	above := make([][]int, len(units))  // above[i]: the units that must sit above unit i
-	beside := make([][]int, len(units)) // beside[i]: those of above[i] that keep two verticals from running side by side
-	column := make([][]int, len(units)) // column[i]: those of beside[i] that keep them off one column
+	above, beside, column := r.constraints(units)
+	topo := stackOrder(units, above, beside, column)
+	// A fan's pair takes one lane (S12, Rule C). A pair still apart once
+	// the floors stop cannot agree: the first is released and the channel
+	// packs again without it, from no floors. The pairs only shrink.
+	pairs := r.fanPairs(jogs, units)
+	var lanes [][]laneEntry
+	for {
+		lanes = r.agree(units, topo, above, pairs)
+		apart := slices.IndexFunc(pairs, func(p [2]int) bool { return units[p[0]].lane != units[p[1]].lane })
+		if apart < 0 {
+			break
+		}
+		pairs = slices.Delete(pairs, apart, apart+1)
+	}
+	for idx := range units {
+		u := &units[idx]
+		for _, m := range u.members {
+			r.lanes[[2]int{jogs[m].edge, c}] = u.lane
+		}
+		if u.loop >= 0 {
+			r.loopAt[u.loop].lane = u.lane
+		}
+	}
+	return len(lanes)
+}
+
+// constraints is the order a channel's units must keep (S8, Lanes):
+// above[i] lists the units that must sit above unit i, beside[i] those of
+// above[i] that keep two verticals from running side by side, and
+// column[i] those of beside[i] that keep them off one column. Two units
+// get an order when only that one keeps their verticals from running side
+// by side, or, where both orders run some side by side, from running on
+// one column; and where neither order does, when only that one draws
+// their wires without a crossing.
+func (r *router) constraints(units []unit) (above, beside, column [][]int) {
+	above = make([][]int, len(units))
+	beside = make([][]int, len(units))
+	column = make([][]int, len(units))
 	for i := range units {
 		for j := i + 1; j < len(units); j++ {
 			// Verticals side by side break the contract (C9), a crossing
@@ -147,6 +186,14 @@ func (r *router) pack(c int, jogs []jog, loops []int) int {
 			}
 		}
 	}
+	return above, beside, column
+}
+
+// stackOrder sorts units topologically by their constraints (S8, Lanes):
+// each time the first unit left that no unit left must sit above, and
+// where a cycle leaves none, the unit release picks, an unavoidable
+// crossing.
+func stackOrder(units []unit, above, beside, column [][]int) []int {
 	indegree := make([]int, len(units))
 	for i := range units {
 		indegree[i] = len(above[i])
@@ -172,29 +219,7 @@ func (r *router) pack(c int, jogs []jog, loops []int) int {
 			}
 		}
 	}
-	// A fan's pair takes one lane (S12, Rule C). A pair still apart once
-	// the floors stop cannot agree: the first is released and the channel
-	// packs again without it, from no floors. The pairs only shrink.
-	pairs := r.fanPairs(jogs, units)
-	var lanes [][]laneEntry
-	for {
-		lanes = r.agree(units, topo, above, pairs)
-		apart := slices.IndexFunc(pairs, func(p [2]int) bool { return units[p[0]].lane != units[p[1]].lane })
-		if apart < 0 {
-			break
-		}
-		pairs = slices.Delete(pairs, apart, apart+1)
-	}
-	for idx := range units {
-		u := &units[idx]
-		for _, m := range u.members {
-			r.lanes[[2]int{jogs[m].edge, c}] = u.lane
-		}
-		if u.loop >= 0 {
-			r.loopAt[u.loop].lane = u.lane
-		}
-	}
-	return len(lanes)
+	return topo
 }
 
 // release picks the unit a cycle of constraints releases (S8, Lanes): the
