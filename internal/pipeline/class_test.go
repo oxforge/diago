@@ -20,14 +20,14 @@ const classSpec = `{"type":"class","legend":true,"classes":[
   "relations":[{"id":"r1","from":"dog","to":"animal","kind":"inheritance","from_card":"*","to_card":"1"}]}`
 
 func TestRenderClass_SVG(t *testing.T) {
-	out, err := Render(context.Background(), []byte(classSpec))
+	out, err := renderSVG(context.Background(), []byte(classSpec), "")
 	require.NoError(t, err)
 	assert.Contains(t, out, `<g id="node-animal">`)
 	assert.Contains(t, out, `class="members"`)
 	assert.Contains(t, out, `marker-start="url(#diago-uml-triangle)"`)
 	assert.Contains(t, out, `<g id="legend">`)
 	assert.Contains(t, out, `<metadata id="diago-layout">`, "class renders carry the anchoring carrier")
-	themed, err := RenderWithTheme(context.Background(), []byte(classSpec), "midnight")
+	themed, err := renderSVG(context.Background(), []byte(classSpec), "midnight")
 	require.NoError(t, err)
 	assert.Contains(t, themed, `#0f0f14`)
 }
@@ -55,7 +55,7 @@ func TestRenderClass_PNGAndFormats(t *testing.T) {
 }
 
 func TestRenderClass_ValidationError(t *testing.T) {
-	_, err := Render(context.Background(), []byte(`{"type":"class","classes":[{"id":""}]}`))
+	_, err := renderSVG(context.Background(), []byte(`{"type":"class","classes":[{"id":""}]}`), "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "classes[0].id")
 }
@@ -67,7 +67,7 @@ func TestRenderClass_PreviousAnchorsAndTypeMustMatch(t *testing.T) {
 	assert.Contains(t, hints.Scopes[""].Layers, "animal")
 	again, err := RenderWithOptions(context.Background(), []byte(classSpec), Options{Previous: &hints})
 	require.NoError(t, err)
-	plain, err := Render(context.Background(), []byte(classSpec))
+	plain, err := renderSVG(context.Background(), []byte(classSpec), "")
 	require.NoError(t, err)
 	assert.Equal(t, plain, string(again), "anchoring on its own carrier reproduces the render")
 

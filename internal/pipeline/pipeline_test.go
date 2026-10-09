@@ -31,7 +31,7 @@ func TestRenderFlowValidInput(t *testing.T) {
 		],
 		"edges": [{"from": "a", "to": "b"}]
 	}`)
-	out, err := RenderFlow(context.Background(), input)
+	out, err := renderSVG(context.Background(), input, "")
 	require.NoError(t, err)
 	assert.True(t, strings.HasPrefix(out, "<?xml"), "output should be XML")
 	assert.Contains(t, out, "xmlns=\"http://www.w3.org/2000/svg\"")
@@ -42,13 +42,13 @@ func TestRenderFlowValidationError(t *testing.T) {
 		"type": "flow",
 		"nodes": [{"id": "a", "label": "A", "shape": "octagon"}]
 	}`)
-	_, err := RenderFlow(context.Background(), input)
+	_, err := renderSVG(context.Background(), input, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "shape", "error should mention the invalid field")
 }
 
 func TestRenderFlowInvalidJSON(t *testing.T) {
-	_, err := RenderFlow(context.Background(), []byte(`not json`))
+	_, err := renderSVG(context.Background(), []byte(`not json`), "")
 	require.Error(t, err)
 }
 
@@ -58,7 +58,7 @@ func TestRenderAutoDetectFlow(t *testing.T) {
 		"nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}],
 		"edges": [{"from": "a", "to": "b"}]
 	}`)
-	out, err := Render(context.Background(), input)
+	out, err := renderSVG(context.Background(), input, "")
 	require.NoError(t, err)
 	assert.True(t, strings.HasPrefix(out, "<?xml"), "auto-detect should render flow diagram")
 	assert.Contains(t, out, "<polyline", "a flow diagram draws its wire")
@@ -70,7 +70,7 @@ func TestRenderAutoDetectSequence(t *testing.T) {
 		"actors": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}],
 		"interactions": [{"from": "a", "to": "b", "label": "msg"}]
 	}`)
-	out, err := Render(context.Background(), input)
+	out, err := renderSVG(context.Background(), input, "")
 	require.NoError(t, err)
 	assert.True(t, strings.HasPrefix(out, "<?xml"), "auto-detect should render sequence diagram")
 	assert.Contains(t, out, ">msg<", "the interaction's label")
@@ -78,7 +78,7 @@ func TestRenderAutoDetectSequence(t *testing.T) {
 
 func TestRenderAutoDetectUnknown(t *testing.T) {
 	input := []byte(`{"type": "mindmap", "nodes": []}`)
-	_, err := Render(context.Background(), input)
+	_, err := renderSVG(context.Background(), input, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown diagram type")
 }
@@ -92,7 +92,7 @@ func TestRenderSequenceValidInput(t *testing.T) {
 		],
 		"interactions": [{"from": "a", "to": "b", "label": "hello"}]
 	}`)
-	out, err := RenderSequence(context.Background(), input)
+	out, err := renderSVG(context.Background(), input, "")
 	require.NoError(t, err)
 	assert.True(t, strings.HasPrefix(out, "<?xml"), "output should be XML")
 	assert.Contains(t, out, `xmlns="http://www.w3.org/2000/svg"`)
@@ -104,7 +104,7 @@ func TestRenderSequenceValidationError(t *testing.T) {
 		"actors": [],
 		"interactions": []
 	}`)
-	_, err := RenderSequence(context.Background(), input)
+	_, err := renderSVG(context.Background(), input, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "actors")
 }
@@ -116,11 +116,11 @@ func TestThemesProduceDifferentOutput(t *testing.T) {
 		"edges": [{"from": "a", "to": "b", "label": "test"}]
 	}`)
 
-	defaultSVG, err := RenderWithTheme(context.Background(), input, "default")
+	defaultSVG, err := renderSVG(context.Background(), input, "default")
 	require.NoError(t, err)
-	midnightSVG, err := RenderWithTheme(context.Background(), input, "midnight")
+	midnightSVG, err := renderSVG(context.Background(), input, "midnight")
 	require.NoError(t, err)
-	sketchSVG, err := RenderWithTheme(context.Background(), input, "sketch")
+	sketchSVG, err := renderSVG(context.Background(), input, "sketch")
 	require.NoError(t, err)
 
 	assert.NotEqual(t, defaultSVG, midnightSVG, "default and midnight should differ")
@@ -134,7 +134,7 @@ func TestSketchThemeHasPangolinFont(t *testing.T) {
 		"nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}],
 		"edges": [{"from": "a", "to": "b"}]
 	}`)
-	svg, err := RenderWithTheme(context.Background(), input, "sketch")
+	svg, err := renderSVG(context.Background(), input, "sketch")
 	require.NoError(t, err)
 	assert.Contains(t, svg, "Pangolin")
 	assert.Contains(t, svg, "font-family: 'Pangolin'")
@@ -146,7 +146,7 @@ func TestSketchThemeHasWobblyEdges(t *testing.T) {
 		"nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}],
 		"edges": [{"from": "a", "to": "b"}]
 	}`)
-	svg, err := RenderWithTheme(context.Background(), input, "sketch")
+	svg, err := renderSVG(context.Background(), input, "sketch")
 	require.NoError(t, err)
 	// Sketch edges use subdivided L commands in a <path> instead of <polyline>.
 	assert.Contains(t, svg, "<path d=\"M", "sketch edges should use path elements")
@@ -158,7 +158,7 @@ func TestDefaultThemeHasNoSketchEffects(t *testing.T) {
 		"nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}],
 		"edges": [{"from": "a", "to": "b"}]
 	}`)
-	svg, err := RenderWithTheme(context.Background(), input, "default")
+	svg, err := renderSVG(context.Background(), input, "default")
 	require.NoError(t, err)
 	assert.NotContains(t, svg, "Pangolin")
 }
@@ -426,7 +426,7 @@ func TestLayoutFlow(t *testing.T) {
 		]
 	}`)
 
-	pg, err := LayoutFlow(context.Background(), input)
+	pg, err := LayoutFlowForFormat(context.Background(), input, "svg", nil)
 	require.NoError(t, err)
 	require.NotNil(t, pg)
 
@@ -449,13 +449,13 @@ func TestLayoutFlow(t *testing.T) {
 
 func TestLayoutFlowInvalidSpec(t *testing.T) {
 	input := []byte(`{"type":"flow","nodes":[{"id":"a","label":"A","shape":"octagon"}]}`)
-	_, err := LayoutFlow(context.Background(), input)
+	_, err := LayoutFlowForFormat(context.Background(), input, "svg", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "shape")
 }
 
 func TestLayoutFlowInvalidJSON(t *testing.T) {
-	_, err := LayoutFlow(context.Background(), []byte(`not json`))
+	_, err := LayoutFlowForFormat(context.Background(), []byte(`not json`), "svg", nil)
 	require.Error(t, err)
 }
 
@@ -475,7 +475,7 @@ func TestLayoutSequence(t *testing.T) {
 		]
 	}`)
 
-	ps, err := LayoutSequence(context.Background(), input)
+	ps, err := LayoutSequenceForFormat(context.Background(), input, "svg")
 	require.NoError(t, err)
 	require.NotNil(t, ps)
 
@@ -499,13 +499,13 @@ func TestLayoutSequence(t *testing.T) {
 
 func TestLayoutSequenceInvalidSpec(t *testing.T) {
 	input := []byte(`{"type":"sequence","actors":[],"interactions":[]}`)
-	_, err := LayoutSequence(context.Background(), input)
+	_, err := LayoutSequenceForFormat(context.Background(), input, "svg")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "actors")
 }
 
 func TestLayoutSequenceInvalidJSON(t *testing.T) {
-	_, err := LayoutSequence(context.Background(), []byte(`not json`))
+	_, err := LayoutSequenceForFormat(context.Background(), []byte(`not json`), "svg")
 	require.Error(t, err)
 }
 
@@ -553,11 +553,11 @@ func TestReportContract_DebugWiring(t *testing.T) {
 	reportContract(context.Background(), pg, g, false)
 	assert.Empty(t, buf.String(), "unarmed context")
 
-	// Armed end-to-end through LayoutFlow on a clean spec: no violations,
+	// Armed end-to-end through LayoutFlowForFormat on a clean spec: no violations,
 	// so no contract_violation records — but the call must not fail.
 	buf.Reset()
 	spec := []byte(`{"type":"flow","direction":"DOWN","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b"}]}`)
-	_, err := LayoutFlow(ctx, spec)
+	_, err := LayoutFlowForFormat(ctx, spec, "svg", nil)
 	require.NoError(t, err)
 	assert.NotContains(t, buf.String(), `"decision":"contract_violation"`, "a clean two-node spec")
 }
@@ -734,4 +734,11 @@ func TestRenderDiff_EdgeLabelIDsAreUnique(t *testing.T) {
 		seen[string(m[1])] = true
 	}
 	assert.True(t, seen["edge-label-a-b"])
+}
+
+// renderSVG renders input to SVG under theme ("" = the spec's own) through
+// RenderWithOptions, the entry point the CLI uses.
+func renderSVG(ctx context.Context, input []byte, theme string) (string, error) {
+	out, err := RenderWithOptions(ctx, input, Options{Theme: theme})
+	return string(out), err
 }

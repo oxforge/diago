@@ -22,10 +22,11 @@ func TestNoEndpointDots(t *testing.T) {
 		],
 		"edges": [{"from": "a", "to": "b"}]
 	}`
-	svg, err := pipeline.RenderFlow(context.Background(), []byte(spec))
+	out, err := pipeline.RenderWithOptions(context.Background(), []byte(spec), pipeline.Options{})
 	if err != nil {
 		t.Fatalf("render: %v", err)
 	}
+	svg := string(out)
 
 	// The only legitimate <circle> elements in a flow SVG are:
 	//   * circle-shape nodes (not used in this spec, all rects)

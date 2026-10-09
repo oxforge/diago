@@ -24,10 +24,6 @@ import (
 	"github.com/oxforge/diago/internal/theme"
 )
 
-type specProbe struct {
-	Type string `json:"type"`
-}
-
 // Options holds optional overrides for rendering.
 type Options struct {
 	Theme       string             // theme name override (empty = use spec value)
@@ -102,66 +98,6 @@ func RenderTheme(spec []byte, format, override string) (string, error) {
 // profile of th.
 func graphLayout(ctx context.Context, g model.Graph, th theme.Theme, previous *model.LayoutHints) (*model.PositionedGraph, error) {
 	return layoutWith(ctx, g, th, false, previous)
-}
-
-// Render auto-detects the diagram type from the JSON "type" field and
-// dispatches to the appropriate pipeline.
-func Render(ctx context.Context, input []byte) (string, error) {
-	var probe specProbe
-	if err := json.Unmarshal(input, &probe); err != nil {
-		return "", fmt.Errorf("render: invalid JSON: %w", err)
-	}
-	switch probe.Type {
-	case "flow":
-		return RenderFlow(ctx, input)
-	case "sequence":
-		return RenderSequence(ctx, input)
-	case "class":
-		return RenderClass(ctx, input)
-	default:
-		return "", fmt.Errorf("render: unknown diagram type: %q", probe.Type)
-	}
-}
-
-// RenderWithTheme renders a diagram using an explicit theme name,
-// overriding any theme specified in the JSON spec ("" uses the spec's).
-func RenderWithTheme(ctx context.Context, input []byte, themeName string) (string, error) {
-	var probe specProbe
-	if err := json.Unmarshal(input, &probe); err != nil {
-		return "", fmt.Errorf("render: invalid JSON: %w", err)
-	}
-	switch probe.Type {
-	case "flow":
-		return renderFlowWithTheme(ctx, input, themeName)
-	case "sequence":
-		return renderSequenceWithTheme(ctx, input, themeName)
-	case "class":
-		return renderClassWithTheme(ctx, input, themeName)
-	default:
-		return "", fmt.Errorf("render: unknown diagram type: %q", probe.Type)
-	}
-}
-
-// RenderFlow parses the JSON flow diagram spec in input, lays it out, and
-// renders it to an SVG string. Returns a ValidationErrors if the spec is
-// invalid, or a wrapped internal error if layout/rendering fails.
-func RenderFlow(ctx context.Context, input []byte) (string, error) {
-	return renderFlowWithTheme(ctx, input, "")
-}
-
-// RenderSequence parses the JSON sequence diagram spec in input, lays it out, and
-// renders it to an SVG string. Returns a ValidationErrors if the spec is
-// invalid, or a wrapped internal error if layout/rendering fails.
-func RenderSequence(ctx context.Context, input []byte) (string, error) {
-	return renderSequenceWithTheme(ctx, input, "")
-}
-
-// RenderClass parses the JSON class diagram spec in input, lays it out with
-// the layered engine, and renders it to an SVG string. Returns a
-// ValidationErrors if the spec is invalid, or a wrapped internal error if
-// layout/rendering fails.
-func RenderClass(ctx context.Context, input []byte) (string, error) {
-	return renderClassWithTheme(ctx, input, "")
 }
 
 // RenderWithOptions renders with the given options. When opts.Advisories is
@@ -335,23 +271,17 @@ func renderExport(ctx context.Context, input []byte, diagType, format, themeName
 	return data, flatRanked, err
 }
 
-// LayoutFlow parses and lays out a flow diagram, returning the positioned graph.
-// The theme is always "default" (font metrics are theme-independent for layout).
-// The ctx is forwarded to the layered engine so that any debug logger
-// attached via layoutdbg.NewContext receives its decision records.
-func LayoutFlow(ctx context.Context, input []byte) (*model.PositionedGraph, error) {
-	return LayoutFlowForFormat(ctx, input, "svg", nil)
-}
-
 // isTextFormat reports whether format names text art ("text", or its alias
 // "txt").
 func isTextFormat(format string) bool {
 	return format == "txt" || format == "text"
 }
 
-// LayoutFlowForFormat is LayoutFlow with the output format known: text art
+// LayoutFlowForFormat parses and lays out a flow diagram for format: text art
 // lays out under the text profile (S14); every other format uses the screen
-// profile of the default theme.
+// profile of the default theme. The ctx is forwarded to the layered engine so
+// that a debug logger attached via layoutdbg.NewContext receives its decision
+// records.
 func LayoutFlowForFormat(ctx context.Context, input []byte, format string, previous *model.LayoutHints) (*model.PositionedGraph, error) {
 	return LayoutGraphForFormat(ctx, input, schema.ParseFlow, format, previous)
 }
@@ -437,17 +367,10 @@ func edgeIDs(g model.Graph) []string {
 	return ids
 }
 
-// LayoutSequence parses and lays out a sequence diagram, returning the positioned sequence.
-// The theme is always "default" (font metrics are theme-independent for layout).
-// The ctx is currently unused by the sequence layout engine but is accepted for
-// symmetry with LayoutFlow so callers can plumb the per-request debug logger.
-func LayoutSequence(ctx context.Context, input []byte) (*model.PositionedSequence, error) {
-	return LayoutSequenceForFormat(ctx, input, "svg")
-}
-
-// LayoutSequenceForFormat is LayoutSequence with the output format known:
+// LayoutSequenceForFormat parses and lays out a sequence diagram for format:
 // text art lays out under the sequence engine's text profile, on the cell
-// grid.
+// grid; every other format uses the default theme's screen profile. The ctx
+// is currently unused by the sequence layout engine.
 func LayoutSequenceForFormat(ctx context.Context, input []byte, format string) (*model.PositionedSequence, error) {
 	_ = ctx
 	diagram, err := schema.ParseSequence(input)
@@ -488,20 +411,6 @@ func layoutSequenceScreen(d model.SequenceDiagram, th theme.Theme) *model.Positi
 	positioned := seqlayout.LayoutWithProfile(d, p)
 	seqlayout.NormalizeSequenceWithProfile(positioned, p)
 	return positioned
-}
-
-func renderFlowWithTheme(ctx context.Context, input []byte, themeName string) (string, error) {
-	svg, _, _, err := renderFlowFull(ctx, input, themeName, nil)
-	return svg, err
-}
-
-func renderSequenceWithTheme(ctx context.Context, input []byte, themeName string) (string, error) {
-	return renderSequenceFull(ctx, input, themeName)
-}
-
-func renderClassWithTheme(ctx context.Context, input []byte, themeName string) (string, error) {
-	svg, _, _, err := renderGraphFull(ctx, input, "class", schema.ParseClass, themeName, nil)
-	return svg, err
 }
 
 // layoutGraph parses a flow-shaped spec with parse, validates it, and lays it
