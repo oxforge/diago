@@ -1,6 +1,7 @@
 package schema_test
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -533,4 +534,30 @@ func TestParseFlow_OrdinarySelfLoopStillAllowed(t *testing.T) {
 	g, err := schema.ParseFlow([]byte(`{"type":"flow","nodes":[{"id":"a","label":"A"}],"edges":[{"from":"a","to":"a"}]}`))
 	require.NoError(t, err)
 	assert.False(t, g.Edges[0].Flat)
+}
+
+// Group nesting and cycle errors name the offending group's own field
+// (groups[i]) and come out in spec order, run after run.
+func TestParseFlow_GroupErrorsAreIndexedAndOrdered(t *testing.T) {
+	errFields := func(spec, about string) []string {
+		_, err := schema.ParseFlow([]byte(spec))
+		var ve schema.ValidationErrors
+		require.True(t, errors.As(err, &ve), "%v", err)
+		var out []string
+		for _, e := range ve {
+			if strings.Contains(e.Message, about) {
+				out = append(out, e.Field)
+			}
+		}
+		return out
+	}
+	deep := `{"type":"flow","nodes":[{"id":"n1","label":"1"},{"id":"n2","label":"2"},{"id":"n3","label":"3"}],"edges":[],"groups":[
+{"id":"a","label":"A","contains":["b"]},{"id":"b","label":"B","contains":["c"]},{"id":"c","label":"C","contains":["d","e","f"]},
+{"id":"d","label":"D","contains":["n1"]},{"id":"e","label":"E","contains":["n2"]},{"id":"f","label":"F","contains":["n3"]}]}`
+	for range 20 {
+		assert.Equal(t, []string{"groups[3]", "groups[4]", "groups[5]"}, errFields(deep, "nesting depth"))
+	}
+	cycle := `{"type":"flow","nodes":[{"id":"n","label":"N"}],"edges":[],"groups":[
+{"id":"x","label":"X","contains":["y"]},{"id":"y","label":"Y","contains":["x"]},{"id":"z","label":"Z","contains":["n"]}]}`
+	assert.Equal(t, []string{"groups[0]", "groups[1]"}, errFields(cycle, "cycle"))
 }

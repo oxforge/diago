@@ -107,24 +107,33 @@ func validateGroupsPrefixed(specs []GroupSpec, nodeIDs map[string]bool, prefix s
 	visitedGroups := make(map[string]bool)
 	visitingGroups := make(map[string]bool)
 
-	var assignDepth func(id string, depth int) error
-	assignDepth = func(id string, depth int) error {
+	// index is each registered group's position in specs: its error field.
+	index := make(map[string]int, len(specs))
+	for i, g := range specs {
+		if _, seen := index[g.ID]; g.ID != "" && gm.groupIDs[g.ID] && !seen {
+			index[g.ID] = i
+		}
+	}
+	field := func(id string) string { return fmt.Sprintf("%s[%d]", prefix, index[id]) }
+
+	var assignDepth func(id string, depth int) string // the group a containment cycle runs through, or ""
+	assignDepth = func(id string, depth int) string {
 		if visitingGroups[id] {
-			return fmt.Errorf("group containment cycle detected involving %q", id)
+			return id
 		}
 		if visitedGroups[id] {
-			return nil
+			return ""
 		}
 		visitingGroups[id] = true
 		groupDepth[id] = depth
 		for _, childID := range gm.groupChildren[id] {
-			if err := assignDepth(childID, depth+1); err != nil {
-				return err
+			if c := assignDepth(childID, depth+1); c != "" {
+				return c
 			}
 		}
 		visitingGroups[id] = false
 		visitedGroups[id] = true
-		return nil
+		return ""
 	}
 
 	for _, g := range specs {
@@ -132,29 +141,27 @@ func validateGroupsPrefixed(specs []GroupSpec, nodeIDs map[string]bool, prefix s
 			continue
 		}
 		if _, hasParent := gm.groupInGroup[g.ID]; !hasParent {
-			if err := assignDepth(g.ID, 1); err != nil {
-				errs = append(errs, ValidationError{Field: prefix, Message: err.Error()})
+			if c := assignDepth(g.ID, 1); c != "" {
+				errs = append(errs, ValidationError{Field: field(c), Message: fmt.Sprintf("group containment cycle detected involving %q", c)})
 			}
 		}
 	}
 
 	// Any group not visited is part of a cycle among non-root groups.
-	for _, g := range specs {
-		if g.ID != "" && gm.groupIDs[g.ID] && !visitedGroups[g.ID] {
-			errs = append(errs, ValidationError{
-				Field:   prefix,
-				Message: fmt.Sprintf("group containment cycle detected involving %q", g.ID),
-			})
+	for i, g := range specs {
+		if j, ok := index[g.ID]; !ok || j != i || visitedGroups[g.ID] {
+			continue
 		}
+		errs = append(errs, ValidationError{Field: field(g.ID), Message: fmt.Sprintf("group containment cycle detected involving %q", g.ID)})
 	}
 
-	// Enforce max depth of 3.
-	for id, depth := range groupDepth {
-		if depth > maxGroupNestingDepth {
-			errs = append(errs, ValidationError{
-				Field:   prefix,
-				Message: fmt.Sprintf("group %q exceeds maximum nesting depth of %d", id, maxGroupNestingDepth),
-			})
+	// Enforce max depth of 3, in spec order.
+	for i, g := range specs {
+		if j, ok := index[g.ID]; !ok || j != i {
+			continue
+		}
+		if groupDepth[g.ID] > maxGroupNestingDepth {
+			errs = append(errs, ValidationError{Field: field(g.ID), Message: fmt.Sprintf("group %q exceeds maximum nesting depth of %d", g.ID, maxGroupNestingDepth)})
 		}
 	}
 

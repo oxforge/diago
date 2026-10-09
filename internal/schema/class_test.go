@@ -170,7 +170,7 @@ func TestParseClass_PackagesNestAndLimit(t *testing.T) {
 	  {"id":"p3","label":"3","contains":["p4"]},{"id":"p4","label":"4","contains":["a"]}]}`
 	_, err := ParseClass([]byte(spec))
 	f := fields(t, err)
-	assert.Contains(t, f["packages"], "exceeds maximum nesting depth of 3")
+	assert.Contains(t, f["packages[3]"], "exceeds maximum nesting depth of 3")
 }
 
 func TestDerivePairIDs(t *testing.T) {
