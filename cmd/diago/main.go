@@ -56,8 +56,9 @@
 // (exit 1).
 //
 // On validation error, a structured JSON error is printed to stderr and the
-// process exits with code 1. On a usage, read, git or internal error, a
-// plain message is printed to stderr and the process exits with code 2.
+// process exits with code 1. On a usage, read, git or internal error, or a
+// failed write to stdout, a plain message is printed to stderr and the
+// process exits with code 2.
 package main
 
 import (
