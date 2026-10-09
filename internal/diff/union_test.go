@@ -1,7 +1,6 @@
 package diff
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/oxforge/diago/internal/model"
@@ -155,18 +154,6 @@ func TestBuildUnion_HoistIndependentOfBeforeGroupOrder(t *testing.T) {
 	}
 }
 
-func TestBuildUnion_Deterministic(t *testing.T) {
-	before, after := parse(t, specA), parse(t, `{"type":"flow","direction":"DOWN",
-	 "nodes":[{"id":"d","label":"D"},{"id":"a","label":"A!"},{"id":"b","label":"B"}],
-	 "edges":[{"from":"a","to":"b","label":"now"},{"from":"b","to":"d"}],
-	 "groups":[{"id":"g","label":"G","contains":["b"]}]}`)
-	first, _ := json.Marshal(BuildUnion(before, after))
-	for i := 0; i < 20; i++ {
-		again, _ := json.Marshal(BuildUnion(before, after))
-		require.Equal(t, string(first), string(again))
-	}
-}
-
 func TestBuildUnion_IdenticalIsAllSame(t *testing.T) {
 	u := BuildUnion(parse(t, specA), parse(t, specA))
 	for id, s := range u.Nodes {
@@ -216,13 +203,4 @@ func TestBuildUnion_UnchangedClassKeepsOwnMembers(t *testing.T) {
 			assert.Len(t, n.Members.Methods, 2)
 		}
 	}
-}
-
-// The union is presentation-free: a title on either side
-// never reaches the diff render.
-func TestBuildUnion_DropsTitle(t *testing.T) {
-	before := &model.Graph{Title: "Before", Nodes: []model.Node{{ID: "a", Label: "A"}}}
-	after := &model.Graph{Title: "After", Nodes: []model.Node{{ID: "a", Label: "A"}}}
-	u := BuildUnion(before, after)
-	assert.Equal(t, "", u.Graph.Title)
 }

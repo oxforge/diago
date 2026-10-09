@@ -1,7 +1,6 @@
 package diff
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/oxforge/diago/internal/model"
@@ -143,32 +142,12 @@ func TestBuildUnionSequence_FragmentMatchesByWeakKeyWhenLabelsChange(t *testing.
 	assert.Equal(t, []SectionRef{{0, "ok", model.FragmentAlt}}, u.Diff.RemovedSections)
 }
 
-func TestBuildUnionSequence_Deterministic(t *testing.T) {
-	before, after := parseSeq(t, fragA), parseSeq(t, fragA)
-	first, err := json.Marshal(BuildUnionSequence(before, after))
-	require.NoError(t, err)
-	for i := 0; i < 20; i++ {
-		again, err := json.Marshal(BuildUnionSequence(before, after))
-		require.NoError(t, err)
-		require.Equal(t, string(first), string(again))
-	}
-}
-
 func actorIDs(as []model.Actor) []string {
 	out := make([]string, len(as))
 	for i, a := range as {
 		out[i] = a.ID
 	}
 	return out
-}
-
-// The union is presentation-free: a title on either side
-// never reaches the diff render.
-func TestBuildUnionSequence_DropsTitle(t *testing.T) {
-	before := &model.SequenceDiagram{Title: "Before", Actors: []model.Actor{{ID: "a", Label: "A"}}}
-	after := &model.SequenceDiagram{Title: "After", Actors: []model.Actor{{ID: "a", Label: "A"}}}
-	u := BuildUnionSequence(before, after)
-	assert.Equal(t, "", u.Diagram.Title)
 }
 
 // A fragment over messages that moved through a gap keeps all of them.

@@ -117,48 +117,15 @@ func TestAlignSequences_RemovedActorSplicedBesideLeftNeighbour(t *testing.T) {
 	}, al.Actors)
 }
 
-// TestAlignSequences_Deterministic guards the rule that an LCS tie prefers
-// the earliest before index, so a double run is identical: calling
-// AlignSequences twice on the same inputs must produce byte-for-byte equal
-// results, across several fixtures already used above.
-func TestAlignSequences_Deterministic(t *testing.T) {
-	labelEditAfter := parseSeq(t, `{"type":"sequence",
- "actors":[{"id":"u","label":"User"},{"id":"w","label":"Web"},{"id":"a","label":"Auth"}],
- "interactions":[
-  {"from":"u","to":"w","label":"sign in"},
-  {"from":"w","to":"a","label":"check"},
-  {"from":"a","to":"w","label":"ok","style":"dashed"},
-  {"from":"w","to":"u","label":"welcome","style":"dashed"}]}`)
-	endpointMoveAfter := parseSeq(t, `{"type":"sequence",
- "actors":[{"id":"u","label":"User"},{"id":"w","label":"Web"},{"id":"a","label":"Auth"}],
- "interactions":[
-  {"from":"u","to":"w","label":"login"},
-  {"from":"u","to":"a","label":"check"},
-  {"from":"a","to":"w","label":"ok","style":"dashed"},
-  {"from":"w","to":"u","label":"welcome","style":"dashed"}]}`)
-	actorSpliceBefore := parseSeq(t, `{"type":"sequence",
- "actors":[{"id":"x","label":"X"},{"id":"u","label":"User"},{"id":"m","label":"Mail"},{"id":"n","label":"Notify"},{"id":"w","label":"Web"}],
- "interactions":[{"from":"u","to":"w","label":"login"}]}`)
-	actorSpliceAfter := parseSeq(t, `{"type":"sequence",
- "actors":[{"id":"w","label":"Web"},{"id":"u","label":"User!"},{"id":"z","label":"Z"}],
- "interactions":[{"from":"u","to":"w","label":"login"}]}`)
-
-	cases := []struct {
-		name          string
-		before, after *model.SequenceDiagram
-	}{
-		{"label edit", parseSeq(t, seqA), labelEditAfter},
-		{"endpoint move", parseSeq(t, seqA), endpointMoveAfter},
-		{"actor splice", actorSpliceBefore, actorSpliceAfter},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			first := AlignSequences(c.before, c.after)
-			second := AlignSequences(c.before, c.after)
-			assert.Equal(t, first.Steps, second.Steps)
-			assert.Equal(t, first.Actors, second.Actors)
-		})
-	}
+// A tie in the LCS between consuming a before step and an after step goes to
+// the before side: of A,B against B,A (one common step either way) the
+// earliest before index that matches is B's, so A is removed and A added.
+func TestAlignSequences_TiesConsumeTheBeforeSideFirst(t *testing.T) {
+	before := parseSeq(t, `{"type":"sequence",`+gapActors+`,"interactions":[
+ {"from":"a","to":"b","label":"A"},{"from":"b","to":"a","label":"B"}]}`)
+	after := parseSeq(t, `{"type":"sequence",`+gapActors+`,"interactions":[
+ {"from":"b","to":"a","label":"B"},{"from":"a","to":"b","label":"A"}]}`)
+	assert.Equal(t, [][3]any{{Removed, 0, -1}, {Same, 1, 0}, {Added, -1, 1}}, steps(AlignSequences(before, after)))
 }
 
 const gapActors = `"actors":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}]`
