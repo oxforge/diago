@@ -60,7 +60,8 @@ func settle(ctx context.Context, g *lgraph.Graph, anchored bool, most int) [][]i
 	}
 	best, crossings, ran := run(g, sweeps)
 	restarts, moves, loops := 0, 0, 0
-	for {
+	// out of time: keep the best ordering so far; the caller stops the layout
+	for ctx.Err() == nil {
 		if restarts+moves+loops == most {
 			layoutdbg.Decision(ctx, "order_capped",
 				"phase", "order", "module", "diago", "spec_ref", "S6",

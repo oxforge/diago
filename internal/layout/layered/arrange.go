@@ -92,14 +92,23 @@ func arrangeLevel(ctx context.Context, lv *lgraph.Level, reversed []bool, cfg Co
 	if err != nil {
 		return nil, err
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("layered: %w", err)
+	}
 	pl.route.Fans = fans
 	lg, po, ro := pl.Graph, pl.place, pl.route
 	x := place.Place(ctx, lg, po)
 	routed := route.Route(ctx, lg, x, ro)
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("layered: %w", err)
+	}
 	if anySide(routed.Side) {
 		po.Side, ro.Side = routed.Side, routed.Side
 		x = place.Place(ctx, lg, po)
 		routed = route.Route(ctx, lg, x, ro)
+		if err := ctx.Err(); err != nil {
+			return nil, fmt.Errorf("layered: %w", err)
+		}
 	}
 	pl.X, pl.Route = x, routed
 	return &pl.levelLayout, nil

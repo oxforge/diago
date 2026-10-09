@@ -1508,3 +1508,11 @@ func TestPlace_TextTerminalsLineUpWithPortsOneCellApart(t *testing.T) {
 	assert.InDelta(t, x("n"), x("tb"), 1e-9, "on n's second in-port")
 	assert.InDelta(t, x("n")+1, x("tc"), 1e-9, "on n's third in-port")
 }
+
+func TestPlace_ReturnsEveryVertexWhenTheContextIsDone(t *testing.T) {
+	g, _, _ := placed(t, Options{Gap: 40, Span: 8, Reach: 20, Clearance: 12, InLaneGap: 8, Dir: model.Down}, nil, "m:diamond->a", "m->b", "a->c", "b->c")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	x := Place(ctx, g, Options{Gap: 40, Span: 8, Reach: 20, Clearance: 12, InLaneGap: 8, Dir: model.Down})
+	assert.Len(t, x, len(g.Vertices))
+}

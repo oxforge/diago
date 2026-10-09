@@ -69,3 +69,15 @@ func TestRenderDiff_InvalidJSONNamesItsSide(t *testing.T) {
 	_, err = RenderDiff(context.Background(), []byte(`{"nodes":[]}`), []byte(okFlow), DiffOptions{})
 	assert.Equal(t, "before.type", field(t, err))
 }
+
+func TestRender_StopsWhenTheContextIsDone(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	seq := `{"type":"sequence","actors":[{"id":"a","label":"A"}],"interactions":[{"from":"a","to":"a"}]}`
+	for _, spec := range []string{okFlow, seq} {
+		_, err := RenderWithOptions(ctx, []byte(spec), Options{})
+		assert.ErrorIs(t, err, context.Canceled, spec)
+	}
+	_, err := RenderDiff(ctx, []byte(okFlow), []byte(okFlow), DiffOptions{})
+	assert.ErrorIs(t, err, context.Canceled)
+}

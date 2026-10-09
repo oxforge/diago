@@ -281,6 +281,9 @@ func RenderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 // the union edges the layout ranked (flatRankedDiffFields); nil for a
 // sequence diff, which has no flat edges.
 func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]byte, []textrender.DroppedLabel, []flatRankedField, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, nil, fmt.Errorf("diff: %w", err)
+	}
 	format := opts.Format
 	if format == "" {
 		format = "svg"

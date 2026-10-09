@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -832,4 +833,26 @@ func TestRun_DiffWithAnUnsupportedFormatIsAUsageError(t *testing.T) {
 	code, _, stderr := runCLI(t, "", "diff", "-format", "bogus", p, p)
 	assert.Equal(t, 2, code)
 	assert.Contains(t, stderr, "error: diff: unsupported format")
+}
+
+// shortDeadline runs the test with a deadline already past when a render starts.
+func shortDeadline(t *testing.T) {
+	t.Helper()
+	old := renderTimeout
+	renderTimeout = time.Nanosecond
+	t.Cleanup(func() { renderTimeout = old })
+}
+
+func TestRun_ARenderPastItsDeadlineExits2(t *testing.T) {
+	shortDeadline(t)
+	code, out, stderr := runCLI(t, twoNodeSpec, "render")
+	assert.Equal(t, 2, code)
+	assert.Empty(t, out)
+	assert.Contains(t, stderr, "took longer than")
+}
+
+func TestRun_CheckHasNoDeadline(t *testing.T) {
+	shortDeadline(t)
+	code, _, _ := runCLI(t, twoNodeSpec, "check")
+	assert.Equal(t, 0, code)
 }

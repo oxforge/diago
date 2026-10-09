@@ -272,6 +272,9 @@ func runRender(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		baseCtx = layoutdbg.NewContext(baseCtx, logger)
 	}
 
+	ctx, cancel := context.WithTimeout(baseCtx, renderTimeout)
+	defer cancel()
+
 	input, reports, err := readSource(baseCtx, "spec", path, stdin)
 	if err != nil {
 		return reportSourceError(stderr, "render", err)
@@ -299,15 +302,13 @@ func runRender(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			if err != nil {
 				return reportError(stderr, err)
 			}
-			previous, err = pipeline.ParsePrevious(baseCtx, data, kind, *format, renderTheme)
+			previous, err = pipeline.ParsePrevious(ctx, data, kind, *format, renderTheme)
 			if err != nil {
 				return reportError(stderr, err)
 			}
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(baseCtx, 10*time.Second)
-	defer cancel()
 	var warnings []string
 	var advisories []schema.Advisory
 	data, renderErr := pipeline.RenderWithOptions(ctx, input, pipeline.Options{
@@ -394,9 +395,17 @@ func writeReports(w io.Writer, reports []mermaid.Report, side string) {
 	}
 }
 
+// renderTimeout bounds a render or diff, layout and drawing; a variable so
+// tests can shorten it.
+var renderTimeout = 10 * time.Second
+
 // reportError writes err to stderr and returns the exit code: 1 for a
 // structured schema.ValidationErrors JSON envelope, 2 for a plain message.
 func reportError(stderr io.Writer, err error) int {
+	if errors.Is(err, context.DeadlineExceeded) {
+		fmt.Fprintf(stderr, "error: the render took longer than %s and was stopped: split the diagram or simplify it\n", renderTimeout)
+		return 2
+	}
 	var ve schema.ValidationErrors
 	if errors.As(err, &ve) {
 		out := struct {
@@ -487,7 +496,7 @@ func runDiff(args []string, stdout, stderr io.Writer) int {
 		return reportSourceError(stderr, "diff", err)
 	}
 	writeReports(stderr, newReports, "after")
-	ctx, cancel := context.WithTimeout(baseCtx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(baseCtx, renderTimeout)
 	defer cancel()
 	var advisories []schema.Advisory
 	data, err := pipeline.RenderDiff(ctx, oldData, newData, pipeline.DiffOptions{

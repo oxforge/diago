@@ -2394,3 +2394,13 @@ func TestLayout_AParallelogramsTopAndBottomPortsLineUp(t *testing.T) {
 }
 
 func last(ps []model.Point) model.Point { return ps[len(ps)-1] }
+
+func TestLayout_StopsWhenTheContextIsDone(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	g := model.Graph{Direction: model.Down,
+		Nodes: []model.Node{{ID: "a", Label: "A"}, {ID: "b", Label: "B"}},
+		Edges: []model.Edge{{ID: "a->b#0", From: "a", To: "b"}}}
+	_, err := Layout(ctx, g, screen(), nil)
+	assert.ErrorIs(t, err, context.Canceled)
+}

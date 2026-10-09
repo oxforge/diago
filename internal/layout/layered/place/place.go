@@ -81,6 +81,9 @@ func Place(ctx context.Context, g *lgraph.Graph, o Options) []float64 {
 	// restart denies at least one diamond its primary or gives at least one
 	// back, each at most once per diamond; so the loop ends
 	for round := 0; ; round++ {
+		if ctx.Err() != nil {
+			break // out of time: the caller stops the layout
+		}
 		r := p.sideExits(x, forced, rooms, round)
 		if len(r.changes) > 0 {
 			for _, c := range r.changes {

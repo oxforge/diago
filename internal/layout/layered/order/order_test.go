@@ -600,3 +600,15 @@ func TestCrossedBy(t *testing.T) {
 	require.Equal(t, [][]string{{"a", "b", "c", "d", "e", "f"}, {"A", "B", "C", "D", "E", "F"}}, ids(g))
 	assert.Equal(t, []int{crossedByNone, 2, 1, crossedBySeveral, 3, 3}, crossedBy(g))
 }
+
+// Out of time, the ordering still holds every vertex once, on its own layer.
+func TestMinimize_StopsWithAWholeOrderingWhenTheContextIsDone(t *testing.T) {
+	g := graph(t, "a->c", "a->d", "b->c", "b->d", "c->e", "d->f", "c->f")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	got := Minimize(ctx, g, false)
+	require.Len(t, got, len(g.Layers))
+	for l := range got {
+		assert.ElementsMatch(t, g.Layers[l], got[l], "layer %d", l)
+	}
+}

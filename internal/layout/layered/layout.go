@@ -2,6 +2,7 @@ package layered
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"sort"
 
@@ -34,6 +35,9 @@ const noise = 1e-6
 // on the final geometry. A non-nil previous is a previous layout's
 // carrier to anchor on (S13); the result carries its own (C18).
 func Layout(ctx context.Context, g model.Graph, cfg Config, previous *model.LayoutHints) (*model.PositionedGraph, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("layered: %w", err)
+	}
 	dir, err := resolve(ctx, g, cfg)
 	if err != nil {
 		return nil, err

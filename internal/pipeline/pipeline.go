@@ -183,6 +183,9 @@ func RenderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte,
 }
 
 func renderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte, []textrender.DroppedLabel, []flatRankedField, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, nil, fmt.Errorf("render: %w", err)
+	}
 	kind, err := schema.DiagramType(input)
 	if err != nil {
 		return nil, nil, nil, err
