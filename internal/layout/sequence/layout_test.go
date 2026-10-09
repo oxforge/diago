@@ -616,47 +616,49 @@ const showcaseSpec = `{"type":"sequence","actors":[{"id":"user","label":"User"},
 {"type":"opt","over":["web"],"sections":[{"label":"items found","start":5,"end":5}]},
 {"type":"alt","over":["web","api"],"sections":[{"label":"out of stock","start":8,"end":8},{"label":"in stock","start":9,"end":9}]}]}`
 
-// On screen a frame's left side, out in the gutter its header needs, and
-// its right side, out past a self-message's label, keep FragmentPaddingX
-// and half an activation bar clear of the lifelines beside its span: the
-// actors move apart to make room.
+// A frame's left side, out in the gutter its header needs, and its right
+// side, out past a self-message's label, keep FragmentPaddingX and half an
+// activation bar clear of the lifelines beside its span: the actors move
+// apart to make room.
 func TestLayoutFragment_FrameClearsTheLifelinesBesideItsSpan(t *testing.T) {
-	p := seqlayout.ScreenProfile(fragFonts)
-	clearance := p.FragmentPaddingX + p.ActivationWidth/2
-	for name, spec := range map[string]string{"showcase": showcaseSpec, "self": selfSpec, "nested": nestedCases[0].spec, "header": headerSpec} {
-		t.Run(name, func(t *testing.T) {
-			d, err := schema.ParseSequence([]byte(spec))
-			require.NoError(t, err)
-			ps := layOut(t, spec, p)
-			for fi, f := range ps.Fragments {
-				// The actors the frame spans: over and every actor its
-				// messages touch (no case here nests a wider frame).
-				leftmost, rightmost := len(d.Actors), -1
-				spanned := func(id string) {
-					for i, a := range d.Actors {
-						if a.ID == id {
-							leftmost, rightmost = min(leftmost, i), max(rightmost, i)
+	for _, np := range screenAndText() {
+		p := np.p
+		clearance := p.FragmentPaddingX + p.ActivationWidth/2
+		for name, spec := range map[string]string{"showcase": showcaseSpec, "self": selfSpec, "nested": nestedCases[0].spec, "header": headerSpec} {
+			t.Run(np.name+"/"+name, func(t *testing.T) {
+				d, err := schema.ParseSequence([]byte(spec))
+				require.NoError(t, err)
+				ps := layOut(t, spec, p)
+				for fi, f := range ps.Fragments {
+					// The actors the frame spans: over and every actor its
+					// messages touch (no case here nests a wider frame).
+					leftmost, rightmost := len(d.Actors), -1
+					spanned := func(id string) {
+						for i, a := range d.Actors {
+							if a.ID == id {
+								leftmost, rightmost = min(leftmost, i), max(rightmost, i)
+							}
 						}
 					}
+					fr := d.Fragments[fi]
+					for _, id := range fr.Over {
+						spanned(id)
+					}
+					for i := fr.Sections[0].Start; i <= fr.Sections[len(fr.Sections)-1].End; i++ {
+						spanned(d.Interactions[i].From)
+						spanned(d.Interactions[i].To)
+					}
+					for _, a := range ps.Actors[:leftmost] {
+						assert.GreaterOrEqual(t, f.X-a.LineX, clearance-1e-9,
+							"fragment %d (%s): its left side at %g is %g right of the %s lifeline", fi, f.Type, f.X, f.X-a.LineX, a.ID)
+					}
+					for _, a := range ps.Actors[rightmost+1:] {
+						assert.GreaterOrEqual(t, a.LineX-(f.X+f.Width), clearance-1e-9,
+							"fragment %d (%s): its right side at %g is %g left of the %s lifeline", fi, f.Type, f.X+f.Width, a.LineX-(f.X+f.Width), a.ID)
+					}
 				}
-				fr := d.Fragments[fi]
-				for _, id := range fr.Over {
-					spanned(id)
-				}
-				for i := fr.Sections[0].Start; i <= fr.Sections[len(fr.Sections)-1].End; i++ {
-					spanned(d.Interactions[i].From)
-					spanned(d.Interactions[i].To)
-				}
-				for _, a := range ps.Actors[:leftmost] {
-					assert.GreaterOrEqual(t, f.X-a.LineX, clearance-1e-9,
-						"fragment %d (%s): its left side at %g is %g right of the %s lifeline", fi, f.Type, f.X, f.X-a.LineX, a.ID)
-				}
-				for _, a := range ps.Actors[rightmost+1:] {
-					assert.GreaterOrEqual(t, a.LineX-(f.X+f.Width), clearance-1e-9,
-						"fragment %d (%s): its right side at %g is %g left of the %s lifeline", fi, f.Type, f.X+f.Width, a.LineX-(f.X+f.Width), a.ID)
-				}
-			}
-		})
+			})
+		}
 	}
 }
 

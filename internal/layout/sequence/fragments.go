@@ -1,6 +1,7 @@
 package sequence
 
 import (
+	"math"
 	"sort"
 
 	"github.com/oxforge/diago/internal/model"
@@ -18,10 +19,10 @@ type fragmentPlan struct {
 	// span of every fragment it contains.
 	leftIdx, rightIdx int
 	tabW, tabH        float64   // the operator tab; zero in text art
-	guardW            []float64 // each section's guard ("[label]") width; zero without a label
+	guardW            []float64 // each section's guard ("[label]") width; zero without a label and in text art
 	// headerW is the widest header row: the tab, then the first guard
 	// after FragmentGuardGap, or a later guard after FragmentGuardGap from
-	// the frame's left side.
+	// the frame's left side. In text art it is textHeaderWidth.
 	headerW float64
 	inner   []int // the plans (indexes into the plan list) this one contains
 }
@@ -80,27 +81,49 @@ func planFragments(fragments []model.Fragment, interactions []model.Interaction,
 			}
 		}
 
-		// The header. Text art draws its own inline tab and guards on the
-		// frame's rows, so only the guard widths count there.
-		if !p.TextMode() {
+		// The header. On screen the tab and each guard are measured; text
+		// art writes its own runs (textHeaderWidth).
+		pl.guardW = make([]float64, len(f.Sections))
+		if p.TextMode() {
+			pl.headerW = textHeaderWidth(f, p)
+		} else {
 			ow, oh := p.MeasureText(f.Type.String(), p.Fonts.FragLabelSize, p.Fonts.Family)
 			pl.tabW = ow + 2*p.FragmentTabPadX + p.FragmentTabCut
 			pl.tabH = oh + 2*p.FragmentTabPadY
-		}
-		pl.guardW = make([]float64, len(f.Sections))
-		for k, sec := range f.Sections {
-			row := 0.0
-			if k == 0 {
-				row = pl.tabW
+			for k, sec := range f.Sections {
+				row := 0.0
+				if k == 0 {
+					row = pl.tabW
+				}
+				if sec.Label != "" {
+					pl.guardW[k], _ = p.MeasureText("["+sec.Label+"]", p.Fonts.FragLabelSize, p.Fonts.Family)
+					row += p.FragmentGuardGap + pl.guardW[k]
+				}
+				pl.headerW = max(pl.headerW, row)
 			}
-			if sec.Label != "" {
-				pl.guardW[k], _ = p.MeasureText("["+sec.Label+"]", p.Fonts.FragLabelSize, p.Fonts.Family)
-				row += p.FragmentGuardGap + pl.guardW[k]
-			}
-			pl.headerW = max(pl.headerW, row)
 		}
 	}
 	return plans
+}
+
+// textHeaderWidth is the gutter text art needs left of a frame's leftmost
+// lifeline: the tab and the first guard share the top row, and a later guard
+// has its divider. A frame without guards needs none, because its tab slides
+// along the top row between the lifelines.
+func textHeaderWidth(f model.Fragment, p Profile) float64 {
+	w := 0.0
+	for k, sec := range f.Sections {
+		if sec.Label == "" {
+			continue
+		}
+		run := model.FragmentGuard(sec.Label)
+		if k == 0 {
+			run = model.FragmentTab(f.Type) + run
+		}
+		rw, _ := p.MeasureText(run, p.Fonts.FragLabelSize, p.Fonts.Family)
+		w = max(w, rw)
+	}
+	return w
 }
 
 // headerRoom is how far below a frame's line (its top, or a divider) an
@@ -110,15 +133,14 @@ func (pl fragmentPlan) headerRoom(p Profile) float64 {
 	return max(p.FragmentPaddingY, pl.tabH+p.FragmentGuardGap)
 }
 
-// spaceForFragmentHeaders moves actors right, on screen, until every
-// frame's sides keep FragmentPaddingX and half an activation bar clear of
-// the lifelines beside its span, which the frame does not cover: its left
-// side out in the gutter its header rows need left of its leftmost lifeline,
-// its right side out past the self-message loops and labels in its range.
-// Text art keeps its spacing: its frames draw their guards on their own
-// rows.
+// spaceForFragmentHeaders moves actors right until every frame's sides keep
+// FragmentPaddingX and half an activation bar clear of the lifelines beside
+// its span, which the frame does not cover: its left side out in the gutter
+// its header rows need left of its leftmost lifeline, its right side out
+// past the self-message loops and labels in its range. In text art every
+// shift is whole cells.
 func spaceForFragmentHeaders(plans []fragmentPlan, interactions []model.Interaction, actorIndex map[string]int, boxW, centerX []float64, p Profile) {
-	if p.TextMode() || len(centerX) < 2 {
+	if len(centerX) < 2 {
 		return
 	}
 	clearance := p.FragmentPaddingX + p.ActivationWidth/2
@@ -179,8 +201,12 @@ func spaceForFragmentHeaders(plans []fragmentPlan, interactions []model.Interact
 			}
 		}
 		if gap := centerX[a] - centerX[a-1]; gap < need {
+			shift := need - gap
+			if p.TextMode() {
+				shift = math.Ceil(shift/p.CellW) * p.CellW
+			}
 			for j := a; j < len(centerX); j++ {
-				centerX[j] += need - gap
+				centerX[j] += shift
 			}
 		}
 	}

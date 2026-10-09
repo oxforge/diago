@@ -78,8 +78,6 @@ func RenderSequence(ps *model.PositionedSequence, showActivations bool) (Result,
 	return Result{Art: titledArt, TopRow: top - titleLines}, nil
 }
 
-func fragmentTab(t model.FragmentType) string { return " " + t.String() + " " }
-
 // drawFragment paints the double-line frame, the tab slid right past any
 // pierced lifeline, ╪ at every lifeline on frame and divider rows, and the
 // section dividers with their guards.
@@ -150,7 +148,7 @@ func drawFragment(g *charGrid, f model.PositionedFragment, colOf map[string]int)
 		return max(x+1, min(base, maxStart))
 	}
 
-	tab := fragmentTab(f.Type)
+	tab := model.FragmentTab(f.Type)
 	tabStart := slide(x+2, tab)
 	used := writeTracked(tabStart, y, tab)
 	pierceRow(y, used)
@@ -168,14 +166,14 @@ func drawFragment(g *charGrid, f model.PositionedFragment, colOf map[string]int)
 		}
 		var guardUsed map[int]bool
 		if s.Label != "" {
-			text := " [" + s.Label + "] "
+			text := model.FragmentGuard(s.Label)
 			guardUsed = writeTracked(slide(x+2, text), row, text)
 		}
 		pierceRow(row, guardUsed)
 	}
 	// First section's guard sits after the tab on the top row.
 	if len(f.Sections) > 0 && f.Sections[0].Label != "" {
-		text := " [" + f.Sections[0].Label + "] "
+		text := model.FragmentGuard(f.Sections[0].Label)
 		start := slide(tabStart+len([]rune(tab)), text)
 		writeTracked(start, y, text)
 	}

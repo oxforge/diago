@@ -41,6 +41,12 @@ type Fragment struct {
 	Sections []FragmentSection // at least one; alt may have multiple
 }
 
+// FragmentTab is a fragment's operator tab as text art draws it.
+func FragmentTab(t FragmentType) string { return " " + t.String() + " " }
+
+// FragmentGuard is a section's guard as text art draws it.
+func FragmentGuard(label string) string { return " [" + label + "] " }
+
 // --- Sequence diagram positioned model ---
 
 // PositionedSequence is the output of the sequence diagram layout engine.

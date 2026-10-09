@@ -3,6 +3,8 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -80,4 +82,49 @@ func TestRender_StopsWhenTheContextIsDone(t *testing.T) {
 	}
 	_, err := RenderDiff(ctx, []byte(okFlow), []byte(okFlow), DiffOptions{})
 	assert.ErrorIs(t, err, context.Canceled)
+}
+
+// In text art a frame's header runs (its tab, its guards) never cover a
+// lifeline where it crosses the frame, and a frame starts right of every
+// lifeline left of its span.
+func TestRenderWithOptions_TextFrameHeadersKeepTheLifelines(t *testing.T) {
+	for _, tc := range []struct {
+		name, spec string
+		actors     int
+		outside    int // how many leftmost lifelines lie left of the frame
+	}{
+		{"guard over the first actor", `{"type":"sequence","actors":[{"id":"c","label":"Client"},{"id":"s","label":"Server"}],"interactions":[{"from":"c","to":"s","label":"try"},{"from":"s","to":"c","label":"fail"}],"fragments":[{"type":"loop","over":["c","s"],"sections":[{"label":"retry < 3","start":0,"end":1}]}]}`, 2, 0},
+		{"guard right of the first actor", `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"interactions":[{"from":"b","to":"c","label":"get"},{"from":"c","to":"b","label":"miss"}],"fragments":[{"type":"opt","over":["b","c"],"sections":[{"label":"cache miss","start":0,"end":1}]}]}`, 3, 1},
+		{"two guards", `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"interactions":[{"from":"a","to":"b","label":"x"},{"from":"b","to":"a","label":"y"}],"fragments":[{"type":"alt","over":["a","b"],"sections":[{"label":"valid token","start":0,"end":0},{"label":"expired token","start":1,"end":1}]}]}`, 2, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := RenderWithOptions(context.Background(), []byte(tc.spec), Options{Format: "text"})
+			require.NoError(t, err)
+			rows := strings.Split(string(out), "\n")
+			var lifelines []int // the lifeline columns, on the row under the headers
+			for i, r := range []rune(rows[3]) {
+				if r == '│' {
+					lifelines = append(lifelines, i)
+				}
+			}
+			require.Len(t, lifelines, tc.actors, "lifelines on the row under the headers:\n%s", out)
+			for _, row := range rows {
+				rs := []rune(row)
+				left := slices.IndexFunc(rs, func(r rune) bool { return r == '╔' || r == '╟' })
+				if left < 0 {
+					continue
+				}
+				right := slices.IndexFunc(rs[left+1:], func(r rune) bool { return r == '╗' || r == '╢' }) + left + 1
+				for k, c := range lifelines {
+					if k < tc.outside {
+						assert.Less(t, c, left, "lifeline %d lies left of the frame: %q", k, row)
+						continue
+					}
+					if c > left && c < right {
+						assert.Equal(t, '╪', rs[c], "lifeline %d crosses the frame on %q", k, row)
+					}
+				}
+			}
+		})
+	}
 }

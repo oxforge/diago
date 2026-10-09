@@ -98,7 +98,7 @@ type actorSize struct {
 
 // layoutActors computes the header box sizes and X-coordinates for each
 // actor: far enough apart for their boxes, the labels of the messages
-// between neighbors and, on screen, the fragment headers (plans).
+// between neighbors and the fragment headers (plans).
 func layoutActors(
 	diagram model.SequenceDiagram,
 	actorIndex map[string]int,
