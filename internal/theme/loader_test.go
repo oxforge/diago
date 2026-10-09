@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/oxforge/diago/themes"
 )
 
 func TestLoadDefaultTheme(t *testing.T) {
@@ -253,4 +255,31 @@ func TestValidate_PaddingBounds(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
+}
+
+// A theme name never reaches outside DIAGO_THEME_DIR, and the error names
+// no directory.
+func TestLoad_ANameIsAPlainFileName(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "themes")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "outside"), 0o755))
+	def, err := themes.FS.ReadFile("default.json")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "outside", "evil.json"), def, 0o644))
+	t.Setenv("DIAGO_THEME_DIR", dir)
+	for _, name := range []string{"../outside/evil", "a/b", "/abs", `a\b`, "..", "."} {
+		_, err := Load(name)
+		require.Error(t, err, name)
+		assert.Contains(t, err.Error(), "plain file name", name)
+		assert.NotContains(t, err.Error(), root, name)
+	}
+}
+
+// A theme found in neither the built-ins nor DIAGO_THEME_DIR is named, its
+// directory not.
+func TestLoad_AMissingThemeNamesNoDirectory(t *testing.T) {
+	t.Setenv("DIAGO_THEME_DIR", t.TempDir())
+	_, err := Load("nope")
+	assert.EqualError(t, err, `theme "nope" not found`)
 }

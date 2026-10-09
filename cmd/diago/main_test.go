@@ -910,3 +910,19 @@ func TestRun_CheckHasNoDeadline(t *testing.T) {
 	code, _, _ := runCLI(t, twoNodeSpec, "check")
 	assert.Equal(t, 0, code)
 }
+
+// A theme name with a path is rejected: the spec's on its theme field
+// (exit 1), the -theme flag's as a usage error (exit 2). A spec whose
+// theme is empty renders with the default.
+func TestRun_AThemeNameWithAPathIsRejected(t *testing.T) {
+	code, _, stderr := runCLI(t, `{"type":"flow","theme":"../x","nodes":[{"id":"a","label":"A"}],"edges":[]}`, "render")
+	assert.Equal(t, 1, code)
+	assert.Contains(t, stderr, `"field": "theme"`)
+	assert.Contains(t, stderr, "plain file name")
+	code, _, stderr = runCLI(t, twoNodeSpec, "render", "-theme", "../x")
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "plain file name")
+	code, out, _ := runCLI(t, `{"type":"flow","theme":"","nodes":[{"id":"a","label":"A"}],"edges":[]}`, "render")
+	assert.Equal(t, 0, code)
+	assert.Contains(t, out, "<svg")
+}
