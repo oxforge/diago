@@ -63,46 +63,17 @@ func toCellEdge(e model.PositionedEdge, nodes map[string]model.PositionedNode) (
 	for i, p := range e.Points {
 		ce.pts[i] = cellPoint{px2col(p.X), px2row(p.Y)}
 	}
-	// Endpoint face mapping: a point on a node's bottom or right face lies
-	// exactly on a cell boundary and floor() would place it in the cell
-	// outside the node; map every endpoint onto the border cell of the face
-	// it sits on so the wire meets the box and the head lands next to it.
-	// Only the axis the adjacent segment does not run along is adjusted: a
-	// point on a corner sits on two faces, and moving it on both axes would
-	// pull it off its own segment.
-	faceCell := func(idx, adj int, node model.PositionedNode) {
-		p := &ce.pts[idx]
-		px, py := e.Points[idx].X, e.Points[idx].Y
-		left, right := node.X-node.Width/2, node.X+node.Width/2
-		top, bottom := node.Y-node.Height/2, node.Y+node.Height/2
-		horizontalSeg := px2row(e.Points[idx].Y) == px2row(e.Points[adj].Y)
-		if !horizontalSeg {
-			switch {
-			case abs(py-bottom) < 0.5:
-				p.y = px2row(bottom) - 1
-			case abs(py-top) < 0.5:
-				p.y = px2row(top)
-			}
-			return
-		}
-		switch {
-		case abs(px-right) < 0.5:
-			p.x = px2col(right) - 1
-		case abs(px-left) < 0.5:
-			p.x = px2col(left)
-		}
+	last := len(ce.pts) - 1
+	from, hasFrom := nodes[e.From]
+	to, hasTo := nodes[e.To]
+	if hasFrom {
+		ce.pts[0] = faceCell(ce.pts[0], e.Points[0], e.Points[1], from)
 	}
-	if n, ok := nodes[e.From]; ok {
-		faceCell(0, 1, n)
+	if hasTo {
+		ce.pts[last] = faceCell(ce.pts[last], e.Points[last], e.Points[last-1], to)
 	}
-	if n, ok := nodes[e.To]; ok {
-		faceCell(len(ce.pts)-1, len(ce.pts)-2, n)
-	}
-	for i := 1; i < len(ce.pts); i++ {
-		a, b := ce.pts[i-1], ce.pts[i]
-		if a.x != b.x && a.y != b.y {
-			return ce, errNotAxisAligned(e.From, e.To, i-1)
-		}
+	if i := firstDiagonal(ce.pts); i >= 0 {
+		return ce, errNotAxisAligned(e.From, e.To, i)
 	}
 	if e.LabelPos != nil {
 		// The layout's LabelPos is the center of the label's box, whose
@@ -111,66 +82,103 @@ func toCellEdge(e model.PositionedEdge, nodes map[string]model.PositionedNode) (
 		// profile, 0 when the caller measured nothing) and middle row.
 		ce.labelAt = &cellPoint{px2col(e.LabelPos.X - e.LabelWidth/2), px2row(e.LabelPos.Y)}
 	}
-	card := func(c *model.EndLabel) *cellCard {
-		if c == nil || c.Pos == nil || c.Text == "" {
-			return nil
-		}
-		return &cellCard{text: c.Text, at: cellPoint{px2col(c.Pos.X - c.Width/2), px2row(c.Pos.Y)}, unresolved: c.Unresolved}
+	ce.fromCard, ce.toCard = cardCell(e.FromCard), cardCell(e.ToCard)
+	if hasFrom {
+		ce.pts[0], ce.departureHead, ce.sideDeparture = snapSide(ce.pts[0], e.Points[0], e.Points[1], from)
 	}
-	ce.fromCard, ce.toCard = card(e.FromCard), card(e.ToCard)
-	// Side attachment: an endpoint on a node's left or right face, its wire
-	// leaving along its row, moves one cell outside the border, where its
-	// arrowhead sits flush against the face. It keeps the row the layout
-	// gave it, a face's corner row included, so every wire is drawn where
-	// the labels stage saw it (S10 Text cells).
-	snapSide := func(endIdx, nextIdx int, node model.PositionedNode, isArrival bool) {
-		p := &ce.pts[endIdx]
-		px := e.Points[endIdx].X
-		left, right := node.X-node.Width/2, node.X+node.Width/2
-		onLeft := abs(px-left) < 0.5
-		onRight := abs(px-right) < 0.5
-		if (!onLeft && !onRight) || px2row(e.Points[endIdx].Y) != px2row(e.Points[nextIdx].Y) {
-			return
-		}
-		head := '►' // wire on the node's left, pointing right into it
-		if onRight {
-			p.x = px2col(right)
-			head = '◄'
-		} else {
-			p.x = px2col(left) - 1
-		}
-		if isArrival {
-			ce.sideArrival = true
-			ce.arrivalHead = head
-		} else {
-			ce.sideDeparture = true
-			ce.departureHead = head
-		}
-	}
-	if n, ok := nodes[e.From]; ok {
-		snapSide(0, 1, n, false)
-	}
-	if n, ok := nodes[e.To]; ok {
-		snapSide(len(ce.pts)-1, len(ce.pts)-2, n, true)
+	if hasTo {
+		ce.pts[last], ce.arrivalHead, ce.sideArrival = snapSide(ce.pts[last], e.Points[last], e.Points[last-1], to)
 	}
 	// Collapse any consecutive duplicate the face mapping or snapSide's x
 	// move produced (the latter when a side end's next point already sits
 	// in the column just outside the face), then check orthogonality again
 	// on the cells that will actually be drawn.
-	deduped := ce.pts[:1]
-	for _, p := range ce.pts[1:] {
-		if p != deduped[len(deduped)-1] {
-			deduped = append(deduped, p)
-		}
-	}
-	ce.pts = deduped
-	for i := 1; i < len(ce.pts); i++ {
-		a, b := ce.pts[i-1], ce.pts[i]
-		if a.x != b.x && a.y != b.y {
-			return ce, errNotAxisAligned(e.From, e.To, i-1)
-		}
+	ce.pts = dropRepeats(ce.pts)
+	if i := firstDiagonal(ce.pts); i >= 0 {
+		return ce, errNotAxisAligned(e.From, e.To, i)
 	}
 	return ce, nil
+}
+
+// faceCell maps an endpoint, the pixel point at in cell p, onto the border
+// cell of node's face it sits on, so the wire meets the box and the head
+// lands next to it: a point on a node's bottom or right face lies exactly
+// on a cell boundary, where floor() would place it in the cell outside the
+// node. Only the axis the segment toward adj does not run along moves: a
+// point on a corner sits on two faces, and moving it on both axes would
+// pull it off its own segment.
+func faceCell(p cellPoint, at, adj model.Point, node model.PositionedNode) cellPoint {
+	left, right := node.X-node.Width/2, node.X+node.Width/2
+	top, bottom := node.Y-node.Height/2, node.Y+node.Height/2
+	if px2row(at.Y) != px2row(adj.Y) {
+		switch {
+		case abs(at.Y-bottom) < 0.5:
+			p.y = px2row(bottom) - 1
+		case abs(at.Y-top) < 0.5:
+			p.y = px2row(top)
+		}
+		return p
+	}
+	switch {
+	case abs(at.X-right) < 0.5:
+		p.x = px2col(right) - 1
+	case abs(at.X-left) < 0.5:
+		p.x = px2col(left)
+	}
+	return p
+}
+
+// snapSide attaches an endpoint, the pixel point at in cell p, to node's
+// left or right face when it sits on one and its wire leaves along its
+// row, toward next: it moves one cell outside the border, where its
+// arrowhead sits flush against the face. It keeps the row the layout gave
+// it, a face's corner row included, so every wire is drawn where the
+// labels stage saw it (S10 Text cells). It returns the end's cell, the
+// head glyph pointing into the face, and whether the end attached.
+func snapSide(p cellPoint, at, next model.Point, node model.PositionedNode) (cellPoint, rune, bool) {
+	left, right := node.X-node.Width/2, node.X+node.Width/2
+	onLeft := abs(at.X-left) < 0.5
+	onRight := abs(at.X-right) < 0.5
+	if (!onLeft && !onRight) || px2row(at.Y) != px2row(next.Y) {
+		return p, 0, false
+	}
+	if onRight {
+		p.x = px2col(right)
+		return p, '◄', true
+	}
+	p.x = px2col(left) - 1
+	return p, '►', true // the wire on the node's left, pointing right into it
+}
+
+// cardCell maps a cardinality to the cell its box starts in, its left
+// side's column on its middle row; nil when it has no position or no text.
+func cardCell(c *model.EndLabel) *cellCard {
+	if c == nil || c.Pos == nil || c.Text == "" {
+		return nil
+	}
+	return &cellCard{text: c.Text, at: cellPoint{px2col(c.Pos.X - c.Width/2), px2row(c.Pos.Y)}, unresolved: c.Unresolved}
+}
+
+// dropRepeats collapses the consecutive duplicates of pts, in place.
+func dropRepeats(pts []cellPoint) []cellPoint {
+	out := pts[:1]
+	for _, p := range pts[1:] {
+		if p != out[len(out)-1] {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// firstDiagonal is the index of the first segment of pts that is neither
+// horizontal nor vertical; -1 when every segment is axis-aligned.
+func firstDiagonal(pts []cellPoint) int {
+	for i := 1; i < len(pts); i++ {
+		if pts[i-1].x != pts[i].x && pts[i-1].y != pts[i].y {
+			return i - 1
+		}
+	}
+	return -1
 }
 
 func abs(v float64) float64 {

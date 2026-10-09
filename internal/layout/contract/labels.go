@@ -139,90 +139,147 @@ func (c *checker) frameRows(g model.PositionedGroup) [2]box {
 // subject and object (C14.4); a congruence-owned label (C17) is checked
 // like any other.
 func (c *checker) checkLabels() {
+	labels := c.placedLabels()
+	envs := c.envelopes()
+	for li, l := range labels {
+		if c.text() {
+			c.checkLabelCells(l)
+		}
+		c.checkLabelOverlaps(l, labels[li+1:], envs)
+		c.checkLabelWires(l)
+	}
+}
+
+// placedLabels returns every edge's label and cardinality boxes, in edge
+// order, but for the unresolved ones, which are exempt (C14.4).
+func (c *checker) placedLabels() []placedLabel {
 	var labels []placedLabel
 	for i, e := range c.pg.Edges {
 		for _, l := range labelBoxes(e) {
-			if l.unresolved {
-				continue
+			if !l.unresolved {
+				labels = append(labels, placedLabel{l, i})
 			}
-			labels = append(labels, placedLabel{l, i})
 		}
 	}
-	type env struct {
-		edge string
-		b    box
-	}
-	var envs []env
+	return labels
+}
+
+// edgeEnvelope is an adorned edge's adornment envelope.
+type edgeEnvelope struct {
+	edge string
+	box  box
+}
+
+// envelopes returns every adorned edge's adornment envelope, in edge order.
+func (c *checker) envelopes() []edgeEnvelope {
+	var envs []edgeEnvelope
 	for _, e := range c.pg.Edges {
 		if b, ok := c.envelope(e); ok {
-			envs = append(envs, env{e.ID, b})
+			envs = append(envs, edgeEnvelope{e.ID, b})
 		}
 	}
-	hit := func(a, b box) bool {
-		w, h := overlap(a, b)
-		return w > boxOverlapTol && h > boxOverlapTol
+	return envs
+}
+
+// boxesOverlap reports whether a and b overlap by more than boxOverlapTol
+// on both axes.
+func boxesOverlap(a, b box) bool {
+	w, h := overlap(a, b)
+	return w > boxOverlapTol && h > boxOverlapTol
+}
+
+// checkLabelCells verifies C14.5 for label l, in the text profile: its box
+// lies on whole cells and covers no cell of a group frame's top or bottom
+// side.
+func (c *checker) checkLabelCells(l placedLabel) {
+	id := c.pg.Edges[l.edge].ID
+	if !c.onCells(l.box) {
+		c.add("C14.5", id, "%s does not lie on whole cells", l.what)
 	}
-	for li, l := range labels {
-		e := c.pg.Edges[l.edge]
-		if c.text() && !c.onCells(l.box) {
-			c.add("C14.5", e.ID, "%s does not lie on whole cells", l.what)
-		}
-		if c.text() {
-			for _, g := range c.pg.Groups {
-				for _, side := range c.frameRows(g) {
-					if w, h := overlap(c.cellsOf(l.box), side); w > 0 && h > 0 {
-						c.add("C14.5", e.ID, "%s covers the top or bottom side of group %s's frame", l.what, g.ID)
-					}
-				}
+	for _, g := range c.pg.Groups {
+		for _, side := range c.frameRows(g) {
+			if w, h := overlap(c.cellsOf(l.box), side); w > 0 && h > 0 {
+				c.add("C14.5", id, "%s covers the top or bottom side of group %s's frame", l.what, g.ID)
 			}
 		}
-		for _, n := range c.pg.Nodes {
-			if hit(l.box, nodeBox(n)) {
-				c.add("C14.1", e.ID, "%s overlaps node %s", l.what, n.ID)
+	}
+}
+
+// checkLabelOverlaps verifies C14.1 for label l: its box overlaps no node
+// box, no group title box, no box of the labels after it (later), so that
+// each pair of labels is checked once, and no adornment envelope.
+func (c *checker) checkLabelOverlaps(l placedLabel, later []placedLabel, envs []edgeEnvelope) {
+	id := c.pg.Edges[l.edge].ID
+	for _, n := range c.pg.Nodes {
+		if boxesOverlap(l.box, nodeBox(n)) {
+			c.add("C14.1", id, "%s overlaps node %s", l.what, n.ID)
+		}
+	}
+	for _, g := range c.pg.Groups {
+		if tb, ok := c.titleBox(g); ok && boxesOverlap(l.box, tb) {
+			c.add("C14.1", id, "%s overlaps the title of group %s", l.what, g.ID)
+		}
+	}
+	for _, o := range later {
+		if boxesOverlap(l.box, o.box) {
+			c.add("C14.1", id, "%s overlaps %s of edge %s", l.what, o.what, c.pg.Edges[o.edge].ID)
+		}
+	}
+	for _, v := range envs {
+		if boxesOverlap(l.box, v.box) {
+			c.add("C14.1", id, "%s overlaps the adornment of edge %s", l.what, v.edge)
+		}
+	}
+}
+
+// checkLabelWires verifies C14.2 and C14.3 for label l against every
+// segment of every edge, in edge order: another edge's segment strikes no
+// label box (checkLabelStrike), its own edge's keeps clear of it
+// (checkLabelGap).
+func (c *checker) checkLabelWires(l placedLabel) {
+	for oi, o := range c.pg.Edges {
+		for i := 0; i+1 < len(o.Points); i++ {
+			if oi == l.edge {
+				c.checkLabelGap(l, i)
+			} else {
+				c.checkLabelStrike(l, o, i)
 			}
 		}
-		for _, g := range c.pg.Groups {
-			if tb, ok := c.titleBox(g); ok && hit(l.box, tb) {
-				c.add("C14.1", e.ID, "%s overlaps the title of group %s", l.what, g.ID)
-			}
+	}
+}
+
+// checkLabelStrike verifies C14.2 for label l against segment i of another
+// edge, o: the segment runs through the box no deeper than penetrationTol;
+// in the text profile, it is drawn in none of the box's cells.
+func (c *checker) checkLabelStrike(l placedLabel, o model.PositionedEdge, i int) {
+	id, p, q := c.pg.Edges[l.edge].ID, o.Points[i], o.Points[i+1]
+	if c.text() {
+		if w, h := overlap(c.cellsOf(l.box), c.drawnCells(p, q)); w > 0 && h > 0 {
+			c.add("C14.2", id, "%s holds a cell segment %d of edge %s is drawn in", l.what, i, o.ID)
 		}
-		for _, o := range labels[li+1:] {
-			if hit(l.box, o.box) {
-				c.add("C14.1", e.ID, "%s overlaps %s of edge %s", l.what, o.what, c.pg.Edges[o.edge].ID)
-			}
+		return
+	}
+	if pen := penetration(p, q, l.box.inflate(-boxOverlapTol)); pen > penetrationTol {
+		c.add("C14.2", id, "%s is struck by segment %d of edge %s", l.what, i, o.ID)
+	}
+}
+
+// checkLabelGap verifies C14.3 for label l against segment i of its own
+// edge: the segment keeps LabelGap from the box; in the text profile, it
+// is drawn in none of the box's cells, nor in the cell before or after it
+// along its row.
+func (c *checker) checkLabelGap(l placedLabel, i int) {
+	e := c.pg.Edges[l.edge]
+	p, q := e.Points[i], e.Points[i+1]
+	if c.text() {
+		cells := c.cellsOf(l.box)
+		cells.left, cells.right = cells.left-1, cells.right+1 // the blank before and after it along its row
+		if w, h := overlap(cells, c.drawnCells(p, q)); w > 0 && h > 0 {
+			c.add("C14.3", e.ID, "%s or the blank beside it holds a cell segment %d of its own edge is drawn in", l.what, i)
 		}
-		for _, v := range envs {
-			if hit(l.box, v.b) {
-				c.add("C14.1", e.ID, "%s overlaps the adornment of edge %s", l.what, v.edge)
-			}
-		}
-		for oi, o := range c.pg.Edges {
-			for i := 0; i+1 < len(o.Points); i++ {
-				p, q := o.Points[i], o.Points[i+1]
-				if oi != l.edge && c.text() {
-					if w, h := overlap(c.cellsOf(l.box), c.drawnCells(p, q)); w > 0 && h > 0 {
-						c.add("C14.2", e.ID, "%s holds a cell segment %d of edge %s is drawn in", l.what, i, o.ID)
-					}
-					continue
-				}
-				if oi != l.edge {
-					if pen := penetration(p, q, l.box.inflate(-boxOverlapTol)); pen > penetrationTol {
-						c.add("C14.2", e.ID, "%s is struck by segment %d of edge %s", l.what, i, o.ID)
-					}
-					continue
-				}
-				if c.text() {
-					cells := c.cellsOf(l.box)
-					cells.left, cells.right = cells.left-1, cells.right+1 // the blank before and after it along its row
-					if w, h := overlap(cells, c.drawnCells(p, q)); w > 0 && h > 0 {
-						c.add("C14.3", e.ID, "%s or the blank beside it holds a cell segment %d of its own edge is drawn in", l.what, i)
-					}
-					continue
-				}
-				if d := segBoxDist(p, q, l.box); d < c.lim.LabelGap-slack {
-					c.add("C14.3", e.ID, "%s is %.2f px from segment %d of its own edge, under %.0f", l.what, d, i, c.lim.LabelGap)
-				}
-			}
-		}
+		return
+	}
+	if d := segBoxDist(p, q, l.box); d < c.lim.LabelGap-slack {
+		c.add("C14.3", e.ID, "%s is %.2f px from segment %d of its own edge, under %.0f", l.what, d, i, c.lim.LabelGap)
 	}
 }
