@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/oxforge/diago/internal/model"
 )
 
@@ -270,5 +272,29 @@ func TestRender_ADirectEdgeKeepsItsRow(t *testing.T) {
 		if strings.ContainsAny(lines[row], "─►") {
 			t.Fatalf("row %d holds a run of the wire:\n%s", row, r.Art)
 		}
+	}
+}
+
+// A vertical wire keeps its style where a later horizontal wire, which
+// carries the crossing, passes over it.
+func TestRender_AStyledVerticalKeepsItsStyleAtALaterCrossing(t *testing.T) {
+	for _, tc := range []struct {
+		style model.EdgeStyle
+		want  rune
+	}{{model.EdgeSolid, '│'}, {model.EdgeDashed, '╎'}, {model.EdgeDotted, '┊'}, {model.EdgeThick, '┃'}} {
+		pg := &model.PositionedGraph{
+			Nodes: []model.PositionedNode{
+				cellNode("l", "L", model.ShapeRect, 0, 6, 7, 3), cellNode("r", "R", model.ShapeRect, 10, 6, 7, 3),
+				cellNode("t", "T", model.ShapeRect, 1, 8, 7, 3),
+			},
+			Edges: []model.PositionedEdge{
+				{From: "t", To: "t", Style: tc.style, Direction: model.EdgeForward, Points: []model.Point{{X: 36, Y: 8}, {X: 36, Y: 72}}},
+				{From: "l", To: "r", Direction: model.EdgeForward, Points: []model.Point{{X: 4, Y: 40}, {X: 68, Y: 40}},
+					Crossings: []model.Crossing{{SegmentIndex: 0, T: 0.5}}},
+			},
+			Width: 160, Height: 200,
+		}
+		r := mustRender(t, pg)
+		assert.Equal(t, string(tc.want), string([]rune(rows(t, r)[2])[4]), "%v vertical at the crossing:\n%s", tc.style, r.Art)
 	}
 }

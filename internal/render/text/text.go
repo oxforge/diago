@@ -71,8 +71,8 @@ func Render(pg *model.PositionedGraph) (Result, error) {
 	}
 
 	// 3. Crossings: the vertical wire wins the cell.
-	for _, ce := range edges {
-		stampCrossings(g, ce)
+	for i := range edges {
+		stampCrossings(g, edges, i)
 	}
 
 	// 4. Nodes.

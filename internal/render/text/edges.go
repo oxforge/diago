@@ -192,9 +192,11 @@ func drawEdgeRuns(g *charGrid, ce cellEdge) {
 	}
 }
 
-// stampCrossings sets the vertical wire's glyph at every crossing this edge
-// passes over, so the vertical passes through and ┼ never appears there.
-func stampCrossings(g *charGrid, ce cellEdge) {
+// stampCrossings sets the vertical wire's glyph, in that wire's style, at
+// every crossing edges[i] passes over, so the vertical passes through and
+// ┼ never appears there.
+func stampCrossings(g *charGrid, edges []cellEdge, i int) {
+	ce := edges[i]
 	for _, c := range ce.crossings {
 		if c.SegmentIndex < 0 || c.SegmentIndex+1 >= len(ce.srcPts) {
 			continue
@@ -203,21 +205,41 @@ func stampCrossings(g *charGrid, ce cellEdge) {
 		x := a.X + (b.X-a.X)*c.T
 		y := a.Y + (b.Y-a.Y)*c.T
 		col, row := px2col(x), px2row(y)
-		vertical := px2col(a.X) == px2col(b.X)
-		if vertical {
-			glyph := '│'
-			if pair, ok := styledRuns[ce.style]; ok {
-				glyph = pair[1]
-			}
-			g.setGlyph(col, row, glyph)
+		if px2col(a.X) == px2col(b.X) {
+			g.setGlyph(col, row, verticalGlyph(ce.style))
 			continue
 		}
-		// This edge is the horizontal one: give the cell a plain vertical
-		// unless the vertical edge already stamped its own styled glyph.
+		// This edge is the horizontal one: draw the vertical wire that
+		// crosses it, unless that wire already stamped its own glyph.
 		if g.glyphAt(col, row) == 0 {
-			g.setGlyph(col, row, '│')
+			g.setGlyph(col, row, verticalGlyph(verticalStyleAt(edges, i, col, row)))
 		}
 	}
+}
+
+// verticalGlyph is a vertical run's glyph in style st.
+func verticalGlyph(st lineStyle) rune {
+	if pair, ok := styledRuns[st]; ok {
+		return pair[1]
+	}
+	return '│'
+}
+
+// verticalStyleAt is the style of the vertical run another edge than
+// edges[skip] draws through cell (col, row); solid when none does.
+func verticalStyleAt(edges []cellEdge, skip, col, row int) lineStyle {
+	for j, e := range edges {
+		if j == skip {
+			continue
+		}
+		for k := 1; k < len(e.pts); k++ {
+			a, b := e.pts[k-1], e.pts[k]
+			if a.x == col && b.x == col && min(a.y, b.y) < row && row < max(a.y, b.y) {
+				return e.style
+			}
+		}
+	}
+	return styleSolid
 }
 
 // drawHeads places ▼ ▲ ► ◄ one cell before the terminal point (the terminal
