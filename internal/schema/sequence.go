@@ -58,14 +58,6 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 	if err := decode(data, &spec); err != nil {
 		return nil, err
 	}
-	// The keys each section gives: decoded into an int, a missing start or
-	// end would read as 0. The decode above succeeded, so this one does.
-	var given struct {
-		Fragments []struct {
-			Sections []map[string]json.RawMessage `json:"sections"`
-		} `json:"fragments"`
-	}
-	_ = json.Unmarshal(data, &given)
 
 	var errs ValidationErrors
 
@@ -77,17 +69,67 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 		})
 	}
 
-	// Validate actors.
-	if len(spec.Actors) == 0 {
+	actors, actorIDs, actorErrs := validateActors(spec.Actors)
+	errs = append(errs, actorErrs...)
+
+	interactions, interactionErrs := validateInteractions(spec.Interactions, actorIDs)
+	errs = append(errs, interactionErrs...)
+
+	fragments, fragmentErrs := validateFragments(spec.Fragments, sectionKeys(data), actorIDs, len(spec.Interactions))
+	errs = append(errs, fragmentErrs...)
+
+	errs = append(errs, validateIgnore(spec.Ignore)...)
+
+	if len(errs) > 0 {
+		return nil, errs
+	}
+
+	activations := true
+	if spec.Activations != nil {
+		activations = *spec.Activations
+	}
+
+	return &model.SequenceDiagram{
+		Title:        singleLine(strings.TrimSpace(spec.Title)),
+		Actors:       actors,
+		Interactions: interactions,
+		Fragments:    fragments,
+		Activations:  activations,
+	}, nil
+}
+
+// sectionKeys returns the keys each fragment section in data gives, by
+// fragment and then section index: decoded into an int, a missing start or
+// end would read as 0. ParseSequence calls it on data it decoded, so this
+// decode succeeds too.
+func sectionKeys(data []byte) [][]map[string]json.RawMessage {
+	var given struct {
+		Fragments []struct {
+			Sections []map[string]json.RawMessage `json:"sections"`
+		} `json:"fragments"`
+	}
+	_ = json.Unmarshal(data, &given)
+	keys := make([][]map[string]json.RawMessage, len(given.Fragments))
+	for i, f := range given.Fragments {
+		keys[i] = f.Sections
+	}
+	return keys
+}
+
+// validateActors validates the actors and returns them with the set of
+// their ids.
+func validateActors(specs []ActorSpec) ([]model.Actor, map[string]bool, ValidationErrors) {
+	var errs ValidationErrors
+	if len(specs) == 0 {
 		errs = append(errs, ValidationError{
 			Field:   "actors",
 			Message: "must have at least one actor",
 		})
 	}
 
-	actorIDs := make(map[string]bool, len(spec.Actors))
-	actors := make([]model.Actor, 0, len(spec.Actors))
-	for i, a := range spec.Actors {
+	actorIDs := make(map[string]bool, len(specs))
+	actors := make([]model.Actor, 0, len(specs))
+	for i, a := range specs {
 		field := fmt.Sprintf("actors[%d]", i)
 		if a.ID == "" {
 			errs = append(errs, ValidationError{
@@ -123,34 +165,29 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 			Color: a.Color,
 		})
 	}
+	return actors, actorIDs, errs
+}
 
-	// Validate interactions.
-	interactions := make([]model.Interaction, 0, len(spec.Interactions))
-	for i, it := range spec.Interactions {
+// validateInteractions validates the interactions against the actor ids
+// and returns them, an unknown style read as solid.
+func validateInteractions(specs []InteractionSpec, actorIDs map[string]bool) ([]model.Interaction, ValidationErrors) {
+	var errs ValidationErrors
+	interactions := make([]model.Interaction, 0, len(specs))
+	for i, it := range specs {
 		field := fmt.Sprintf("interactions[%d]", i)
 
-		if it.From == "" {
-			errs = append(errs, ValidationError{
-				Field:   field + ".from",
-				Message: "must not be empty",
-			})
-		} else if !actorIDs[it.From] {
-			errs = append(errs, ValidationError{
-				Field:   field + ".from",
-				Message: fmt.Sprintf("references unknown actor id %q", it.From),
-			})
-		}
-
-		if it.To == "" {
-			errs = append(errs, ValidationError{
-				Field:   field + ".to",
-				Message: "must not be empty",
-			})
-		} else if !actorIDs[it.To] {
-			errs = append(errs, ValidationError{
-				Field:   field + ".to",
-				Message: fmt.Sprintf("references unknown actor id %q", it.To),
-			})
+		for _, end := range [...]struct{ key, id string }{{"from", it.From}, {"to", it.To}} {
+			if end.id == "" {
+				errs = append(errs, ValidationError{
+					Field:   field + "." + end.key,
+					Message: "must not be empty",
+				})
+			} else if !actorIDs[end.id] {
+				errs = append(errs, ValidationError{
+					Field:   field + "." + end.key,
+					Message: fmt.Sprintf("references unknown actor id %q", end.id),
+				})
+			}
 		}
 
 		style, styleErr := model.ParseInteractionStyle(it.Style)
@@ -174,12 +211,18 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 			Color: it.Color,
 		})
 	}
+	return interactions, errs
+}
 
-	// Validate fragments.
-	interactionCount := len(spec.Interactions)
-	fragments := make([]model.Fragment, 0, len(spec.Fragments))
-	spans := make([][2]int, 0, len(spec.Fragments))
-	for i, f := range spec.Fragments {
+// validateFragments validates the fragments against the actor ids, the
+// keys each section gives (sectionKeys) and the number of interactions,
+// and returns them, an unknown type read as alt. Fragments nest or stay
+// apart: two whose spans cross would draw one frame through the other.
+func validateFragments(specs []FragmentSpec, keys [][]map[string]json.RawMessage, actorIDs map[string]bool, interactionCount int) ([]model.Fragment, ValidationErrors) {
+	var errs ValidationErrors
+	fragments := make([]model.Fragment, 0, len(specs))
+	spans := make([][2]int, 0, len(specs))
+	for i, f := range specs {
 		field := fmt.Sprintf("fragments[%d]", i)
 
 		fragType, typeErr := model.ParseFragmentType(f.Type)
@@ -213,61 +256,8 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 			})
 		}
 
-		sections := make([]model.FragmentSection, 0, len(f.Sections))
-		prevEnd := -1
-		for j, sec := range f.Sections {
-			secField := fmt.Sprintf("%s.sections[%d]", field, j)
-			missing := false
-			for _, bound := range []string{"start", "end"} {
-				if _, ok := given.Fragments[i].Sections[j][bound]; !ok {
-					errs = append(errs, ValidationError{Field: secField + "." + bound, Message: "must be given"})
-					missing = true
-				}
-			}
-			if missing {
-				continue
-			}
-
-			if interactionCount == 0 {
-				errs = append(errs, ValidationError{
-					Field:   secField,
-					Message: "fragment sections require at least one interaction",
-				})
-			} else {
-				if sec.Start < 0 || sec.Start >= interactionCount {
-					errs = append(errs, ValidationError{
-						Field:   secField + ".start",
-						Message: fmt.Sprintf("interaction index %d is out of bounds (0..%d)", sec.Start, interactionCount-1),
-					})
-				}
-				if sec.End < 0 || sec.End >= interactionCount {
-					errs = append(errs, ValidationError{
-						Field:   secField + ".end",
-						Message: fmt.Sprintf("interaction index %d is out of bounds (0..%d)", sec.End, interactionCount-1),
-					})
-				}
-			}
-			if sec.Start > sec.End {
-				errs = append(errs, ValidationError{
-					Field:   secField + ".start",
-					Message: fmt.Sprintf("start %d must be <= end %d", sec.Start, sec.End),
-				})
-			}
-
-			if sec.Start <= prevEnd {
-				errs = append(errs, ValidationError{
-					Field:   secField + ".start",
-					Message: fmt.Sprintf("must come after the previous section's end (%d): sections run in order without overlapping", prevEnd),
-				})
-			}
-			prevEnd = max(prevEnd, sec.End)
-
-			sections = append(sections, model.FragmentSection{
-				Label: singleLine(sec.Label),
-				Start: sec.Start,
-				End:   sec.End,
-			})
-		}
+		sections, sectionErrs := validateSections(field, f.Sections, keys[i], interactionCount)
+		errs = append(errs, sectionErrs...)
 
 		fragments = append(fragments, model.Fragment{
 			Type:     fragType,
@@ -280,9 +270,86 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 		}
 		spans = append(spans, span)
 	}
+	return fragments, append(errs, crossingFragments(spans)...)
+}
 
-	// Fragments nest or stay apart: two whose spans cross would draw one
-	// frame through the other.
+// validateSections validates the sections of fragment field against the
+// keys each gives and the number of interactions, and returns those that
+// give both bounds.
+func validateSections(field string, specs []FragmentSectionSpec, keys []map[string]json.RawMessage, interactionCount int) ([]model.FragmentSection, ValidationErrors) {
+	var errs ValidationErrors
+	sections := make([]model.FragmentSection, 0, len(specs))
+	prevEnd := -1
+	for j, sec := range specs {
+		secField := fmt.Sprintf("%s.sections[%d]", field, j)
+		missing := false
+		for _, bound := range []string{"start", "end"} {
+			if _, ok := keys[j][bound]; !ok {
+				errs = append(errs, ValidationError{Field: secField + "." + bound, Message: "must be given"})
+				missing = true
+			}
+		}
+		if missing {
+			continue
+		}
+
+		errs = append(errs, validateSection(secField, sec, interactionCount, prevEnd)...)
+		prevEnd = max(prevEnd, sec.End)
+
+		sections = append(sections, model.FragmentSection{
+			Label: singleLine(sec.Label),
+			Start: sec.Start,
+			End:   sec.End,
+		})
+	}
+	return sections, errs
+}
+
+// validateSection checks a section that gives both bounds: each is an
+// interaction index, start is no later than end, and the section starts
+// after prevEnd, where the sections before it end.
+func validateSection(secField string, sec FragmentSectionSpec, interactionCount, prevEnd int) ValidationErrors {
+	var errs ValidationErrors
+	if interactionCount == 0 {
+		errs = append(errs, ValidationError{
+			Field:   secField,
+			Message: "fragment sections require at least one interaction",
+		})
+	} else {
+		if sec.Start < 0 || sec.Start >= interactionCount {
+			errs = append(errs, ValidationError{
+				Field:   secField + ".start",
+				Message: fmt.Sprintf("interaction index %d is out of bounds (0..%d)", sec.Start, interactionCount-1),
+			})
+		}
+		if sec.End < 0 || sec.End >= interactionCount {
+			errs = append(errs, ValidationError{
+				Field:   secField + ".end",
+				Message: fmt.Sprintf("interaction index %d is out of bounds (0..%d)", sec.End, interactionCount-1),
+			})
+		}
+	}
+	if sec.Start > sec.End {
+		errs = append(errs, ValidationError{
+			Field:   secField + ".start",
+			Message: fmt.Sprintf("start %d must be <= end %d", sec.Start, sec.End),
+		})
+	}
+
+	if sec.Start <= prevEnd {
+		errs = append(errs, ValidationError{
+			Field:   secField + ".start",
+			Message: fmt.Sprintf("must come after the previous section's end (%d): sections run in order without overlapping", prevEnd),
+		})
+	}
+	return errs
+}
+
+// crossingFragments reports every pair of fragments whose spans cross,
+// under the later one. A fragment without a span ({-1, -1}: no sections,
+// or one that did not give both bounds) crosses none.
+func crossingFragments(spans [][2]int) ValidationErrors {
+	var errs ValidationErrors
 	for j, b := range spans {
 		for i, a := range spans[:j] {
 			if a[0] < 0 || b[0] < 0 {
@@ -296,23 +363,5 @@ func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 			}
 		}
 	}
-
-	errs = append(errs, validateIgnore(spec.Ignore)...)
-
-	if len(errs) > 0 {
-		return nil, errs
-	}
-
-	activations := true
-	if spec.Activations != nil {
-		activations = *spec.Activations
-	}
-
-	return &model.SequenceDiagram{
-		Title:        singleLine(strings.TrimSpace(spec.Title)),
-		Actors:       actors,
-		Interactions: interactions,
-		Fragments:    fragments,
-		Activations:  activations,
-	}, nil
+	return errs
 }
