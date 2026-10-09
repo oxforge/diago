@@ -61,6 +61,7 @@ func TestRenderAutoDetectFlow(t *testing.T) {
 	out, err := Render(context.Background(), input)
 	require.NoError(t, err)
 	assert.True(t, strings.HasPrefix(out, "<?xml"), "auto-detect should render flow diagram")
+	assert.Contains(t, out, "<polyline", "a flow diagram draws its wire")
 }
 
 func TestRenderAutoDetectSequence(t *testing.T) {
@@ -72,6 +73,7 @@ func TestRenderAutoDetectSequence(t *testing.T) {
 	out, err := Render(context.Background(), input)
 	require.NoError(t, err)
 	assert.True(t, strings.HasPrefix(out, "<?xml"), "auto-detect should render sequence diagram")
+	assert.Contains(t, out, ">msg<", "the interaction's label")
 }
 
 func TestRenderAutoDetectUnknown(t *testing.T) {
@@ -166,6 +168,7 @@ func TestRenderWithOptionsThemeOnly(t *testing.T) {
 	data, err := RenderWithOptions(context.Background(), input, Options{Theme: "midnight"})
 	require.NoError(t, err)
 	assert.True(t, strings.HasPrefix(string(data), "<?xml"))
+	assert.Contains(t, string(data), "#0f0f14", "midnight's background")
 }
 
 // themedSpecs are one spec per diagram type, each with a theme field and
@@ -284,6 +287,7 @@ func TestRenderWithOptionsSketchTheme(t *testing.T) {
 	data, err := RenderWithOptions(context.Background(), input, Options{Theme: "sketch"})
 	require.NoError(t, err)
 	assert.True(t, strings.HasPrefix(string(data), "<?xml"))
+	assert.Contains(t, string(data), "Pangolin", "sketch's face")
 }
 
 // TestRenderWithOptionsExportFlowOnly: draw.io and Excalidraw export cover

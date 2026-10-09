@@ -109,7 +109,7 @@ func TestRenderDiff_Layered(t *testing.T) {
 	for _, format := range []string{"svg", "text"} {
 		out, err := RenderDiff(ctx, []byte(loopSpec), []byte(after), DiffOptions{Format: format})
 		require.NoError(t, err, format)
-		assert.NotEmpty(t, out, format)
+		assert.Contains(t, string(out), "went", "%s: the diff draws the edited label", format)
 	}
 }
 
