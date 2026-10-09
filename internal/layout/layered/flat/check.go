@@ -196,8 +196,8 @@ func apart(shape model.Shape, exits []exit) bool {
 // no shared run (C9.1) and the track gap between parallel segments,
 // across their tracks side by side and as the closest-point distance end
 // to end (C9.2); exempt a shared-vertex bundle, a rail on C9.1, and a
-// comb end to end, and the port gap for a rake. On each axis the gaps are
-// that axis's, so the distance is measured in track gaps.
+// comb end to end on one track, and the port gap for a rake. On each axis
+// the gaps are that axis's, so the distance is measured in track gaps.
 func (s *scene) spacing(f, w model.PositionedEdge) string {
 	for i := 0; i+1 < len(f.Points); i++ {
 		p1, p2 := f.Points[i], f.Points[i+1]
@@ -223,7 +223,7 @@ func (s *scene) spacing(f, w model.PositionedEdge) string {
 				}
 				return "C9.1 edge " + w.ID
 			}
-			if along <= noise && shared(f, i, w, j, near) {
+			if math.Abs(across) <= noise && along <= noise && shared(f, i, w, j, near) {
 				continue // a comb
 			}
 			d := math.Abs(across) / track

@@ -132,6 +132,14 @@ func TestC13_GroupBoxesAndTitleExtents(t *testing.T) {
 	assert.True(t, has(scene(unmeasured), "C13", "g"), "a titled group without its title's extents")
 }
 
+// TestC13_ATitledGroupCarriesBothExtents: a title with no height is no
+// title box, and C13 reports it.
+func TestC13_ATitledGroupCarriesBothExtents(t *testing.T) {
+	pg := layout(300, 200, nil)
+	pg.Groups = []model.PositionedGroup{{ID: "g", Label: "G", X: 20, Y: 20, Width: 200, Height: 120, Depth: 1, LabelWidth: 40}}
+	assert.True(t, has(check(pg), "C13", "g"))
+}
+
 // TestC13_ABlockedTitleExemptsItsWires pins C13's sanctioned degradation
 // (C0): a wire may cross a title the layout marked LabelBlocked, which
 // every renderer draws in front of it, but a node or a foreign group box

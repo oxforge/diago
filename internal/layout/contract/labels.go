@@ -206,7 +206,7 @@ func (c *checker) checkLabels() {
 					continue
 				}
 				if oi != l.edge {
-					if pen := penetration(p, q, l.box); pen > boxOverlapTol {
+					if pen := penetration(p, q, l.box.inflate(-boxOverlapTol)); pen > penetrationTol {
 						c.add("C14.2", e.ID, "%s is struck by segment %d of edge %s", l.what, i, o.ID)
 					}
 					continue

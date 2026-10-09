@@ -131,6 +131,28 @@ func TestC9_2_Comb(t *testing.T) {
 		"the same segments moved side by side, 5 px apart: the full track gap applies")
 }
 
+// TestC9_2_ACombMeetsEndToEndOnOneTrack pins C9.2's comb: segments near
+// their shared node may meet end to end on one track, within float noise,
+// with no floor; off the track they keep the closest-point track gap.
+func TestC9_2_ACombMeetsEndToEndOnOneTrack(t *testing.T) {
+	d := shaped("d", model.ShapeDiamond, 100, 143, 80, 46) // top vertex (100,120)
+	e1 := wire("m1", "d", 60, 50, 60, 100, 100, 100, 100, 120)
+	for _, tt := range []struct {
+		name string
+		e2   model.PositionedEdge
+		want bool
+	}{
+		{"end to end on one track", wire("m2", "d", 140, 50, 140, 100, 100, 100, 100, 120), false},
+		{"a float error of overlap", wire("m2", "d", 140, 50, 140, 100, 100-1e-9, 100, 100, 120), false},
+		{"end to end, 2 px off the track", wire("m2", "d", 140, 50, 140, 102, 100, 102, 100, 120), true},
+		{"0.5 px apart along, 5 px off the track", wire("m2", "d", 140, 50, 140, 105, 100.5, 105, 100.5, 120), true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, has(pair(e1, tt.e2, d), "C9.2", "m1->d#0"))
+		})
+	}
+}
+
 // filter returns the violations of one rule.
 func filter(vs []Violation, rule string) []Violation {
 	var out []Violation

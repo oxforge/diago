@@ -809,6 +809,24 @@ func TestRoute_AComb(t *testing.T) {
 	assert.Zero(t, res.Skipped)
 }
 
+// TestRoute_ACombMeetsOnOneTrack: a flat route meets another wire end to
+// end only on one track (C9.2's comb); 4 px off that track it keeps the
+// track gap instead, and float noise on the track is still one track.
+func TestRoute_ACombMeetsOnOneTrack(t *testing.T) {
+	scene := func(y float64) func(from, to string) (*model.PositionedGraph, int) {
+		return composed(nodes(box("a", rect, 0, 0, 80, 40), box("b", diamond, 120, 100, 200, 160), box("c", rect, 240, 0, 320, 40)), nil,
+			wire("w", "c", "b", pt(240, y), pt(160, y), pt(160, 100)))
+	}
+	on := route(t, scene(20), "a", "b", screen)
+	assert.Equal(t, []model.Point{pt(80, 20), pt(160, 20), pt(160, 100)}, on.Points)
+	assert.Zero(t, on.Skipped)
+	noise := route(t, scene(20+1e-9), "a", "b", screen)
+	assert.Equal(t, on.Points, noise.Points)
+	off := route(t, scene(24), "a", "b", screen)
+	assert.Equal(t, []model.Point{pt(80, 12), pt(160, 12), pt(160, 100)}, off.Points)
+	assert.Equal(t, 1, off.Skipped)
+}
+
 // TestRoute_AShapesVertexSharedWithAnotherEnd pins C9's exemptions at a
 // diamond's vertex: a flat edge may share it with another edge's end, a
 // shared-vertex bundle along one run out of it, and a rail where a Z's

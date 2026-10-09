@@ -6,8 +6,8 @@ import (
 	"github.com/oxforge/diago/internal/model"
 )
 
-// boxOverlapTol is the overlap, on both axes, or the wire length inside a
-// box that C13 and C14 report.
+// boxOverlapTol is the overlap, on both axes, of two boxes, or the depth a
+// wire runs inside a title or label box, that C13 and C14 report.
 const boxOverlapTol = 0.5
 
 // overlap returns the overlap of two boxes on each axis (negative when
@@ -121,7 +121,7 @@ func (c *checker) nested(outer, inner model.PositionedGroup) bool {
 // the layout left the title to the renderer, and TitlePad wider on each
 // side, over the text renderer's blanks.
 func (c *checker) titleBox(g model.PositionedGroup) (box, bool) {
-	if g.Label == "" || g.LabelWidth <= 0 {
+	if g.Label == "" || g.LabelWidth <= 0 || g.LabelHeight <= 0 {
 		return box{}, false
 	}
 	x := g.X + c.lim.TitleInsetX
@@ -139,7 +139,7 @@ func (c *checker) titleBox(g model.PositionedGroup) (box, bool) {
 // LabelBlocked, a sanctioned degradation (C0).
 func (c *checker) checkTitles() {
 	for _, g := range c.pg.Groups {
-		if g.Label != "" && g.LabelWidth <= 0 {
+		if g.Label != "" && (g.LabelWidth <= 0 || g.LabelHeight <= 0) {
 			c.add("C13", g.ID, "group %s is titled but carries no title extents", g.ID)
 			continue
 		}
@@ -153,7 +153,7 @@ func (c *checker) checkTitles() {
 		}
 		for _, e := range edges {
 			for i := 0; i+1 < len(e.Points); i++ {
-				if pen := penetration(e.Points[i], e.Points[i+1], tb); pen > boxOverlapTol {
+				if pen := penetration(e.Points[i], e.Points[i+1], tb.inflate(-boxOverlapTol)); pen > penetrationTol {
 					c.add("C13", e.ID, "segment %d crosses the title of group %s for %.2f px", i, g.ID, pen)
 				}
 			}

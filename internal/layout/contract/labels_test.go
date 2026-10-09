@@ -76,6 +76,26 @@ func TestC14_2_StruckByAnotherEdge(t *testing.T) {
 	assert.True(t, has(check(pg), "C14.2", "a->b#0"))
 }
 
+// TestC13_C14_2_TheToleranceIsADepth: a wire a float error inside a title
+// or label box's side does not cross it; 0.6 px inside, it does.
+func TestC13_C14_2_TheToleranceIsADepth(t *testing.T) {
+	title := func(y float64) []Violation {
+		pg := layout(300, 200, nil, wire("p", "q", 10, y, 100, y))
+		pg.Groups = []model.PositionedGroup{{ID: "g", Label: "G", X: 20, Y: 20, Width: 200, Height: 120, Depth: 1,
+			LabelWidth: 40, LabelHeight: 14}} // title box (28,29)-(68,43)
+		return check(pg)
+	}
+	assert.False(t, has(title(29+1e-9), "C13", "p->q#0"))
+	assert.True(t, has(title(29.6), "C13", "p->q#0"))
+	label := func(y float64) []Violation {
+		pg := labeled(78, 90) // label box (66,83)-(90,97)
+		pg.Edges = append(pg.Edges, wire("c", "d", 40, y, 120, y))
+		return check(pg)
+	}
+	assert.False(t, has(label(83+1e-9), "C14.2", "a->b#0"))
+	assert.True(t, has(label(83.6), "C14.2", "a->b#0"))
+}
+
 // besideInText is a text layout: p->q's wire runs down column 25, and its
 // five-column label sits centered on (x, y), at (244, 56) on columns
 // 28..32 of row 3, one blank column right of the wire; more edges follow.

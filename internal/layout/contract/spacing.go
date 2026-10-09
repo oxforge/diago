@@ -53,7 +53,7 @@ func (c *checker) checkPair(ea, eb model.PositionedEdge) {
 			}
 			floor := minGap
 			switch {
-			case along <= 0 && comb(ea, i, eb, j):
+			case math.Abs(across) <= trackTol && along <= penetrationTol && comb(ea, i, eb, j):
 				continue // no floor: a same-face comb meets end to end on one track
 			case along > 0 && rake(ea, i, eb, j):
 				floor = c.lim.PortGap - slack // a plain distance floor, no track tolerance
@@ -143,8 +143,8 @@ func rake(ea model.PositionedEdge, i int, eb model.PositionedEdge, j int) bool {
 
 // comb reports whether segment i of ea and segment j of eb share an
 // endpoint node and both lie within two segments of their end at it: wires
-// converging on one column or vertex may meet end to end with no floor
-// (C9.2).
+// converging on one column or vertex may meet end to end on one track with
+// no floor (C9.2).
 func comb(ea model.PositionedEdge, i int, eb model.PositionedEdge, j int) bool {
 	for _, n := range []string{ea.From, ea.To} {
 		if nearEnd(ea, i, n) && nearEnd(eb, j, n) {
