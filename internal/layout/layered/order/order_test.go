@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"math/rand/v2"
 	"slices"
 	"strings"
@@ -100,7 +101,7 @@ func TestTranspose_KeepsAPairWhoseSwapGainsNothing(t *testing.T) {
 	// has no crossing: no swap strictly reduces anything, and nothing moves.
 	g := graph(t, "r->x", "r->y", "r->z")
 	s := newSweeper(g)
-	s.transpose()
+	s.transpose(context.Background())
 	assert.Equal(t, [][]string{{"r"}, {"x", "y", "z"}}, ids(g))
 }
 
@@ -123,7 +124,7 @@ func TestMinimize_IsPure(t *testing.T) {
 func TestTranspose_TriesTheOnlyPairOfATwoVertexLayer(t *testing.T) {
 	g := graph(t, "a", "b", "c", "d", "a->d", "b->c")
 	s := newSweeper(g)
-	s.transpose()
+	s.transpose(context.Background())
 	assert.Equal(t, [][]string{{"b", "a"}, {"c", "d"}}, ids(g))
 	assert.Equal(t, 0, g.Crossings())
 }
@@ -257,13 +258,13 @@ func TestMinimize_TheUpwardRunMustBeatTheFirst(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			g := graph(t, tc.specs...)
-			down, c1, d1, _ := minimize(g, Sweeps, false)
-			up, c2, d2, _ := minimize(g, Sweeps, true)
+			down, c1, d1, _ := minimize(context.Background(), g, Sweeps, false)
+			up, c2, d2, _ := minimize(context.Background(), g, Sweeps, true)
 			require.Positive(t, c1, "the first run leaves a crossing")
 			require.Equal(t, c1, c2, "the upward run ties it")
 			require.NotEqual(t, down, up, "with another ordering")
 			require.LessOrEqual(t, d2, d1, "as near the seed or nearer")
-			best, crossings, _ := run(g, Sweeps)
+			best, crossings, _ := run(context.Background(), g, Sweeps)
 			assert.Equal(t, down, best, "the first run's best stays")
 			assert.Equal(t, c1, crossings)
 		})
@@ -278,7 +279,7 @@ func TestMinimize_RestartsFromItsBest(t *testing.T) {
 	// parallel edge.
 	g := graph(t, "n0", "n1", "n2", "n3", "n4", "n5", "n6",
 		"n3->n0", "n6->n0", "n2->n0", "n0->n5", "n3->n1", "n0->n5", "n2->n5")
-	first, crossings, _ := run(g, Sweeps)
+	first, crossings, _ := run(context.Background(), g, Sweeps)
 	require.Equal(t, 1, crossings, "the fixture must leave the first run a crossing")
 	g.Layers = Minimize(context.Background(), g, false)
 	assert.Equal(t, 0, g.Crossings())
@@ -441,7 +442,7 @@ func moved(t *testing.T, g *lgraph.Graph, id string, right bool) int {
 	require.GreaterOrEqual(t, e, 0, "no edge %s", id)
 	work := *g
 	work.Layers = moveChain(g, e, right)
-	_, c, _ := run(&work, AnchoredSweeps)
+	_, c, _ := run(context.Background(), &work, AnchoredSweeps)
 	return c
 }
 
@@ -552,7 +553,7 @@ func TestMinimize_TheRightEndsWhenTheLeftEndsFail(t *testing.T) {
 		{"e->b#0@3", "d"},
 		{"e"},
 	})
-	first, crossings, _ := run(g, Sweeps)
+	first, crossings, _ := run(context.Background(), g, Sweeps)
 	require.Equal(t, g.Layers, first, "the sweeps keep the seed")
 	require.Equal(t, 1, crossings)
 	require.Equal(t, 1, moved(t, g, "e->b#0", false), "the left ends keep the crossing")
@@ -601,14 +602,80 @@ func TestCrossedBy(t *testing.T) {
 	assert.Equal(t, []int{crossedByNone, 2, 1, crossedBySeveral, 3, 3}, crossedBy(g))
 }
 
-// Out of time, the ordering still holds every vertex once, on its own layer.
-func TestMinimize_StopsWithAWholeOrderingWhenTheContextIsDone(t *testing.T) {
-	g := graph(t, "a->c", "a->d", "b->c", "b->d", "c->e", "d->f", "c->f")
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	got := Minimize(ctx, g, false)
+// k33 is K3,3, whose every ordering crosses nine times: no sweep ever
+// reaches a crossing-free ordering, so a live context runs every sweep.
+var k33 = []string{"a->d", "a->e", "a->f", "b->d", "b->e", "b->f", "c->d", "c->e", "c->f"}
+
+// requireWhole fails unless got holds every vertex of g once, each on its
+// own layer.
+func requireWhole(t *testing.T, g *lgraph.Graph, got [][]int) {
+	t.Helper()
 	require.Len(t, got, len(g.Layers))
 	for l := range got {
-		assert.ElementsMatch(t, g.Layers[l], got[l], "layer %d", l)
+		require.ElementsMatch(t, g.Layers[l], got[l], "layer %d", l)
 	}
+}
+
+// TestMinimize_StopsWithAWholeOrderingWhenTheContextIsDone pins the
+// deadline inside S6: a context that goes done during the first sweep
+// stops the sweeps there, where a live one runs all of them, and the
+// ordering still holds every vertex once, on its own layer.
+func TestMinimize_StopsWithAWholeOrderingWhenTheContextIsDone(t *testing.T) {
+	minimizeOn := func(n int) func(context.Context, *lgraph.Graph) [][]int {
+		return func(ctx context.Context, g *lgraph.Graph) [][]int {
+			return Minimize(&lgraphtest.Countdown{Context: ctx, N: n}, g, false)
+		}
+	}
+	_, live := ordered(t, minimizeOn(math.MaxInt), k33...)
+	require.Greater(t, live["order_chosen"]["sweeps"], float64(Sweeps), "a live context runs every sweep")
+
+	g, got := ordered(t, minimizeOn(1), k33...)
+	assert.Equal(t, 1.0, got["order_chosen"]["sweeps"], "the first sweep's checks stop it and every later one")
+	requireWhole(t, graph(t, k33...), g.Layers)
+}
+
+// TestMinimize_TheSweepLoopChecksTheContext pins the check before each
+// sweep: done after the first check, a run of Sweeps sweeps stops after
+// one, with a whole ordering.
+func TestMinimize_TheSweepLoopChecksTheContext(t *testing.T) {
+	g := graph(t, k33...)
+	_, _, _, ran := minimize(&lgraphtest.Countdown{Context: context.Background(), N: math.MaxInt}, g, Sweeps, false)
+	require.Equal(t, Sweeps, ran)
+	got, crossings, _, ran := minimize(&lgraphtest.Countdown{Context: context.Background(), N: 1}, g, Sweeps, false)
+	assert.Equal(t, 1, ran)
+	assert.Equal(t, 9, crossings)
+	requireWhole(t, g, got)
+}
+
+// TestTranspose_StopsWhenTheContextIsDone pins the check before each
+// transposition round: done, the transposition swaps nothing, though a
+// live one swaps this layer's only pair (TestTranspose_TriesTheOnlyPairOfATwoVertexLayer).
+func TestTranspose_StopsWhenTheContextIsDone(t *testing.T) {
+	g := graph(t, "a", "b", "c", "d", "a->d", "b->c")
+	s := newSweeper(g)
+	ctx := &lgraphtest.Countdown{Context: context.Background()}
+	s.transpose(ctx)
+	assert.Equal(t, [][]string{{"a", "b"}, {"c", "d"}}, ids(g))
+	assert.Equal(t, 1, ctx.Calls)
+}
+
+// TestSides_StopsWhenTheContextIsDone pins the check before each side
+// move: done, sides tries none and returns g's order, though a live one
+// moves e->b to the right ends
+// (TestMinimize_TheRightEndsWhenTheLeftEndsFail).
+func TestSides_StopsWhenTheContextIsDone(t *testing.T) {
+	g := graph(t, "a->b", "b->c", "c->d", "d->e", "d->a", "e->b")
+	setLayers(t, g, [][]string{
+		{"a"},
+		{"d->a#0@1", "b"},
+		{"d->a#0@2", "e->b#0@2", "c"},
+		{"e->b#0@3", "d"},
+		{"e"},
+	})
+	_, c, _ := sides(context.Background(), g, 1)
+	require.Zero(t, c, "a live context moves e->b")
+	got, c, ran := sides(&lgraphtest.Countdown{Context: context.Background()}, g, 1)
+	assert.Equal(t, g.Layers, got)
+	assert.Equal(t, 1, c)
+	assert.Zero(t, ran)
 }

@@ -17,7 +17,7 @@ func keepLoops(ctx context.Context, g *lgraph.Graph) ([][]int, bool) {
 	work.Layers = snapshot(g.Layers)
 	s := newSweeper(&work)
 	before := s.enclosed()
-	if before == 0 || !s.loops() {
+	if before == 0 || !s.loops(ctx) {
 		return g.Layers, false
 	}
 	layoutdbg.Decision(ctx, "loops_kept",
@@ -31,11 +31,11 @@ func keepLoops(ctx context.Context, g *lgraph.Graph) ([][]int, bool) {
 // and below enclose in the layer and raises neither its crossings (local)
 // nor its side-aware crossings (sided), in passes until one swaps
 // nothing: a swap changes only its own layer's enclosure, so each lowers
-// the vertices enclosed, and the passes end. It reports whether it
-// swapped.
-func (s *sweeper) loops() bool {
+// the vertices enclosed, and the passes end. A done ctx stops them before
+// the next pass. It reports whether it swapped.
+func (s *sweeper) loops(ctx context.Context) bool {
 	swapped := false
-	for {
+	for ctx.Err() == nil {
 		improved := false
 		for l, layer := range s.g.Layers {
 			for i := 0; i+1 < len(layer); i++ {
@@ -73,6 +73,7 @@ func (s *sweeper) loops() bool {
 		}
 		swapped = true
 	}
+	return swapped
 }
 
 // enclosed counts the vertices every vertex encloses, above and below it.

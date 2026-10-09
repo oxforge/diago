@@ -1,8 +1,10 @@
 // Package lgraphtest builds levels from a compact notation for the layered
-// engine's stage tests. The engine never imports it.
+// engine's stage tests, and gives them a context that goes done on cue.
+// The engine never imports it.
 package lgraphtest
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -71,4 +73,22 @@ func parse(specs []string) (*lgraph.Level, error) {
 		})
 	}
 	return lv, nil
+}
+
+// Countdown is a context whose Err returns nil for its first N calls and
+// context.Canceled from then on; Calls counts the calls. A stage test
+// stops the stage at a chosen check with it, deterministically, where a
+// cancelled context would stop it before any.
+type Countdown struct {
+	context.Context
+	N, Calls int
+}
+
+// Err returns nil for the first N calls and context.Canceled after.
+func (c *Countdown) Err() error {
+	c.Calls++
+	if c.Calls > c.N {
+		return context.Canceled
+	}
+	return nil
 }

@@ -1,6 +1,7 @@
 package lgraphtest_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,4 +23,12 @@ func TestLevel_Parse(t *testing.T) {
 		{ID: "m->a#0", From: 1, To: 0},
 		{ID: "m->a#1", From: 1, To: 0},
 	}, lv.Edges)
+}
+
+func TestCountdown_GoesDoneAfterNCalls(t *testing.T) {
+	c := &lgraphtest.Countdown{Context: context.Background(), N: 2}
+	assert.NoError(t, c.Err())
+	assert.NoError(t, c.Err())
+	assert.ErrorIs(t, c.Err(), context.Canceled)
+	assert.Equal(t, 3, c.Calls)
 }

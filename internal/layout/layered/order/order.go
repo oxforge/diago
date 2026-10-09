@@ -47,7 +47,9 @@ const maxReplacements = 100
 // ordering is its own anchored ordering's (S13), or, as a safeguard,
 // after maxReplacements orderings replaced the best. A vertex in a band
 // (lgraph.Graph.Bands) stays in it: bands keep their order, and only
-// vertices of one band change places (S9).
+// vertices of one band change places (S9). A done ctx stops it at the next
+// sweep, transposition round, side move or loop transposition pass, with
+// the best ordering so far: every vertex once, on its own layer.
 func Minimize(ctx context.Context, g *lgraph.Graph, anchored bool) [][]int {
 	return settle(ctx, g, anchored, maxReplacements)
 }
@@ -58,7 +60,7 @@ func settle(ctx context.Context, g *lgraph.Graph, anchored bool, most int) [][]i
 	if anchored {
 		sweeps = AnchoredSweeps
 	}
-	best, crossings, ran := run(g, sweeps)
+	best, crossings, ran := run(ctx, g, sweeps)
 	restarts, moves, loops := 0, 0, 0
 	// out of time: keep the best ordering so far; the caller stops the layout
 	for ctx.Err() == nil {
@@ -71,14 +73,14 @@ func settle(ctx context.Context, g *lgraph.Graph, anchored bool, most int) [][]i
 		work := *g
 		work.Layers = best
 		if crossings > 0 {
-			next, c, r := run(&work, AnchoredSweeps)
+			next, c, r := run(ctx, &work, AnchoredSweeps)
 			ran += r
 			if c < crossings {
 				restarts++
 				best, crossings = next, c
 				continue
 			}
-			next, c, r = sides(&work, crossings)
+			next, c, r = sides(ctx, &work, crossings)
 			ran += r
 			if c < crossings {
 				moves++
@@ -109,14 +111,17 @@ func settle(ctx context.Context, g *lgraph.Graph, anchored bool, most int) [][]i
 // layers, then to the right ends, and each ordering seeds a run of
 // AnchoredSweeps. It returns the first run's best with fewer crossings
 // than crossings, with its crossings and the sweeps run, or g's order
-// when none has.
-func sides(g *lgraph.Graph, crossings int) ([][]int, int, int) {
+// when none has, or when ctx is done before the next move.
+func sides(ctx context.Context, g *lgraph.Graph, crossings int) ([][]int, int, int) {
 	ran := 0
 	for _, e := range movers(g) {
 		for _, right := range []bool{false, true} {
+			if ctx.Err() != nil {
+				return g.Layers, crossings, ran
+			}
 			work := *g
 			work.Layers = moveChain(g, e, right)
-			next, c, r := run(&work, AnchoredSweeps)
+			next, c, r := run(ctx, &work, AnchoredSweeps)
 			ran += r
 			if c < crossings {
 				return next, c, ran
@@ -238,10 +243,10 @@ func moveChain(g *lgraph.Graph, e int, right bool) [][]int {
 // crossings remain again from the seed, the first one upward, whose best
 // replaces the first run's only with fewer crossings. It returns the best
 // ordering, its crossings and the sweeps run.
-func run(g *lgraph.Graph, sweeps int) ([][]int, int, int) {
-	best, crossings, _, ran := minimize(g, sweeps, false)
+func run(ctx context.Context, g *lgraph.Graph, sweeps int) ([][]int, int, int) {
+	best, crossings, _, ran := minimize(ctx, g, sweeps, false)
 	if crossings > 0 {
-		up, c, _, r := minimize(g, sweeps, true)
+		up, c, _, r := minimize(ctx, g, sweeps, true)
 		ran += r
 		if c < crossings {
 			best, crossings = up, c
@@ -290,15 +295,16 @@ func Seed(g *lgraph.Graph, prev []int) int {
 
 // minimize runs the sweeps from g's seed, the first one downward, or
 // upward when upFirst, and returns the best ordering, its crossings, its
-// distance from the seed and the sweeps run.
-func minimize(g *lgraph.Graph, sweeps int, upFirst bool) ([][]int, int, int, int) {
+// distance from the seed and the sweeps run. A done ctx stops the sweeps
+// before the next one.
+func minimize(ctx context.Context, g *lgraph.Graph, sweeps int, upFirst bool) ([][]int, int, int, int) {
 	work := *g
 	work.Layers = snapshot(g.Layers)
 	s := newSweeper(&work)
 	seed := slices.Clone(s.at)
 	best, bestCrossings, bestDistance := snapshot(work.Layers), work.Crossings(), 0
 	ran := 0
-	for ; ran < sweeps && bestCrossings > 0; ran++ {
+	for ; ran < sweeps && bestCrossings > 0 && ctx.Err() == nil; ran++ {
 		if (ran%2 == 0) != upFirst {
 			for l := 1; l < len(work.Layers); l++ {
 				s.median(l, s.up, seed)
@@ -308,7 +314,7 @@ func minimize(g *lgraph.Graph, sweeps int, upFirst bool) ([][]int, int, int, int
 				s.median(l, s.down, seed)
 			}
 		}
-		s.transpose()
+		s.transpose(ctx)
 		crossings, dist := work.Crossings(), distance(work.Layers, seed)
 		if crossings < bestCrossings || (crossings == bestCrossings && dist < bestDistance) {
 			best, bestCrossings, bestDistance = snapshot(work.Layers), crossings, dist
@@ -416,9 +422,13 @@ func median[T int | float64](positions []T) float64 {
 
 // transpose swaps adjacent pairs, the last pair of a layer included,
 // wherever that strictly reduces the crossings around the layer; up to
-// transposeRounds passes, stopping after one that swaps nothing.
-func (s *sweeper) transpose() {
+// transposeRounds passes, stopping after one that swaps nothing, or
+// before the next once ctx is done.
+func (s *sweeper) transpose(ctx context.Context) {
 	for range transposeRounds {
+		if ctx.Err() != nil {
+			return
+		}
 		improved := false
 		for l, layer := range s.g.Layers {
 			for i := 0; i+1 < len(layer); i++ {

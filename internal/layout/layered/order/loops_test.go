@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/oxforge/diago/internal/layout/layered/lgraph"
+	"github.com/oxforge/diago/internal/layout/layered/lgraph/lgraphtest"
 )
 
 // flowLoop is the flow-loop example's graph: i++ -> check closes the
@@ -144,4 +145,16 @@ func TestMinimize_KeepsMLTrainingsSides(t *testing.T) {
 	for l := range g.Layers {
 		assert.Zero(t, newSweeper(g).sided(l), "layer %d", l)
 	}
+}
+
+// TestKeepLoops_StopsWhenTheContextIsDone pins the check before each pass
+// of the loop transposition: done, it swaps nothing on flow-loop, whose
+// End a live one takes out of the loop (TestMinimize_KeepsALoopTogether).
+func TestKeepLoops_StopsWhenTheContextIsDone(t *testing.T) {
+	g := graph(t, flowLoop...)
+	_, swapped := keepLoops(context.Background(), g)
+	require.True(t, swapped, "a live context swaps End and Process")
+	got, swapped := keepLoops(&lgraphtest.Countdown{Context: context.Background()}, g)
+	assert.False(t, swapped)
+	assert.Equal(t, g.Layers, got)
 }

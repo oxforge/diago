@@ -1509,10 +1509,20 @@ func TestPlace_TextTerminalsLineUpWithPortsOneCellApart(t *testing.T) {
 	assert.InDelta(t, x("n")+1, x("tc"), 1e-9, "on n's third in-port")
 }
 
+// TestPlace_ReturnsEveryVertexWhenTheContextIsDone pins the deadline in
+// S7 on TestPlace_ForcingIsDecidedAgainAfterTheRerun's graph, whose
+// rounds 0 and 1 each force an exit: a live context is consulted before
+// every round, and one done at the first round's check stops the rounds
+// there, before they move a and b, with an x for every vertex.
 func TestPlace_ReturnsEveryVertexWhenTheContextIsDone(t *testing.T) {
-	g, _, _ := placed(t, Options{Gap: 40, Span: 8, Reach: 20, Clearance: 12, InLaneGap: 8, Dir: model.Down}, nil, "m:diamond->a", "m->b", "a->c", "b->c")
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	x := Place(ctx, g, Options{Gap: 40, Span: 8, Reach: 20, Clearance: 12, InLaneGap: 8, Dir: model.Down})
+	widths := map[string]float64{"m": 160, "a": 60, "b": 160, "z": 80}
+	g, _, _ := placed(t, screen, widths, "m:diamond->b:diamond", "m->a:circle", "z:diamond->b")
+	live := &lgraphtest.Countdown{Context: context.Background(), N: math.MaxInt}
+	full := Place(live, g, screen)
+	require.Greater(t, live.Calls, 2, "a live context is consulted before every round")
+	done := &lgraphtest.Countdown{Context: context.Background()}
+	x := Place(done, g, screen)
+	assert.Equal(t, 1, done.Calls, "the first round's check stops the rounds")
 	assert.Len(t, x, len(g.Vertices))
+	assert.NotEqual(t, full, x, "the forcing rounds did not run")
 }
