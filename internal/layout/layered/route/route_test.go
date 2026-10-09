@@ -2453,3 +2453,28 @@ func TestRoute_JogsExactlyTheInLaneGapApartShareALane(t *testing.T) {
 	r, _ = routed(t, graph(t, widths, "a->c", "b->d"), screen, map[string]float64{"a": 100, "b": 127.9, "c": 120, "d": 147.9})
 	assert.Equal(t, []int{2}, r.Lanes, "7.9 apart: two lanes")
 }
+
+// TestRoute_ABackEdgeRunsOnItsPinnedSideColumnPastOtherWires pins S8's
+// stops: a dummy stop moving onto a back edge's pinned column keeps the
+// node clearance from every node box of its row and InLaneGap from every
+// other wire, at the column. As in TestRoute_ABackEdgeRunsOnItsPinnedSideColumn,
+// a->m's dummies at 230 move onto diamond m's column at 260: past s->t's
+// dummy 15 px right of the column, or between 230 and the column, and past
+// a 4 px node 13 px left of it.
+func TestRoute_ABackEdgeRunsOnItsPinnedSideColumnPastOtherWires(t *testing.T) {
+	for _, dx := range []float64{275, 245} {
+		lv := lgraphtest.Level(t, "m:diamond", "a", "a->m", "s->t")
+		// layers: m and s 0, a 3, t 2; a->m reversed through two dummies, s->t through one
+		g, err := lgraph.Build(lv, []int{0, 3, 0, 2}, []bool{true, false}, 8)
+		require.NoError(t, err)
+		_, route := twice(t, g, screen, map[string]float64{"m": 200, "a->m#0@1": 230, "a->m#0@2": 230, "a": 240,
+			"s": 420, "s->t#0@1": dx, "t": 420})
+		assertRoute(t, pts(260, 216, 260, 20, 240, 20), route("a->m#0"))
+	}
+	lv := lgraphtest.Level(t, "m:diamond", "a", "a->m", "n")
+	lv.Nodes[2].W = 4 // n
+	g, err := lgraph.Build(lv, []int{0, 3, 1}, []bool{true}, 8)
+	require.NoError(t, err)
+	_, route := twice(t, g, screen, map[string]float64{"m": 200, "a->m#0@1": 230, "a->m#0@2": 230, "a": 240, "n": 245})
+	assertRoute(t, pts(260, 200, 260, 20, 240, 20), route("a->m#0"))
+}

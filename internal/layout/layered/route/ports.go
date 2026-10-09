@@ -650,12 +650,13 @@ func (r *router) column(v int, side ports.Vertex, aim float64) float64 {
 // far right of its right face (ports.LoopOut), a pinned node Reach beyond
 // the side vertex its loop leaves from (S8, one or both sides when it
 // loops both ways). At a pinned node, whose side attachments always
-// happen, a dummy of the row is a wire: the stub and the column keep
-// InLaneGap from its column, not the node clearance from its box.
+// happen, and for a dummy's own column (dummyRoom), a dummy of the row is
+// a wire: the stub and the column keep InLaneGap from its column, not the
+// node clearance from its box.
 func (r *router) blocked(v int, vx, vertex, slack float64) bool {
 	g := r.g
 	lo, hi := math.Min(vx, vertex), math.Max(vx, vertex)
-	wires := r.pinned(v)
+	wires := r.pinned(v) || g.Dummy(v)
 	for _, o := range g.Layers[g.Vertices[v].Layer] {
 		if o == v {
 			continue

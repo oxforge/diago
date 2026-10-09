@@ -425,7 +425,7 @@ func (r *router) straighten() {
 				if math.Abs(stops[i]-target) > r.o.Snap && !r.free(w, i, target, e) {
 					return false
 				}
-				if far && !r.dummyRoom(chain[i], stops[i], target) {
+				if far && !r.dummyRoom(chain[i], target) {
 					return false
 				}
 			}
@@ -474,14 +474,14 @@ func (r *router) backColumn(e int) (float64, bool) {
 	return 0, false
 }
 
-// dummyRoom reports whether dummy d's column may move from x0 to x
-// beyond Span (S8, Stops): its row stays clear, the node clearance from
-// every node box between and at the two, a side column's room beside a
-// pinned node and a loop's beside a node with faces included (blocked),
-// and InLaneGap from the side columns and stubs of the row's nodes
-// (crowded).
-func (r *router) dummyRoom(d int, x0, x float64) bool {
-	return !r.blocked(d, x, x0, 0) && !r.crowded(d, x, x0)
+// dummyRoom reports whether dummy d's column may move to x beyond Span
+// (S8, Stops): at x it keeps the node clearance from every node box of its
+// row and InLaneGap from every other dummy of the row (blocked), a side
+// column's room beside a pinned node and a loop's beside a node with faces
+// included, and InLaneGap from the side columns and stubs of the row's
+// nodes (crowded). What lies between its column and x does not matter.
+func (r *router) dummyRoom(d int, x float64) bool {
+	return !r.blocked(d, x, x, 0) && !r.crowded(d, x, x)
 }
 
 // shifts reports whether end stop i of edge e's wire w (which, its head
