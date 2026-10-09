@@ -12,8 +12,8 @@ import (
 const hopRadius = 5.0 // radius of the semicircular hop arc
 
 // hop is where a wire's arc over its crossings starts and ends, and the
-// arc's radius: hopRadius over one crossing, wider over crossings close
-// enough that their hops would overlap.
+// arc's radius along the wire: hopRadius over one crossing, wider over
+// crossings close enough that their hops would overlap.
 type hop struct {
 	pre, post model.Point
 	r         float64
@@ -69,9 +69,15 @@ func hopsBySegment(points []model.Point, crossings []model.Crossing) map[int][]h
 	return out
 }
 
-// writeHop draws h's arc, from its start, where the path stands, to its end.
+// writeHop draws h's arc, from its start, where the path stands, to its
+// end: a half circle over one crossing, a half ellipse along the wire over
+// several, rising no higher than hopRadius so it clears a parallel wire.
 func writeHop(b *strings.Builder, h hop) {
-	fmt.Fprintf(b, " A%s,%s 0 0 1 %s,%s", ff(h.r), ff(h.r), ff(h.post.X), ff(h.post.Y))
+	rot := 0.0
+	if h.r != hopRadius {
+		rot = math.Atan2(h.post.Y-h.pre.Y, h.post.X-h.pre.X) * 180 / math.Pi
+	}
+	fmt.Fprintf(b, " A%s,%s %s 0 1 %s,%s", ff(h.r), ff(hopRadius), ff(rot), ff(h.post.X), ff(h.post.Y))
 }
 
 // polylineWithHops converts a polyline to an SVG path string that includes

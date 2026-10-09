@@ -151,26 +151,30 @@ func TestPolylineWithHops_MultipleSegmentsHopOnSecond(t *testing.T) {
 }
 
 // Crossings whose hops would overlap on one segment merge into one wider
-// hop over all of them: the path never steps back. Hops that only touch
+// hop over all of them, no taller than a lone one: the path never steps
+// back and the bump never reaches a parallel wire. Hops that only touch
 // (10 px apart) stay two, drawn as before.
 func TestPolylineWithHops_CloseCrossingsMergeIntoOneHop(t *testing.T) {
-	seg := []model.Point{{X: 0, Y: 0}, {X: 100, Y: 0}}
+	across := []model.Point{{X: 0, Y: 0}, {X: 100, Y: 0}}
+	down := []model.Point{{X: 0, Y: 0}, {X: 0, Y: 100}}
 	for _, tc := range []struct {
 		name string
 		ts   []float64
 		want string
+		seg  []model.Point
 	}{
-		{"2 px apart", []float64{0.5, 0.52}, "M0,0 L45,0 A6,6 0 0 1 57,0 L100,0"},
-		{"one point", []float64{0.5, 0.5}, "M0,0 L45,0 A5,5 0 0 1 55,0 L100,0"},
-		{"three chained", []float64{0.3, 0.38, 0.46}, "M0,0 L25,0 A13,13 0 0 1 51,0 L100,0"},
-		{"10 px apart", []float64{0.5, 0.6}, "M0,0 L45,0 A5,5 0 0 1 55,0 L55,0 A5,5 0 0 1 65,0 L100,0"},
+		{"2 px apart", []float64{0.5, 0.52}, "M0,0 L45,0 A6,5 0 0 1 57,0 L100,0", across},
+		{"one point", []float64{0.5, 0.5}, "M0,0 L45,0 A5,5 0 0 1 55,0 L100,0", across},
+		{"three chained", []float64{0.3, 0.38, 0.46}, "M0,0 L25,0 A13,5 0 0 1 51,0 L100,0", across},
+		{"10 px apart", []float64{0.5, 0.6}, "M0,0 L45,0 A5,5 0 0 1 55,0 L55,0 A5,5 0 0 1 65,0 L100,0", across},
+		{"2 px apart, downward", []float64{0.5, 0.52}, "M0,0 L0,45 A6,5 90 0 1 0,57 L0,100", down},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var cs []model.Crossing
 			for _, x := range tc.ts {
 				cs = append(cs, model.Crossing{SegmentIndex: 0, T: x})
 			}
-			assert.Equal(t, tc.want, polylineWithHops(seg, cs))
+			assert.Equal(t, tc.want, polylineWithHops(tc.seg, cs))
 		})
 	}
 }
