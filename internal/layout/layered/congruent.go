@@ -156,13 +156,29 @@ func (n *nesting) nodesIn(k int) []int {
 // with the edge of k that crosses at the corresponding node, in the same
 // direction and on the same row (S9), each with a label and
 // cardinalities where its partner has them. Parallel edges pair in
-// declaration order.
+// declaration order. The containers pair first (pairContainers), then the
+// nodes (pairNodes), then the edges (pairEdges), and the first that
+// cannot says why.
 func (n *nesting) correspond(r, k int) (correspondence, string) {
-	t := n.tree
 	m := correspondence{nodes: map[int]int{}, containers: map[int]int{}, edges: map[int]int{}}
+	if why := n.pairContainers(r, k, m); why != "" {
+		return m, why
+	}
+	if why := n.pairNodes(r, k, m); why != "" {
+		return m, why
+	}
+	return m, n.pairEdges(r, k, m)
+}
+
+// pairContainers maps the containers of r's subtree onto k's, in
+// preorder, into m (correspond), or says why it cannot: their counts
+// differ (group_count), a pair's parents are no pair (group_nesting), or
+// one of a pair is titled and the other not (title).
+func (n *nesting) pairContainers(r, k int, m correspondence) string {
+	t := n.tree
 	rc, kc := n.preorder(r, nil), n.preorder(k, nil)
 	if len(rc) != len(kc) {
-		return m, "group_count"
+		return "group_count"
 	}
 	for i := range rc {
 		m.containers[rc[i]] = kc[i]
@@ -170,15 +186,26 @@ func (n *nesting) correspond(r, k int) (correspondence, string) {
 	for i := range rc {
 		a, b := rc[i], kc[i]
 		if i > 0 && m.containers[t.Containers[a].Parent] != t.Containers[b].Parent {
-			return m, "group_nesting"
+			return "group_nesting"
 		}
 		if (n.g.Groups[t.Containers[a].Group].Label == "") != (n.g.Groups[t.Containers[b].Group].Label == "") {
-			return m, "title"
+			return "title"
 		}
 	}
+	return ""
+}
+
+// pairNodes maps the graph nodes inside r onto those inside k, in
+// declaration order, into m (correspond), its containers mapped already,
+// or says why it cannot: their counts differ (node_count), a pair lies in
+// containers that are no pair (node_nesting), its shapes differ or only
+// one is a record (node_shape), or its sizes differ by more than
+// congruentTol (node_size).
+func (n *nesting) pairNodes(r, k int, m correspondence) string {
+	t := n.tree
 	rn, kn := n.nodesIn(r), n.nodesIn(k)
 	if len(rn) != len(kn) {
-		return m, "node_count"
+		return "node_count"
 	}
 	for i := range rn {
 		a, b := rn[i], kn[i]
@@ -186,72 +213,91 @@ func (n *nesting) correspond(r, k int) (correspondence, string) {
 		sa, sb := n.sizes[a], n.sizes[b]
 		switch {
 		case m.containers[t.In[a]] != t.In[b]:
-			return m, "node_nesting"
+			return "node_nesting"
 		case na.Shape != nb.Shape || (na.Members == nil) != (nb.Members == nil):
-			return m, "node_shape"
+			return "node_shape"
 		case math.Abs(sa.W-sb.W) > congruentTol || math.Abs(sa.H-sb.H) > congruentTol:
-			return m, "node_size"
+			return "node_size"
 		}
 		m.nodes[a] = b
 	}
-	// An edge's key: its ends inside, by node, and for an end outside, the
-	// row its terminals sit on.
-	type key struct{ from, to, row int }
-	keyOf := func(c, e int, nodes func(int) int) (key, bool) {
-		ed := n.g.Edges[e]
-		f, to := n.index[ed.From], n.index[ed.To]
-		in := [2]bool{n.within(f, c), n.within(to, c)}
-		if !in[0] && !in[1] {
-			return key{}, false
-		}
-		kk := key{from: -1, to: -1, row: -1}
-		if in[0] {
-			kk.from = nodes(f)
-		}
-		if in[1] {
-			kk.to = nodes(to)
-		}
-		if in[0] != in[1] {
-			end := 0
-			if in[1] {
-				end = 1
-			}
-			hl := n.levels[t.Home[e]]
-			kk.row = 0
-			if (end == 0) != hl.reversed[hl.edgeAt[e]] {
-				kk.row = 1
-			}
-		}
-		return kk, true
-	}
-	free := map[key][]int{}
+	return ""
+}
+
+// pairEdges maps every graph edge with an end inside r onto one with an
+// end inside k, into m (correspond), its nodes mapped already, or says
+// why it cannot: each takes, in declaration order, the first edge of k
+// left whose key is its own with its ends inside mapped (keyOf), and none
+// is left for it or one is left over (edges), or a pair differs in
+// whether it has a label or each cardinality (edge_labels).
+func (n *nesting) pairEdges(r, k int, m correspondence) string {
+	free := map[edgeKey][]int{}
 	for e := range n.g.Edges {
-		if kk, ok := keyOf(k, e, func(v int) int { return v }); ok {
+		if kk, ok := n.keyOf(k, e, func(v int) int { return v }); ok {
 			free[kk] = append(free[kk], e)
 		}
 	}
 	for e := range n.g.Edges {
-		kk, ok := keyOf(r, e, func(v int) int { return m.nodes[v] })
+		kk, ok := n.keyOf(r, e, func(v int) int { return m.nodes[v] })
 		if !ok {
 			continue
 		}
 		if len(free[kk]) == 0 {
-			return m, "edges"
+			return "edges"
 		}
 		f := free[kk][0]
 		free[kk] = free[kk][1:]
 		ea, eb := n.g.Edges[e], n.g.Edges[f]
 		if (ea.Label == "") != (eb.Label == "") || (ea.FromCard == "") != (eb.FromCard == "") || (ea.ToCard == "") != (eb.ToCard == "") {
-			return m, "edge_labels"
+			return "edge_labels"
 		}
 		m.edges[e] = f
 	}
 	for _, rest := range free {
 		if len(rest) > 0 {
-			return m, "edges"
+			return "edges"
 		}
 	}
-	return m, ""
+	return ""
+}
+
+// edgeKey is an edge's key in a container's subtree (keyOf): its ends
+// inside, by node, -1 for an end outside, and for an edge that crosses
+// the border the row its terminals sit on, 0 the first and 1 the last, -1
+// for none.
+type edgeKey struct{ from, to, row int }
+
+// keyOf is edge e's key in container c's subtree, an end inside named by
+// nodes of its node; false when neither end lies inside c. The row is the
+// one the inside end's terminal takes (build): the last when that end is
+// the edge's From, unless its home level reverses it.
+func (n *nesting) keyOf(c, e int, nodes func(int) int) (edgeKey, bool) {
+	t := n.tree
+	ed := n.g.Edges[e]
+	f, to := n.index[ed.From], n.index[ed.To]
+	in := [2]bool{n.within(f, c), n.within(to, c)}
+	if !in[0] && !in[1] {
+		return edgeKey{}, false
+	}
+	kk := edgeKey{from: -1, to: -1, row: -1}
+	if in[0] {
+		kk.from = nodes(f)
+	}
+	if in[1] {
+		kk.to = nodes(to)
+	}
+	if in[0] != in[1] {
+		end := 0
+		if in[1] {
+			end = 1
+		}
+		hl := n.levels[t.Home[e]]
+		kk.row = 0
+		if (end == 0) != hl.reversed[hl.edgeAt[e]] {
+			kk.row = 1
+		}
+	}
+	return kk, true
 }
 
 // copyMembers makes every container of cg's members' subtrees copy its

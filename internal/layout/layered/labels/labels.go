@@ -176,85 +176,29 @@ func (p *placer) envelope(e Edge) (Rect, bool) {
 	return Rect{x0, y0, x1 - x0, y1 - y0}, true
 }
 
-// pick takes the first spot clear of everything, or else, in the text
-// profile, the first of its ring clear but for the frame sides it covers
-// (border) once the ring holds none clear outright, or else the one with
-// the least overlap, marked unresolved; when that one lies outside the
-// home groups (S10), the ladder runs again without them. It registers the
-// spot: for edge e and, at
-// its spot moved as their first route points are, for every copy of e
-// (S12), each at its own size, the spot's overlap summed over them all
-// and over the area each two of their boxes share, since they must clear
-// each other too. In the text profile each box snaps to whole cells as
-// its spot does, a copy's once centered, and two boxes must also keep
-// their blank between them. It draws the spots from the ladder
-// in order and stops at the first clear one, and it returns each edge's
+// pick takes the spot of edge e's what, its label or a cardinality, from
+// the ladder spots (climb): the first spot clear of everything, or else,
+// in the text profile, the first of its ring clear but for the frame
+// sides it covers, or else the one with the least overlap, marked
+// unresolved; when no spot is clear, outright or but for a border, and a
+// home group (S10) holds one of the boxes, the ladder runs again without
+// the home groups. It registers the spot: for edge e and, at its spot
+// moved as their first route points are, for every copy of e (S12) with
+// a route and a box, each at its own size (boxAt). It returns each edge's
 // box by edge index.
 func (p *placer) pick(ctx context.Context, e int, what string, spots iter.Seq[spot], size func(Edge) Size) (map[int]*Rect, bool) {
-	at := func(s spot, k int) Rect {
-		lead := p.snap(s.Rect, s)
-		if k == e {
-			return lead
-		}
-		o, c := p.edges[e].Points[0], p.edges[k].Points[0]
-		z := size(p.edges[k])
-		cx, cy := lead.X+lead.W/2+c.X-o.X, lead.Y+lead.H/2+c.Y-o.Y
-		return p.snap(Rect{X: cx - z.W/2, Y: cy - z.H/2, W: z.W, H: z.H}, s)
-	}
 	all := []int{e}
 	for _, k := range p.edges[e].Copies {
 		if len(p.edges[k].Points) >= 2 && size(p.edges[k]).W > 0 {
 			all = append(all, k)
 		}
 	}
-	var best spot
-	var onBorder *spot // the first spot of the ring clear but for the frame sides it covers
-	var bestCost float64
-	climb := func() {
-		best, onBorder, bestCost = spot{}, nil, math.Inf(1)
-		ring := 0
-		first := true
-		for s := range spots {
-			if onBorder != nil && s.ring != ring {
-				break
-			}
-			ring = s.ring
-			if first {
-				best, first = s, false
-			}
-			c := 0.0
-			for j, k := range all {
-				c += p.cost(at(s, k), k, c, bestCost)
-				for _, l := range all[j+1:] {
-					c += area(p.slack(at(s, k)), at(s, l))
-				}
-			}
-			if c > 0 {
-				if c < bestCost {
-					best, bestCost = s, c
-				}
-				continue
-			}
-			covered := 0.0
-			for _, k := range all {
-				covered += p.border(at(s, k))
-			}
-			if covered == 0 {
-				best, bestCost, onBorder = s, 0, nil
-				break
-			}
-			if onBorder == nil {
-				b := s
-				onBorder = &b
-			}
-		}
-	}
-	climb()
+	best, onBorder, bestCost := p.climb(spots, e, all, size)
 	// a home group binds while some spot inside it is clear, outright or
 	// but for a border: else the ladder runs again without it (S10)
 	if bestCost > 0 && onBorder == nil && slices.ContainsFunc(all, func(k int) bool { return p.edges[k].Home != nil }) {
 		p.homeless = true
-		climb()
+		best, onBorder, bestCost = p.climb(spots, e, all, size)
 		p.homeless = false
 	}
 	if onBorder != nil {
@@ -264,7 +208,7 @@ func (p *placer) pick(ctx context.Context, e int, what string, spots iter.Seq[sp
 	}
 	out := make(map[int]*Rect, len(all))
 	for _, k := range all {
-		r := at(best, k)
+		r := p.boxAt(best, e, k, size)
 		p.placedGrid.add(len(p.placed), r)
 		p.placed = append(p.placed, r)
 		out[k] = &r
@@ -278,6 +222,79 @@ func (p *placer) pick(ctx context.Context, e int, what string, spots iter.Seq[sp
 		layoutdbg.Decision(ctx, "label_unresolved", attrs...)
 	}
 	return out, bestCost > 0
+}
+
+// climb draws the spots from the ladder in order and stops at the first
+// clear one (pick): it returns that spot, its cost 0; or else, in the
+// text profile, the first spot of its ring clear but for the frame sides
+// it covers (border), onBorder, once the ring holds none clear outright;
+// or else the spot with the least overlap, the first of them, and that
+// overlap. A spot's overlap counts every box all places at it, e's and
+// its copies' (spotCost).
+func (p *placer) climb(spots iter.Seq[spot], e int, all []int, size func(Edge) Size) (best spot, onBorder *spot, bestCost float64) {
+	bestCost = math.Inf(1)
+	ring := 0
+	first := true
+	for s := range spots {
+		if onBorder != nil && s.ring != ring {
+			break
+		}
+		ring = s.ring
+		if first {
+			best, first = s, false
+		}
+		if c := p.spotCost(s, e, all, size, bestCost); c > 0 {
+			if c < bestCost {
+				best, bestCost = s, c
+			}
+			continue
+		}
+		covered := 0.0
+		for _, k := range all {
+			covered += p.border(p.boxAt(s, e, k, size))
+		}
+		if covered == 0 {
+			return s, nil, 0
+		}
+		if onBorder == nil {
+			b := s
+			onBorder = &b
+		}
+	}
+	return best, onBorder, bestCost
+}
+
+// spotCost is spot s's overlap for the boxes of the edges all, e's and its
+// copies', placed there together (boxAt): each box's own cost, and the
+// area each two of the boxes share, the first grown by the blank a text
+// label keeps along its row (slack), since they must clear each other
+// too. A box's cost stops adding terms once the sum reaches bound, where
+// the spot cannot win (cost).
+func (p *placer) spotCost(s spot, e int, all []int, size func(Edge) Size, bound float64) float64 {
+	c := 0.0
+	for j, k := range all {
+		c += p.cost(p.boxAt(s, e, k, size), k, c, bound)
+		for _, l := range all[j+1:] {
+			c += area(p.slack(p.boxAt(s, e, k, size)), p.boxAt(s, e, l, size))
+		}
+	}
+	return c
+}
+
+// boxAt is edge k's box at spot s of edge e's ladder (pick): for e, the
+// spot's box snapped; for a copy of e, a box of the copy's own size
+// centered where that snapped box's center moves by the offset of the
+// copy's first route point from e's, snapped as the spot is. In the text
+// profile each box snaps to whole cells (snap).
+func (p *placer) boxAt(s spot, e, k int, size func(Edge) Size) Rect {
+	lead := p.snap(s.Rect, s)
+	if k == e {
+		return lead
+	}
+	o, c := p.edges[e].Points[0], p.edges[k].Points[0]
+	z := size(p.edges[k])
+	cx, cy := lead.X+lead.W/2+c.X-o.X, lead.Y+lead.H/2+c.Y-o.Y
+	return p.snap(Rect{X: cx - z.W/2, Y: cy - z.H/2, W: z.W, H: z.H}, s)
 }
 
 // cost is how much spot s of edge e overlaps: the area it shares with node
