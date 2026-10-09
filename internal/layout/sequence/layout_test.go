@@ -717,3 +717,18 @@ func TestLayoutFragment_CoincidentFramesLayOutQuickly(t *testing.T) {
 		})
 	}
 }
+
+// A message across several actors gets its label's room between its own
+// lifelines, as a message between neighbors does.
+func TestLayout_AMessageAcrossActorsHasRoomForItsLabel(t *testing.T) {
+	const label = "fetch the whole user profile now"
+	const spec = `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],
+"interactions":[{"from":"a","to":"c","label":"` + label + `"},{"from":"c","to":"a","label":"profile"}]}`
+	for _, np := range screenAndText() {
+		t.Run(np.name, func(t *testing.T) {
+			ps := layOut(t, spec, np.p)
+			lw, _ := np.p.MeasureText(label, np.p.Fonts.LabelSize, np.p.Fonts.Family)
+			assert.GreaterOrEqual(t, ps.Actors[2].LineX-ps.Actors[0].LineX, lw+2*np.p.ActorPaddingX)
+		})
+	}
+}

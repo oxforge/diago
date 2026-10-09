@@ -168,6 +168,24 @@ func layoutActors(
 		}
 	}
 
+	// A message across several actors needs its label's room between its
+	// own lifelines; the room goes into its last gap.
+	for _, it := range diagram.Interactions {
+		fi, ti := actorIndex[it.From], actorIndex[it.To]
+		if fi > ti {
+			fi, ti = ti, fi
+		}
+		if ti-fi < 2 {
+			continue
+		}
+		lw, _ := p.MeasureText(it.Label, p.Fonts.LabelSize, p.Fonts.Family)
+		if short := centerX[fi] + lw + p.ActorPaddingX*2 - centerX[ti]; short > 0 {
+			for j := ti; j < len(centerX); j++ {
+				centerX[j] += short
+			}
+		}
+	}
+
 	boxW := make([]float64, len(sizes))
 	for i, sz := range sizes {
 		boxW[i] = sz.w

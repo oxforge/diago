@@ -232,8 +232,14 @@ func drawMessage(g *charGrid, m model.PositionedInteraction, colOf map[string]in
 		}
 	}
 	if m.Label != "" {
-		text := " " + m.Label + " "
-		mid := (fromCol + toCol) / 2
-		g.writeText(mid-len([]rune(text))/2, y, text)
+		text := []rune(" " + m.Label + " ")
+		start := (fromCol+toCol)/2 - len(text)/2
+		lo, hi := min(fromCol, toCol), max(fromCol, toCol)
+		for i, r := range text {
+			// the label never covers the wire's ends: the source junction and the head
+			if x := start + i; x > lo && x < hi {
+				g.setGlyph(x, y, r)
+			}
+		}
 	}
 }

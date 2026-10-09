@@ -111,3 +111,21 @@ func TestRenderSequence_HeadersTopAndBottomMatch(t *testing.T) {
 		t.Fatalf("footer must repeat the header:\n%s", r.Art)
 	}
 }
+
+// A label wider than its wire never covers the wire's ends: the head and
+// the source junction stay.
+func TestRenderSequence_ALongLabelKeepsTheWiresEnds(t *testing.T) {
+	ps := twoActorSeq()
+	ps.Interactions[0].Label = "a label much wider than its wire"
+	r, err := RenderSequence(ps, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := []rune(strings.Split(strings.TrimRight(r.Art, "\n"), "\n")[5])
+	if row[15] != '►' {
+		t.Fatalf("head at column 15, got %q\n%s", row[15], r.Art)
+	}
+	if row[3] != '├' {
+		t.Fatalf("source junction at column 3, got %q\n%s", row[3], r.Art)
+	}
+}
