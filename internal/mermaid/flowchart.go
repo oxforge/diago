@@ -26,8 +26,8 @@ var (
 	// before -.-, ==> before ===, --> before ---.
 	flowArrowRE     = regexp.MustCompile(`^(<-->|-->|---|-\.->|-\.-|==>|===)\s*(?:\|([^|]*)\|\s*)?`)
 	flowDashLabelRE = regexp.MustCompile(`^--\s+(.+?)\s+-->\s*`)
-	// An edge id, Mermaid 11's "e1@" before an arrow: any run without
-	// whitespace, quotes, "@" or "|" (so a "|label|" is never taken for one).
+	// An edge id, Mermaid 11's "e1@" before an arrow: shaped like a node id,
+	// so an "@" inside a label never starts one.
 	flowEdgeIDRE = regexp.MustCompile(`^(` + flowID + `)@`)
 	// An edge's properties, "e1@{ animate: true }", set after the edge.
 	flowEdgePropsRE = regexp.MustCompile(`^([^\s"@|]+)@\{.*\}$`)
