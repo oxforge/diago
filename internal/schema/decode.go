@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,9 +39,76 @@ func decode(data []byte, v any) error {
 	}
 	var te *json.UnmarshalTypeError
 	if errors.As(err, &te) {
-		return ValidationErrors{{Field: jsonPath(te.Field), Message: fmt.Sprintf("must be %s, got %s", jsonKind(te.Type), te.Value)}}
+		return ValidationErrors{{Field: typeErrorPath(data, te), Message: fmt.Sprintf("must be %s, got %s", jsonKind(te.Type), te.Value)}}
 	}
 	return ValidationErrors{{Field: "", Message: "invalid JSON: " + err.Error()}}
+}
+
+// typeErrorPath names the value an UnmarshalTypeError rejected, as validation
+// errors name fields ("edges[1].flat"). The decoder's own Field omits array
+// indices and map keys on some Go versions, but its Offset is the same on all,
+// so the path comes from walking data's tokens to the value that ends at, or
+// for a container opens at, that offset. Should the walk fail it falls back
+// to the decoder's Field.
+func typeErrorPath(data []byte, te *json.UnmarshalTypeError) string {
+	type frame struct {
+		object    bool
+		key       string
+		index     int
+		expectKey bool
+	}
+	var stack []frame
+	path := func() string {
+		var b strings.Builder
+		for _, f := range stack {
+			switch {
+			case !f.object:
+				fmt.Fprintf(&b, "[%d]", f.index)
+			case b.Len() > 0:
+				b.WriteByte('.')
+				fallthrough
+			default:
+				b.WriteString(f.key)
+			}
+		}
+		return b.String()
+	}
+	// done marks the value just completed in the enclosing container.
+	done := func() {
+		if n := len(stack); n > 0 {
+			if stack[n-1].object {
+				stack[n-1].expectKey = true
+			} else {
+				stack[n-1].index++
+			}
+		}
+	}
+	dec := json.NewDecoder(bytes.NewReader(data))
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return jsonPath(te.Field)
+		}
+		d, isDelim := tok.(json.Delim)
+		if isDelim && (d == ']' || d == '}') {
+			stack = stack[:len(stack)-1]
+			done()
+			continue
+		}
+		if n := len(stack); n > 0 && stack[n-1].object && stack[n-1].expectKey {
+			stack[n-1].key, _ = tok.(string)
+			stack[n-1].expectKey = false
+			continue
+		}
+		if dec.InputOffset() >= te.Offset {
+			return path()
+		}
+		if isDelim {
+			stack = append(stack, frame{object: d == '{', expectKey: d == '{'})
+			continue
+		}
+		done()
+	}
 }
 
 // jsonPath writes encoding/json's dotted path ("edges.0.flat") the way

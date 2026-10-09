@@ -45,6 +45,8 @@ func TestParse_AWronglyTypedFieldIsAValidationError(t *testing.T) {
 		{"bool", `{"type":"flow","nodes":[{"id":"a","label":"A"}],"edges":[{"from":"a","to":"a"},{"from":"a","to":"a","flat":"yes"}]}`, "edges[1].flat", "must be a boolean, got string", flow},
 		{"string", `{"type":"flow","nodes":[{"id":1,"label":"A"}],"edges":[]}`, "nodes[0].id", "must be a string, got number", flow},
 		{"integer", `{"type":"sequence","actors":[{"id":"a","label":"A"}],"interactions":[{"from":"a","to":"a"}],"fragments":[{"type":"loop","over":["a"],"sections":[{"start":0,"end":1e20}]}]}`, "fragments[0].sections[0].end", "must be an integer, got number 1e20", seq},
+		{"array element", `{"type":"class","classes":[{"id":"a","type_params":[1]}]}`, "classes[0].type_params[0]", "must be a string, got number", class},
+		{"container for scalar", `{"type":"flow","nodes":[{"id":"a","label":"A"}],"edges":[{"from":"a","to":"a","flat":{"x":1}}]}`, "edges[0].flat", "must be a boolean, got object", flow},
 		{"map value", `{"type":"class","classes":[{"id":"a"}],"legend_labels":{"inheritance":1}}`, "legend_labels.inheritance", "must be a string, got number", class},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
