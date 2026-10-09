@@ -35,6 +35,7 @@ func TestRenderBasicGraph(t *testing.T) {
 	out := Render(twoNodeGraph(), th)
 
 	assert.Contains(t, out, `xmlns="http://www.w3.org/2000/svg"`)
+	assert.Contains(t, out, `width="400" height="300" viewBox="0 0 400 300"`, "the canvas is the layout's")
 	assert.Contains(t, out, "Service A")
 	assert.Contains(t, out, "Service B")
 	assert.Contains(t, out, "<polyline")
@@ -64,7 +65,7 @@ func TestRenderEdgeStyleDashed(t *testing.T) {
 		},
 	}
 	out := Render(g, th)
-	assert.Contains(t, out, "stroke-dasharray", "dashed edge should have stroke-dasharray")
+	assert.Contains(t, out, `stroke-dasharray="8,4"`, "a dashed edge draws 8 on, 4 off")
 }
 
 func TestRenderEdgeStyleDotted(t *testing.T) {
@@ -81,7 +82,7 @@ func TestRenderEdgeStyleDotted(t *testing.T) {
 		},
 	}
 	out := Render(g, th)
-	assert.Contains(t, out, "stroke-dasharray", "dotted edge should have stroke-dasharray")
+	assert.Contains(t, out, `stroke-dasharray="2,4"`, "a dotted edge draws 2 on, 4 off")
 }
 
 func TestRenderEdgeStyleThick(t *testing.T) {
@@ -99,7 +100,8 @@ func TestRenderEdgeStyleThick(t *testing.T) {
 	}
 	out := Render(g, th)
 	// Thick edge uses a larger stroke-width; default is 1.5, thick is 2.5x = 3.75
-	assert.Contains(t, out, "stroke-width", "thick edge should have stroke-width attribute")
+	assert.Contains(t, out, `stroke-width="3.75"`, "a thick edge is 2.5 times the theme stroke")
+	assert.NotContains(t, out, "stroke-dasharray", "and solid")
 }
 
 func TestRenderAllShapes(t *testing.T) {
@@ -146,153 +148,57 @@ func TestRenderEdgeLabelPositioned(t *testing.T) {
 	assert.Contains(t, out, "call", "edge label should appear in SVG")
 }
 
-// TestEdgeLabelsCentered verifies that edge labels are centered on the edge midpoint.
-func TestEdgeLabelsCentered(t *testing.T) {
-	th := theme.DefaultTheme()
-	g := twoNodeGraph() // has edge A→B with label "call", points (100,104)→(100,176)
-	out := Render(g, th)
-
-	// Parse the SVG to find edge groups.
-	edgeGroups := extractEdgeGroups(t, out)
-	require.NotEmpty(t, edgeGroups, "should have at least one edge group")
-
-	for _, eg := range edgeGroups {
-		if eg.label == "" {
-			continue
-		}
-
-		// Verify: label X matches the polyline midpoint X.
-		midX := (eg.polylinePoints[0].X + eg.polylinePoints[len(eg.polylinePoints)-1].X) / 2
-		midY := (eg.polylinePoints[0].Y + eg.polylinePoints[len(eg.polylinePoints)-1].Y) / 2
-		assert.InDelta(t, midX, eg.labelX, 1.0,
-			"edge %s→%s: label X should be centered on edge midpoint", eg.from, eg.to)
-		assert.InDelta(t, midY, eg.labelY, 1.0,
-			"edge %s→%s: label Y should be on edge midpoint", eg.from, eg.to)
-	}
-}
-
-// TestEdgeLabelsCenteredGoldenBasic runs the full pipeline on flow-basic.json
-// and verifies edge labels are centered on the edge midpoint.
-func TestEdgeLabelsCenteredGoldenBasic(t *testing.T) {
-	th := theme.DefaultTheme()
-	g := &model.PositionedGraph{
-		Width: 300, Height: 400,
-		Nodes: []model.PositionedNode{
-			{ID: "client", Label: "Client App", Shape: model.ShapeRounded, X: 150, Y: 60, Width: 140, Height: 48},
-			{ID: "api", Label: "API Gateway", Shape: model.ShapeRect, X: 150, Y: 200, Width: 140, Height: 48},
-			{ID: "db", Label: "PostgreSQL", Shape: model.ShapeCylinder, X: 150, Y: 340, Width: 140, Height: 60},
-		},
-		Edges: []model.PositionedEdge{
-			{From: "client", To: "api", Label: "HTTPS", Style: model.EdgeSolid,
-				Points: []model.Point{{X: 150, Y: 84}, {X: 150, Y: 176}}},
-			{From: "api", To: "db", Label: "query", Style: model.EdgeSolid,
-				Points: []model.Point{{X: 150, Y: 224}, {X: 150, Y: 310}}},
-		},
-	}
-	out := Render(g, th)
-	edgeGroups := extractEdgeGroups(t, out)
-
-	for _, eg := range edgeGroups {
-		if eg.label == "" {
-			continue
-		}
-		midX := (eg.polylinePoints[0].X + eg.polylinePoints[len(eg.polylinePoints)-1].X) / 2
-		midY := (eg.polylinePoints[0].Y + eg.polylinePoints[len(eg.polylinePoints)-1].Y) / 2
-
-		assert.InDelta(t, midX, eg.labelX, 1.0,
-			"label %q: X should match edge midpoint", eg.label)
-		assert.InDelta(t, midY, eg.labelY, 1.0,
-			"label %q: Y should match edge midpoint", eg.label)
-	}
-}
-
-// edgeGroupInfo holds parsed information about an edge <g> element.
-type edgeGroupInfo struct {
-	from, to          string
-	label             string
-	labelX, labelY    float64
-	polylinePoints    []model.Point
-	hasBackgroundRect bool
-	bgRectBeforeText  bool
-	bgRectX, bgRectY  float64
-	bgRectW, bgRectH  float64
-	bgRectFill        string
-}
-
-// extractEdgeGroups parses the SVG XML and extracts edge group information.
-func extractEdgeGroups(t *testing.T, svgStr string) []edgeGroupInfo {
+// textAt returns the position of the first <text> element holding content.
+func textAt(t *testing.T, svgStr, content string) (x, y float64) {
 	t.Helper()
-
-	var results []edgeGroupInfo
-
 	decoder := xml.NewDecoder(strings.NewReader(svgStr))
-	var inEdgeGroup bool
-	var current edgeGroupInfo
-	var foundText bool
-
+	var at *xml.StartElement
 	for {
 		tok, err := decoder.Token()
 		if err != nil {
 			break
 		}
-
 		switch el := tok.(type) {
 		case xml.StartElement:
-			attrs := attrMap(el.Attr)
-
-			if el.Name.Local == "g" {
-				id := attrs["id"]
-				if strings.HasPrefix(id, "edge-") {
-					inEdgeGroup = true
-					parts := strings.SplitN(strings.TrimPrefix(id, "edge-"), "-", 2)
-					current = edgeGroupInfo{}
-					if len(parts) == 2 {
-						current.from = parts[0]
-						current.to = parts[1]
-					}
-					foundText = false
-				}
-			}
-
-			if !inEdgeGroup {
-				continue
-			}
-
-			if el.Name.Local == "polyline" {
-				current.polylinePoints = parsePolylinePoints(attrs["points"])
-			}
-
-			if el.Name.Local == "rect" && !foundText {
-				// A rect before any text in this group is a background rect.
-				current.hasBackgroundRect = true
-				current.bgRectBeforeText = true
-				current.bgRectX = parseFloat(attrs["x"])
-				current.bgRectY = parseFloat(attrs["y"])
-				current.bgRectW = parseFloat(attrs["width"])
-				current.bgRectH = parseFloat(attrs["height"])
-				current.bgRectFill = attrs["fill"]
-			}
-
 			if el.Name.Local == "text" {
-				foundText = true
-				current.labelX = parseFloat(attrs["x"])
-				current.labelY = parseFloat(attrs["y"])
+				at = &el
 			}
-
 		case xml.CharData:
-			if inEdgeGroup && foundText {
-				current.label = strings.TrimSpace(string(el))
+			if at != nil && strings.TrimSpace(string(el)) == content {
+				for _, a := range at.Attr {
+					switch a.Name.Local {
+					case "x":
+						x, _ = strconv.ParseFloat(a.Value, 64)
+					case "y":
+						y, _ = strconv.ParseFloat(a.Value, 64)
+					}
+				}
+				return x, y
 			}
-
 		case xml.EndElement:
-			if el.Name.Local == "g" && inEdgeGroup {
-				results = append(results, current)
-				inEdgeGroup = false
+			if el.Name.Local == "text" {
+				at = nil
 			}
 		}
 	}
+	t.Fatalf("no <text> holds %q", content)
+	return 0, 0
+}
 
-	return results
+// TestEdgeLabelPosition: an edge label is drawn at the position the layout
+// gave it (LabelPos), and at the middle of the wire when it gave none.
+func TestEdgeLabelPosition(t *testing.T) {
+	th := theme.DefaultTheme()
+	g := twoNodeGraph() // A->B labeled "call", wire (100,104) to (100,176)
+
+	x, y := textAt(t, Render(g, th), "call")
+	assert.InDelta(t, 100, x, 1e-9, "centered on the wire")
+	assert.InDelta(t, 140, y, 1e-9, "at the middle of the wire")
+
+	g.Edges[0].LabelPos = &model.Point{X: 130, Y: 150}
+	x, y = textAt(t, Render(g, th), "call")
+	assert.InDelta(t, 130, x, 1e-9, "at the layout's position")
+	assert.InDelta(t, 150, y, 1e-9)
 }
 
 // TestRenderSketch_NoFilter: the sketch style draws by hand through its
@@ -309,34 +215,6 @@ func TestRenderSketch_NoFilter(t *testing.T) {
 	th := theme.DefaultTheme()
 	th.Style = "sketch"
 	assert.Contains(t, Render(twoNodeGraph(), th), "<path", "sketch shapes are hand-drawn paths")
-}
-
-func attrMap(attrs []xml.Attr) map[string]string {
-	m := make(map[string]string, len(attrs))
-	for _, a := range attrs {
-		m[a.Name.Local] = a.Value
-	}
-	return m
-}
-
-func parseFloat(s string) float64 {
-	v, _ := strconv.ParseFloat(s, 64)
-	return v
-}
-
-func parsePolylinePoints(s string) []model.Point {
-	var pts []model.Point
-	pairs := strings.Fields(s)
-	for _, pair := range pairs {
-		parts := strings.Split(pair, ",")
-		if len(parts) != 2 {
-			continue
-		}
-		x, _ := strconv.ParseFloat(parts[0], 64)
-		y, _ := strconv.ParseFloat(parts[1], 64)
-		pts = append(pts, model.Point{X: x, Y: y})
-	}
-	return pts
 }
 
 func TestEdgeLabelPositionZeroLengthSegment(t *testing.T) {

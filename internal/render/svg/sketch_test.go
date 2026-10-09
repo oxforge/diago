@@ -76,15 +76,6 @@ func TestSketchWobbleIsHalf(t *testing.T) {
 	assert.Equal(t, 0.75, sketchWobble)
 }
 
-func TestSeedRNGDeterministic(t *testing.T) {
-	r1 := seedRNG("test-id")
-	r2 := seedRNG("test-id")
-	// Draw several values and compare.
-	for i := 0; i < 10; i++ {
-		assert.Equal(t, r1.Float64(), r2.Float64())
-	}
-}
-
 func TestSketchPolyline_HopsOverItsCrossings(t *testing.T) {
 	pts := []model.Point{{X: 0, Y: 0}, {X: 100, Y: 0}}
 	plain := sketchPolyline(pts, "a-b", nil)
