@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/oxforge/diago/internal/model"
 )
@@ -133,11 +134,14 @@ func TestC13_GroupBoxesAndTitleExtents(t *testing.T) {
 }
 
 // TestC13_ATitledGroupCarriesBothExtents: a title with no height is no
-// title box, and C13 reports it.
+// title box, and C13 reports it once, on the group: the wire and the node
+// laid over where the title would sit cross no box.
 func TestC13_ATitledGroupCarriesBothExtents(t *testing.T) {
-	pg := layout(300, 200, nil)
+	pg := layout(300, 200, []model.PositionedNode{shaped("n", model.ShapeRect, 48, 29, 30, 20)}, wire("p", "q", 10, 29, 100, 29))
 	pg.Groups = []model.PositionedGroup{{ID: "g", Label: "G", X: 20, Y: 20, Width: 200, Height: 120, Depth: 1, LabelWidth: 40}}
-	assert.True(t, has(check(pg), "C13", "g"))
+	c13 := filter(check(pg), "C13")
+	require.Len(t, c13, 1, "%v", c13)
+	assert.Equal(t, "g", c13[0].Subject)
 }
 
 // TestC13_ABlockedTitleExemptsItsWires pins C13's sanctioned degradation

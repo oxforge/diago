@@ -146,6 +146,8 @@ func TestC9_2_ACombMeetsEndToEndOnOneTrack(t *testing.T) {
 		{"a float error of overlap", wire("m2", "d", 140, 50, 140, 100, 100-1e-9, 100, 100, 120), false},
 		{"end to end, 2 px off the track", wire("m2", "d", 140, 50, 140, 102, 100, 102, 100, 120), true},
 		{"0.5 px apart along, 5 px off the track", wire("m2", "d", 140, 50, 140, 105, 100.5, 105, 100.5, 120), true},
+		{"end to end, 0.5 px off the track (within its tolerance)", wire("m2", "d", 140, 50, 140, 100.5, 100, 100.5, 100, 120), false},
+		{"0.5 px of overlap on the track", wire("m2", "d", 140, 50, 140, 100, 99.5, 100, 99.5, 120), true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, has(pair(e1, tt.e2, d), "C9.2", "m1->d#0"))

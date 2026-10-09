@@ -714,9 +714,8 @@ func TestRenderWithOptions_SVGElementIDsAreUnique(t *testing.T) {
 		})
 	}
 	plain := ids(t, `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b","label":"go"}],"groups":[{"id":"g","label":"G","contains":["a"]}]}`)
-	for _, want := range []string{"edge-a-b", "group-g", "group-title-g"} {
-		assert.Contains(t, plain, want)
-	}
+	// A spec without a collision keeps every id, in render order.
+	assert.Equal(t, []string{"diago-arrow", "diago-arrow-thick", "diago-layout", "group-g", "edge-a-b", "node-a", "node-b", "group-title-g"}, plain)
 }
 
 // A diff render names edge labels, so an edge id like another's label id
