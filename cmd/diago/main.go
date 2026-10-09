@@ -111,9 +111,37 @@ const usage = `usage: diago <verb> [flags] [args]
 ` + specHelp + `Without SPEC, or with -, render, check and import read stdin.
 `
 
-// run dispatches the verb and returns the exit code: 0 ok, 1 validation
-// error (structured JSON on stderr), 2 usage, read, git or internal error.
+// run runs the verb args names. A write to stdout that fails is an error,
+// exit 2, whatever the verb returned: the artifact did not arrive whole.
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	out := &stickyWriter{w: stdout}
+	code := dispatch(args, stdin, out, stderr)
+	if out.err != nil {
+		fmt.Fprintf(stderr, "error: write output: %v\n", out.err)
+		return 2
+	}
+	return code
+}
+
+// stickyWriter is stdout as the verbs see it: it keeps the first write
+// error for run to report.
+type stickyWriter struct {
+	w   io.Writer
+	err error
+}
+
+func (s *stickyWriter) Write(p []byte) (int, error) {
+	n, err := s.w.Write(p)
+	if err != nil && s.err == nil {
+		s.err = err
+	}
+	return n, err
+}
+
+// dispatch runs the verb args names, writing its output to stdout. It returns
+// the exit code: 0 ok, 1 validation error (structured JSON on stderr), 2
+// usage, read, git or internal error.
+func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		fmt.Fprint(stderr, usage)
 		return 2
@@ -175,7 +203,7 @@ func runHelp(args []string, stdout, stderr io.Writer) int {
 	}
 	switch args[0] {
 	case "render", "diff", "check", "import":
-		return run([]string{args[0], "-h"}, nil, stdout, stderr)
+		return dispatch([]string{args[0], "-h"}, nil, stdout, stderr)
 	case "version":
 		fmt.Fprint(stdout, versionUsage)
 		return 0
@@ -331,7 +359,7 @@ func runRender(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if renderErr != nil {
 		return reportError(stderr, renderErr)
 	}
-	stdout.Write(data) //nolint:errcheck
+	stdout.Write(data) //nolint:errcheck // run reports a failed write (stickyWriter)
 	for _, w := range warnings {
 		fmt.Fprintf(stderr, "warning: %s\n", w)
 	}
@@ -423,6 +451,7 @@ func reportError(stderr io.Writer, err error) int {
 		out.Error.Type = "validation_error"
 		out.Error.Errors = []schema.ValidationError(ve)
 		enc := json.NewEncoder(stderr)
+		enc.SetEscapeHTML(false)
 		enc.SetIndent("", "  ")
 		enc.Encode(out) //nolint:errcheck
 		return 1
@@ -514,7 +543,7 @@ func runDiff(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return reportError(stderr, err)
 	}
-	stdout.Write(data) //nolint:errcheck
+	stdout.Write(data) //nolint:errcheck // run reports a failed write (stickyWriter)
 	writeAdvisories(stderr, advisories, "warning: ")
 	return 0
 }
@@ -573,8 +602,9 @@ func runCheck(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			out.Warnings = []schema.Advisory{}
 		}
 		enc := json.NewEncoder(stdout)
+		enc.SetEscapeHTML(false)
 		enc.SetIndent("", "  ")
-		enc.Encode(out) //nolint:errcheck
+		enc.Encode(out) //nolint:errcheck // run reports a failed write (stickyWriter)
 	} else {
 		writeAdvisories(stdout, advs, "")
 	}
@@ -619,7 +649,7 @@ func runImport(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if err != nil {
 		return reportSourceError(stderr, "import", err)
 	}
-	stdout.Write(res.JSON) //nolint:errcheck
+	stdout.Write(res.JSON) //nolint:errcheck // run reports a failed write (stickyWriter)
 	writeReports(stderr, res.Reports, "")
 	return 0
 }

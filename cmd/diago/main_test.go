@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -925,4 +926,48 @@ func TestRun_AThemeNameWithAPathIsRejected(t *testing.T) {
 	code, out, _ := runCLI(t, `{"type":"flow","theme":"","nodes":[{"id":"a","label":"A"}],"edges":[]}`, "render")
 	assert.Equal(t, 0, code)
 	assert.Contains(t, out, "<svg")
+}
+
+// failWriter is a stdout whose every write fails, as on a full disk.
+type failWriter struct{}
+
+func (failWriter) Write([]byte) (int, error) { return 0, errors.New("no space left on device") }
+
+// A verb whose output cannot be written exits 2 and says so, whatever it
+// would have returned: a check -strict that found something included.
+func TestRun_AFailedStdoutWriteExits2(t *testing.T) {
+	old, neu := writeTemp(t, "old.json", diffOld), writeTemp(t, "new.json", diffNew)
+	isolated := `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[]}`
+	for _, tc := range []struct {
+		name, stdin string
+		args        []string
+	}{
+		{"render", twoNodeSpec, []string{"render"}},
+		{"diff", "", []string{"diff", old, neu}},
+		{"check -json", twoNodeSpec, []string{"check", "-json"}},
+		{"check -strict", isolated, []string{"check", "-strict"}},
+		{"import", "flowchart LR\n  a --> b\n", []string{"import"}},
+		{"help", "", []string{"-h"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var errb strings.Builder
+			code := run(tc.args, strings.NewReader(tc.stdin), failWriter{}, &errb)
+			assert.Equal(t, 2, code)
+			assert.Contains(t, errb.String(), "error: write output: no space left on device")
+		})
+	}
+}
+
+// The CLI's JSON keeps <, > and & as written: a validation error's message
+// and check -json's findings.
+func TestRun_JSONKeepsAngleBracketsAndAmpersands(t *testing.T) {
+	code, _, stderr := runCLI(t, `{"type":"flow","nodes":[{"id":"a","label":"A"}],"edges":[{"from":"a","to":"List<T>"}]}`, "render")
+	assert.Equal(t, 1, code)
+	assert.Contains(t, stderr, `List<T>`)
+	assert.NotContains(t, stderr, `\u003c`)
+	// The finding names the node by its id, which carries the &.
+	code, out, _ := runCLI(t, `{"type":"flow","nodes":[{"id":"a&b","label":"A"},{"id":"c","label":"C"}],"edges":[]}`, "check", "-json")
+	assert.Equal(t, 0, code)
+	assert.Contains(t, out, `a&b`)
+	assert.NotContains(t, out, `\u0026`)
 }
