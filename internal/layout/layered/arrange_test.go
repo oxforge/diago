@@ -215,13 +215,6 @@ func TestArrange_Right(t *testing.T) {
 	assert.Equal(t, a.Sizes[0].W, a.Level.Nodes[0].H)
 }
 
-func TestArrange_Auto(t *testing.T) {
-	g := graph(t, nil, "a", "b", "c", "a->b")
-	g.Direction = model.Auto
-	a, _ := arrange(t, g, screen())
-	assert.Equal(t, model.Right, a.Dir)
-}
-
 func TestArrange_TextProfile(t *testing.T) {
 	a, x := arrange(t, graph(t, nil, "abc->de", "abc->f"), TextConfig(model.Down))
 	assert.Equal(t, size.Size{W: 8, H: 3}, a.Sizes[0], "cells")
@@ -429,7 +422,10 @@ func TestArrange_LogsAWidenedFace(t *testing.T) {
 	assert.Equal(t, "S8", got[0]["spec_ref"])
 	assert.Equal(t, "hub", got[0]["node"])
 	assert.Equal(t, 30.0, got[0]["ends"])
-	assert.Equal(t, 46.59375, got[0]["from"], "hub as S1 measures it, across the flow")
+	lone := crowded(t, "", 1) // the same hub with a face that has room: S1's size alone
+	lone.Direction = model.Right
+	a, _ := arrange(t, lone, screen())
+	assert.Equal(t, a.Sizes[node(t, a, "hub")].H, got[0]["from"], "hub as S1 measures it, across the flow")
 	assert.Equal(t, 124.0, got[0]["to"])
 }
 

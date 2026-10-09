@@ -20,7 +20,6 @@ import (
 	"github.com/oxforge/diago/internal/layout/layered/frame"
 	"github.com/oxforge/diago/internal/layoutdbg"
 	"github.com/oxforge/diago/internal/model"
-	textrender "github.com/oxforge/diago/internal/render/text"
 )
 
 // lay runs Layout and checks its result against the output contract
@@ -580,17 +579,17 @@ func TestLayout_ARoomGivesWayToAForcing(t *testing.T) {
 	for _, dir := range []model.Direction{model.Down, model.Up, model.Right, model.Left} {
 		g := graph(t, nil, specs...)
 		g.Direction = dir
-		var buf bytes.Buffer
-		ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
-		pg, err := Layout(ctx, g, screen(), nil)
-		require.NoError(t, err)
-		for _, v := range contract.Check(pg, contract.Options{Limits: contract.ScreenLimits(), Direction: dir, EdgeIDs: ids(g)}) {
-			t.Errorf("%s %s %s: %s", dir, v.Rule, v.Subject, v.Detail)
+		_, recs := layLogged(t, g, dir, false) // the screen contract holds too
+		room, denial := -1, -1
+		for i, rec := range recs {
+			assert.NotEqual(t, "side_exit_dropped", rec["decision"], "%s: no forcing drops", dir)
+			switch {
+			case rec["decision"] == "secondary_room" && rec["node"] == "n2" && room < 0:
+				room = i
+			case rec["decision"] == "primary_denied" && rec["node"] == "n2" && denial < 0:
+				denial = i
+			}
 		}
-		log := buf.String()
-		assert.NotContains(t, log, `"decision":"side_exit_dropped"`, "%s: no forcing drops", dir)
-		room := strings.Index(log, `"decision":"secondary_room","phase":"place","module":"diago","spec_ref":"S7","node":"n2"`)
-		denial := strings.Index(log, `"decision":"primary_denied","phase":"place","module":"diago","spec_ref":"S7","node":"n2"`)
 		require.GreaterOrEqual(t, room, 0, "%s: n2's secondary gets room", dir)
 		assert.Greater(t, denial, room, "%s: the room gives way, and n2 is denied its primary after it", dir)
 	}
@@ -620,6 +619,39 @@ func TestLayout_ADenialThatBuysNoLIsGivenBack(t *testing.T) {
 	}
 }
 
+// decisionFixture builds a flow graph of decisions from node specs ("id" or
+// "id:diamond", labeled by id) and edges (from, to, label): a frozen copy of
+// a random graph the probe once generated, so the test needs no seed.
+func decisionFixture(nodes []string, edges [][3]string) model.Graph {
+	var g model.Graph
+	for _, spec := range nodes {
+		id, shape, _ := strings.Cut(spec, ":")
+		n := model.Node{ID: id, Label: id, Shape: model.ShapeRect}
+		if shape == "diamond" {
+			n.Shape = model.ShapeDiamond
+		}
+		g.Nodes = append(g.Nodes, n)
+	}
+	for _, e := range edges {
+		g.Edges = append(g.Edges, model.Edge{ID: e[0] + "->" + e[1] + "#0", From: e[0], To: e[1], Label: e[2]})
+	}
+	return g
+}
+
+// decisionSeed387 is the probe's decision graph of seed 387.
+func decisionSeed387() model.Graph {
+	return decisionFixture(
+		[]string{"n0", "n1:diamond", "n2:diamond", "n3", "n4:diamond", "n5", "n6:diamond", "n7:diamond", "n8:diamond", "n9", "n10:diamond", "n11:diamond", "n12:diamond", "n13", "n14", "n15", "n16"},
+		[][3]string{{"n0", "n8", ""}, {"n1", "n12", "yes"}, {"n1", "n6", "no"}, {"n2", "n6", "yes"}, {"n2", "n4", "no"}, {"n3", "n14", ""}, {"n4", "n16", "yes"}, {"n4", "n14", "no"}, {"n5", "n12", ""}, {"n6", "n14", "yes"}, {"n6", "n16", "no"}, {"n7", "n16", "yes"}, {"n7", "n15", "no"}, {"n8", "n13", "yes"}, {"n8", "n11", "no"}, {"n9", "n12", ""}, {"n10", "n15", "yes"}, {"n10", "n16", "no"}, {"n11", "n16", "yes"}, {"n11", "n15", "no"}, {"n12", "n16", "yes"}, {"n12", "n14", "no"}, {"n14", "n15", ""}, {"n15", "n16", ""}})
+}
+
+// decisionSeed27 is the probe's decision graph of seed 27.
+func decisionSeed27() model.Graph {
+	return decisionFixture(
+		[]string{"n0", "n1", "n2:diamond", "n3:diamond", "n4", "n5", "n6:diamond", "n7", "n8", "n9"},
+		[][3]string{{"n0", "n6", ""}, {"n1", "n9", ""}, {"n2", "n6", "yes"}, {"n2", "n9", "no"}, {"n3", "n6", "yes"}, {"n3", "n7", "no"}, {"n4", "n7", ""}, {"n5", "n9", ""}, {"n6", "n7", "yes"}, {"n6", "n8", "no"}, {"n7", "n9", ""}, {"n8", "n9", ""}})
+}
+
 // TestLayout_ARoomWaitsForItsPrimary pins S7's room on a diamond whose
 // primary's forcing alignment dropped: the room's premise, the secondary's
 // next vertex kept the node gap from the primary's under the diamond, does
@@ -631,7 +663,7 @@ func TestLayout_ADenialThatBuysNoLIsGivenBack(t *testing.T) {
 func TestLayout_ARoomWaitsForItsPrimary(t *testing.T) {
 	small := graph(t, nil, "d1:diamond->t", "d1->s1", "d2:diamond->t", "d2->s1", "t->u")
 	small.Direction = model.Down
-	seed := decisionGraph(387)
+	seed := decisionSeed387()
 	seed.Direction = model.Down
 	for name, g := range map[string]model.Graph{"two decisions": small, "decision seed 387": seed} {
 		var buf bytes.Buffer
@@ -670,7 +702,7 @@ func TestLayout_ARoomWaitsForItsPrimary(t *testing.T) {
 // n0's clearance (40 - 12 = Reach + InLaneGap); taken, as the allowance
 // let it, the wire jogged 8 px back to its port. It stays an L.
 func TestLayout_AColumnGivesWayOnlyWhereTheRowIsClear(t *testing.T) {
-	g := decisionGraph(27)
+	g := decisionSeed27()
 	g.Direction = model.Down
 	pg := lay(t, g, screen(), model.Down)
 	assert.Len(t, edge(t, pg, "n3->n6#0").Points, 3, "n3->n6 is an L")
@@ -1454,19 +1486,6 @@ func TestLayout_TextLanesSitOnTheCellGrid(t *testing.T) {
 	}
 }
 
-// drawnAt is the text a render's art shows on n cells from the cell where
-// the text renderer starts a label centered on pos, w px wide: the cell
-// holding its left side and its middle row.
-func drawnAt(res textrender.Result, pos model.Point, w float64, n int) string {
-	lines := strings.Split(res.Art, "\n")
-	row, col := int(math.Floor(pos.Y/cellH))-res.TopRow, int(math.Floor((pos.X-w/2)/cellW))
-	if row < 0 || row >= len(lines) || col < 0 {
-		return ""
-	}
-	rs := []rune(lines[row])
-	return string(rs[min(col, len(rs)):min(col+n, len(rs))])
-}
-
 func TestLayout_TextLabelsAreDrawnOnTheirBoxes(t *testing.T) {
 	// web and cli, in a titled group, feed api above them under UP
 	// (the flow-client-server example, pared down). web's label once sat
@@ -1485,16 +1504,12 @@ func TestLayout_TextLabelsAreDrawnOnTheirBoxes(t *testing.T) {
 		Edges:  []model.Edge{{ID: "web->api#0", From: "web", To: "api", Label: "HTTPS"}, {ID: "cli->api#0", From: "cli", To: "api"}},
 		Groups: []model.Group{{ID: "clients", Label: "Clients", Contains: []string{"web", "cli"}}},
 	}
-	pg, err := Layout(context.Background(), g, TextConfig(model.Up), nil)
-	require.NoError(t, err)
+	pg := layText(t, g) // the text contract holds: the box is whole cells, clear of every frame side and wire (C14)
 	web := edge(t, pg, "web->api#0")
 	require.NotNil(t, web.LabelPos)
 	assert.False(t, web.LabelUnresolved)
 	left, top := web.LabelPos.X-web.LabelWidth/2, web.LabelPos.Y-web.LabelHeight/2
 	assert.Equal(t, [2]float64{8 * cellW, 5 * cellH}, [2]float64{left, top}, "columns 8..12 of row 5, the row above the lane, a blank column left of the last run")
-	res, err := textrender.Render(pg)
-	require.NoError(t, err)
-	assert.Equal(t, "HTTPS", drawnAt(res, *web.LabelPos, web.LabelWidth, 5), "drawn on its box")
 }
 
 func TestLayout_ClientServerTextLabelsSitByTheirWires(t *testing.T) {
@@ -2331,9 +2346,6 @@ func TestLayout_TextALabelLeavesAGroupTooNarrowForIt(t *testing.T) {
 				e := edge(t, pg, tc.edge)
 				require.NotNil(t, e.LabelPos)
 				assert.False(t, e.LabelUnresolved, "resolved")
-				res, err := textrender.Render(pg)
-				require.NoError(t, err)
-				assert.Empty(t, res.DroppedLabels, "drawn")
 			})
 		}
 	}

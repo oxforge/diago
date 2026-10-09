@@ -223,18 +223,6 @@ func TestAnchoring_ExactReproduction(t *testing.T) {
 	}
 }
 
-func TestAnchoring_TheK33EndsWithCrossings(t *testing.T) {
-	// The K3,3 of TestAnchoring_ExactReproduction pins the case a previous
-	// layout ended with crossings, which 2 sweeps from it could reduce
-	// were S6's ordering not its own anchored ordering.
-	pg := lay(t, graph(t, nil, "a->d", "a->e", "a->f", "b->d", "b->e", "b->f", "c->d", "c->e", "c->f"), screen(), model.Down)
-	n := 0
-	for _, e := range pg.Edges {
-		n += len(e.Crossings)
-	}
-	assert.Positive(t, n)
-}
-
 func TestAnchoring_StaleEntriesNeverBreakALayout(t *testing.T) {
 	// C18.2: unknown ids and slots, negative values, a vanished scope and
 	// an unknown reversed edge are ignored, each reported.

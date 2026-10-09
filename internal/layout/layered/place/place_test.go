@@ -1040,6 +1040,11 @@ func TestPlace_TextBoxesSitOnTheCharacterGrid(t *testing.T) {
 func TestPlace_KeepsTheMinimumSeparation(t *testing.T) {
 	rng := rand.New(rand.NewPCG(13, 17))
 	shapes := []string{"", ":diamond", ":circle", ":hexagon", ":parallelogram", ":cylinder"}
+	// a Reach past the node gap, so a self-loop leg asks for more room than
+	// the gap beside its node (Reach + Clearance = 52 > Gap)
+	o := screen
+	o.Reach, o.InLaneGap = 40, 8
+	roomier := 0
 	for trial := range 120 {
 		n := 2 + rng.IntN(16)
 		specs := make([]string, 0, 3*n)
@@ -1053,11 +1058,15 @@ func TestPlace_KeepsTheMinimumSeparation(t *testing.T) {
 		for i := range n {
 			widths[fmt.Sprintf("n%d", i)] = float64(40 + rng.IntN(160))
 		}
-		g, x, _ := placed(t, screen, widths, specs...)
+		g, x, _ := placed(t, o, widths, specs...)
+		space := newPlacer(g, o).space // S7's whole separation: side columns and loop legs included
 		for l, layer := range g.Layers {
 			for i := 1; i < len(layer); i++ {
 				a, b := layer[i-1], layer[i]
-				need := (g.Vertices[a].W+g.Vertices[b].W)/2 + screen.Gap
+				need := space.sep(g, a, b)
+				if need > (g.Vertices[a].W+g.Vertices[b].W)/2+o.Gap {
+					roomier++
+				}
 				assert.GreaterOrEqual(t, x[b]-x[a], need-1e-6, "trial %d layer %d: %s | %s", trial, l, g.Vertices[a].ID, g.Vertices[b].ID)
 			}
 		}
@@ -1065,6 +1074,7 @@ func TestPlace_KeepsTheMinimumSeparation(t *testing.T) {
 			assert.False(t, math.IsNaN(xv) || math.IsInf(xv, 0), "trial %d vertex %d", trial, v)
 		}
 	}
+	assert.Positive(t, roomier, "some neighbors need more than the gap, or the loop is vacuous")
 }
 
 // decisions runs Place with a recording layoutdbg context and returns the
