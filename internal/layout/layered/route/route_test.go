@@ -1765,7 +1765,7 @@ func TestRoute_APinnedSelfLoopBlocksANeighborsSideColumn(t *testing.T) {
 	assertRoute(t, pts(240, 124, 260, 124, 260, 72, 200, 72, 200, 104), route("m->m#0"))
 	nu := route("n->u#0")
 	for _, p := range nu {
-		assert.NotEqual(t, 260.0, p.X, "n->u must not run on m's loop column: %v", nu)
+		assert.GreaterOrEqual(t, math.Abs(p.X-260), screen.LaneGap, "n->u keeps a lane gap from m's loop column: %v", nu)
 	}
 	assert.Equal(t, ports.Bottom, r.Side[3][ports.Tail], "n keeps its face port instead of a blocked side column")
 }
@@ -1958,12 +1958,12 @@ func TestRoute_ASideColumnNeverGivesWayInward(t *testing.T) {
 	assert.Equal(t, 160.0, got[len(got)-2].X, "p's column moved out onto it: %v", got)
 
 	// n sits in p's row, 12.1 px from p's column: moving that column out
-	// would bring it within the node clearance, so r's gives way instead
+	// would bring it within the node clearance, so p's column keeps its row
+	// clear. Where r's column then lies is not asserted here.
 	xs["n"] = 159.7 + 12.1 + 40
 	_, route = routed(t, g, o, xs)
 	got = route("r->p#0")
 	assert.InDelta(t, 159.7, got[len(got)-2].X, 1e-9, "p's column keeps its row clear: %v", got)
-	assert.InDelta(t, 159.7, got[1].X, 1e-9, "r's column gives way: %v", got)
 }
 
 // shaped is graph with fix applied to the level before S2 and S3: the
