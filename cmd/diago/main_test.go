@@ -524,10 +524,7 @@ func TestRun_RenderExitCodes(t *testing.T) {
 // os.Exit, so the exit status and the streams of a real process are checked
 // here for a spec that draws and for one that does not validate.
 func TestBinary_ExitCodes(t *testing.T) {
-	bin := t.TempDir() + "/diago"
-	build := exec.Command("go", "build", "-o", bin, ".")
-	out, err := build.CombinedOutput()
-	require.NoError(t, err, "failed to build CLI: %s", out)
+	bin := buildCLI(t)
 
 	cmd := exec.Command(bin, "render")
 	cmd.Stdin = strings.NewReader(twoNodeSpec)
@@ -546,6 +543,16 @@ func TestBinary_ExitCodes(t *testing.T) {
 	assert.Equal(t, 1, exitErr.ExitCode())
 	assert.Empty(t, stdout.String())
 	assert.Contains(t, stderr.String(), `"validation_error"`)
+}
+
+// buildCLI builds the diago binary into a temporary directory and returns
+// its path.
+func buildCLI(t *testing.T) string {
+	t.Helper()
+	bin := t.TempDir() + "/diago"
+	out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput()
+	require.NoError(t, err, "failed to build CLI: %s", out)
+	return bin
 }
 
 func writeTemp(t *testing.T, name, content string) string {
