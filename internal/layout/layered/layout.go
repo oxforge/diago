@@ -28,7 +28,7 @@ const hopRadius = 5.0
 // millionth of a unit.
 const noise = 1e-6
 
-// Layout lays g out (S0): S1 to S8 through Arrange, then the nesting
+// Layout lays g out (S0): S1 to S8 level by level, then the nesting
 // (nested, S9) and the flat edges routed on it (composed, S9), the group
 // titles and the labels (S10), the frame (S11) and, in the text profile,
 // the adapter that scales cells to 8 x 16 px. Crossings are found last,

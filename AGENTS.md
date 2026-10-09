@@ -209,7 +209,7 @@ output-contract checker) and `internal/layout/metrics/` (the quality metrics).
 
 | Package | Owns |
 |---------|------|
-| `internal/layout/layered/` | The layered engine, the only flow and class engine: one package per stage, the Config (S14) in `config.go`. `Layout` runs S1–S11, laying groups out level by level (`nested.go`, the `nest` package: S9), routing the flat edges on the composed layout with their fallback (`flat.go`, the `flat` package: S9), copying congruent sibling groups (`congruent.go`: S12) and anchoring on a previous carrier (`anchor.go`: S13), `Arrange` S1–S8 on a graph without groups or flat edges; the pipeline calls it from `internal/pipeline/engine.go`. Debug records carry `module: diago` and the stage's name as `phase`. |
+| `internal/layout/layered/` | The layered engine, the only flow and class engine: one package per stage, the Config (S14) in `config.go`. `Layout` runs S1–S11, laying groups out level by level (`nested.go`, the `nest` package: S9), routing the flat edges on the composed layout with their fallback (`flat.go`, the `flat` package: S9), copying congruent sibling groups (`congruent.go`: S12) and anchoring on a previous carrier (`anchor.go`: S13); the pipeline calls it from `internal/pipeline/engine.go`. Debug records carry `module: diago` and the stage's name as `phase`. |
 | `internal/layout/sequence/` | The timeline engine for sequence diagrams; `LayoutWithOptions` takes an activation mask for diff renders. Sequence diagrams emit no debug records. |
 
 Put a change where its stage already lives; the debug `phase` name tells you
