@@ -73,8 +73,8 @@ func alignActors(before, after *model.SequenceDiagram) []ActorStatus {
 }
 
 // AlignSequences aligns two interaction lists by an LCS over the strong key
-// from|to|label|style, then pairs leftovers inside each gap on from|to, in order, as
-// changed. Ties prefer the earliest before index.
+// from|to|label|style, then pairs leftovers inside each gap on from|to, in
+// order, as changed. Ties prefer the earliest before index.
 func AlignSequences(before, after *model.SequenceDiagram) SeqAlignment {
 	b, a := before.Interactions, after.Interactions
 	n, m := len(b), len(a)

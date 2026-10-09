@@ -24,6 +24,9 @@ func multiLine(s string) string {
 	return escapeControls(strings.ReplaceAll(s, "\r\n", "\n"), true)
 }
 
+// escapeControls returns s with every character escaped reports written
+// as its escape: \n, \t, \r, or \uXXXX for the rest. When keepNewline,
+// a "\n" stays a line break. s comes back as it is when it holds none.
 func escapeControls(s string, keepNewline bool) string {
 	needs := func(r rune) bool {
 		if r == '\n' {

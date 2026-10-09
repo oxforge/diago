@@ -75,8 +75,10 @@ type diffInputs struct {
 	seqBefore, seqAfter   *model.SequenceDiagram
 }
 
-// parseDiffInputs probes both types, parses both specs with before./after.
-// field prefixes, and rejects mixed types on after.type.
+// parseDiffInputs probes both types, parses both specs, and rejects mixed
+// types on after.type. A spec error's field names its side (prefixFields):
+// "before." or "after." in front of the spec's own field, or the bare
+// "before" or "after" for an error on the whole document.
 func parseDiffInputs(before, after []byte) (diffInputs, error) {
 	bk, err := schema.DiagramType(before)
 	if err != nil {
