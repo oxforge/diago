@@ -28,13 +28,6 @@ type GraphDiff struct {
 	NodeFields, EdgeFields, GroupFields       map[string][]FieldChange
 }
 
-// Empty reports whether nothing changed.
-func (d GraphDiff) Empty() bool {
-	return len(d.AddedNodes)+len(d.RemovedNodes)+len(d.ChangedNodes)+
-		len(d.AddedEdges)+len(d.RemovedEdges)+len(d.ChangedEdges)+
-		len(d.AddedGroups)+len(d.RemovedGroups)+len(d.ChangedGroups) == 0
-}
-
 // parentOf maps every node and group id to its parent group id ("" = top).
 func parentOf(g *model.Graph) map[string]string {
 	p := make(map[string]string, len(g.Nodes)+len(g.Groups))

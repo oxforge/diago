@@ -8,10 +8,6 @@ import (
 	"github.com/oxforge/diago/internal/theme"
 )
 
-// labelVerticalOffset is the vertical offset to center interaction labels on their arrow line.
-// Set to 0 for vertically centered labels; positive values move labels above the line.
-const labelVerticalOffset = 0.0
-
 // renderActorBox renders an actor header box with a centered label.
 func renderActorBox(a model.PositionedActor, style theme.ActorStyle, sketch bool) SVGGroup {
 	var shapeEl Element
@@ -227,7 +223,7 @@ func renderNormalInteraction(
 
 	if it.Label != "" {
 		midX := (it.FromX + it.ToX) / 2
-		labelY := it.Y - labelVerticalOffset
+		labelY := it.Y
 		lw, lh := font.MeasureText(it.Label, style.LabelFont.Size, style.LabelFont.Family)
 		padX, padY := 4.0, 2.0
 		children = append(children,

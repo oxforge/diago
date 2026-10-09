@@ -101,12 +101,6 @@ func MeasureText(text string, sizePt float64, family string) (width, height floa
 	return width, height
 }
 
-// TextHeight returns the line height (ascent + descent) for the given font size using Inter.
-// sizePt is in typographic points. Returns pixels at 96 dpi.
-func TextHeight(sizePt float64) float64 {
-	return textHeightForFont(fonts["Inter"].font, sizePt)
-}
-
 func textHeightForFont(f *sfnt.Font, sizePt float64) float64 {
 	ppem := fixed.Int26_6(math.Round(pointsToPixels(sizePt) * 64))
 

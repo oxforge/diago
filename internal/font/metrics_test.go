@@ -37,11 +37,6 @@ func TestMeasureTextScalesWithSize(t *testing.T) {
 	assert.Greater(t, w28, w14, "larger font size should produce wider text")
 }
 
-func TestTextHeightPositive(t *testing.T) {
-	h := TextHeight(14)
-	assert.Greater(t, h, 0.0, "text height should be positive")
-}
-
 func TestMeasureTextWithFamily(t *testing.T) {
 	wInter, hInter := MeasureText("Hello", 14, "Inter")
 	assert.Greater(t, wInter, 0.0)

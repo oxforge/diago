@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/oxforge/diago/internal/model"
 )
@@ -167,21 +166,6 @@ func TestMetrics_String(t *testing.T) {
 	m := Metrics{Crossings: 1, Bends: 2, Jogs: 3, Straight: 4, Fans: 6, Centered: 5, Area: 1234.5, Wire: 99.49,
 		Overlaps: 7, Intrusions: 8, Clearance: 9, Stubs: 10, Labels: 11, Violations: 12}
 	assert.Equal(t, "cross=1 bends=2 jogs=3 straight=4 fans=5/6 area=1234 wire=99 overlaps=7 intrusions=8 clearance=9 stubs=10 labels=11 violations=12", m.String())
-}
-
-// TestMetrics_ParseRoundTrip checks Parse against String: on whole-number
-// Area and Wire (String rounds both to whole px, so a round trip on a
-// fractional value would not come back equal), Parse(m.String()) is m
-// again. It also rejects a malformed line.
-func TestMetrics_ParseRoundTrip(t *testing.T) {
-	m := Metrics{Crossings: 1, Bends: 2, Jogs: 3, Straight: 4, Fans: 6, Centered: 5, Area: 345862, Wire: 864,
-		Overlaps: 7, Intrusions: 8, Clearance: 9, Stubs: 10, Labels: 11, Violations: 12}
-	got, err := Parse(m.String())
-	require.NoError(t, err)
-	assert.Equal(t, m, got)
-
-	_, err = Parse("garbage")
-	assert.Error(t, err)
 }
 
 // TestMeasure_FansReadTheContractsForwardEdges: a fan's neighbors are

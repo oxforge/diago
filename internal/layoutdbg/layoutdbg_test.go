@@ -59,23 +59,6 @@ func TestDecision_DropsWhenInfo(t *testing.T) {
 	}
 }
 
-func TestWith_AttrsInheritedByDecision(t *testing.T) {
-	ctx, buf := newCapturingCtx(slog.LevelDebug)
-	ctx = With(ctx, "phase", "obstruction", "group", "clients")
-	Decision(ctx, "sibling_blocks_check", "insider", "web")
-	entries := parseLines(t, buf)
-	if len(entries) != 1 {
-		t.Fatalf("want 1 entry, got %d", len(entries))
-	}
-	e := entries[0]
-	if e["phase"] != "obstruction" {
-		t.Errorf("phase = %v, want obstruction (inherited from With)", e["phase"])
-	}
-	if e["group"] != "clients" {
-		t.Errorf("group = %v, want clients", e["group"])
-	}
-}
-
 func TestFrom_NilContextReturnsNopLogger(t *testing.T) {
 	// Intentionally pass nil context to verify From's nil-safety contract.
 	logger := From(nil) //nolint:staticcheck // SA1012: testing nil-context safety on purpose

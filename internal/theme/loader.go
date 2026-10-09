@@ -12,39 +12,6 @@ import (
 	"github.com/oxforge/diago/themes"
 )
 
-// ThemeSummary holds the name and description of a theme.
-type ThemeSummary struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-}
-
-// List returns summaries of all available embedded themes.
-func List() ([]ThemeSummary, error) {
-	entries, err := themes.FS.ReadDir(".")
-	if err != nil {
-		return nil, fmt.Errorf("list themes: %w", err)
-	}
-	var summaries []ThemeSummary
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
-			continue
-		}
-		data, err := themes.FS.ReadFile(e.Name())
-		if err != nil {
-			return nil, fmt.Errorf("list themes: read %s: %w", e.Name(), err)
-		}
-		var jt jsonTheme
-		if err := json.Unmarshal(data, &jt); err != nil {
-			return nil, fmt.Errorf("list themes: parse %s: %w", e.Name(), err)
-		}
-		summaries = append(summaries, ThemeSummary{
-			Name:        jt.Name,
-			Description: jt.Description,
-		})
-	}
-	return summaries, nil
-}
-
 // Load loads a theme by name. It first looks in the embedded FS (themes/*.json),
 // then falls back to DIAGO_THEME_DIR if set. A name is a plain file name,
 // without a path, so a theme never comes from outside that directory.

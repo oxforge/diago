@@ -41,7 +41,6 @@ type Profile struct {
 	FragmentGuardGap                                 float64
 	ActivationWidth                                  float64
 	TopMargin, LeftMargin, RightMargin, BottomMargin float64
-	LabelAboveOffset                                 float64
 	NormalizeMargin                                  float64
 
 	CellW, CellH float64 // > 0 = text mode
@@ -79,7 +78,6 @@ func ScreenProfile(fonts LayoutFonts) Profile {
 		LeftMargin:           40,
 		RightMargin:          40,
 		BottomMargin:         40,
-		LabelAboveOffset:     10,
 		NormalizeMargin:      40,
 	}
 }
@@ -113,7 +111,6 @@ func TextProfile() Profile {
 		LeftMargin:            16,
 		RightMargin:           16,
 		BottomMargin:          32, // one lifeline row past the last message, then the footer
-		LabelAboveOffset:      0,
 		NormalizeMargin:       16,
 		CellW:                 8,
 		CellH:                 16,

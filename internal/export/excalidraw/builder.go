@@ -6,12 +6,9 @@ import (
 )
 
 type builder struct {
-	th              theme.Theme
-	elements        []element
-	nodeGroupIDs    map[string][]string
-	nodeMembership  map[string]string
-	groupMembership map[string]string
-	groupByID       map[string]*model.PositionedGroup
+	th           theme.Theme
+	elements     []element
+	nodeGroupIDs map[string][]string
 }
 
 // resolveAccent resolves a color name or hex value to a hex accent string.

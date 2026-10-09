@@ -3,7 +3,6 @@ package theme
 import (
 	"os"
 	"path/filepath"
-	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -168,23 +167,6 @@ func TestAllEmbeddedThemesValid(t *testing.T) {
 			assert.NoError(t, err)
 		})
 	}
-}
-
-func TestList(t *testing.T) {
-	summaries, err := List()
-	require.NoError(t, err)
-	require.Len(t, summaries, 4)
-
-	// Sort by name for deterministic assertion.
-	sort.Slice(summaries, func(i, j int) bool {
-		return summaries[i].Name < summaries[j].Name
-	})
-
-	assert.Equal(t, "dark", summaries[0].Name)
-	assert.Equal(t, "Pure dark theme without blue tint", summaries[0].Description)
-	assert.Equal(t, "default", summaries[1].Name)
-	assert.Equal(t, "midnight", summaries[2].Name)
-	assert.Equal(t, "sketch", summaries[3].Name)
 }
 
 func TestValidateRejectsMissingClassSection(t *testing.T) {

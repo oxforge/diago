@@ -88,7 +88,7 @@ func TestDiffGraphs_EdgeFlatChange(t *testing.T) {
 
 func TestDiffGraphs_IdenticalIsEmpty(t *testing.T) {
 	d := DiffGraphs(parse(t, specA), parse(t, specA))
-	assert.True(t, d.Empty())
+	assert.True(t, noChange(d))
 }
 
 func TestDiffGraphs_NodeShapeChange(t *testing.T) {

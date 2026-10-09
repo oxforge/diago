@@ -40,20 +40,6 @@ func From(ctx context.Context) *slog.Logger {
 	return nopLogger
 }
 
-// With returns a child ctx whose attached logger has the given attrs
-// pre-attached via slog.Logger.With. Subsequent Decision calls inherit
-// these attrs automatically. Used at function boundaries to scope a
-// phase, group, or other identifier.
-//
-// Example:
-//
-//	ctx = layoutdbg.With(ctx, "phase", "nest", "group", g.ID)
-//	layoutdbg.Decision(ctx, "level_arranged", "nodes", len(lv.Nodes))
-func With(ctx context.Context, attrs ...any) context.Context {
-	logger := From(ctx)
-	return NewContext(ctx, logger.With(attrs...))
-}
-
 // Armed reports whether a debug logger attached to ctx is enabled at DEBUG
 // level — i.e. whether Decision calls on this ctx will actually emit records.
 // Callers use it to gate work that is only worth doing for debug output

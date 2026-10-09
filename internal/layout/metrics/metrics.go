@@ -120,26 +120,6 @@ func (m Metrics) String() string {
 		m.Overlaps, m.Intrusions, m.Clearance, m.Stubs, m.Labels, m.Violations)
 }
 
-// Parse is the inverse of Metrics.String: it reads back one line of a
-// metrics baseline (one layout's line, without
-// its leading "<spec>/<DIRECTION> " name) into a Metrics, for a tool that
-// compares a committed baseline's numbers rather than its text.
-func Parse(s string) (Metrics, error) {
-	var m Metrics
-	var fans int
-	n, err := fmt.Sscanf(s, "cross=%d bends=%d jogs=%d straight=%d fans=%d/%d area=%f wire=%f overlaps=%d intrusions=%d clearance=%d stubs=%d labels=%d violations=%d",
-		&m.Crossings, &m.Bends, &m.Jogs, &m.Straight, &m.Centered, &fans, &m.Area, &m.Wire,
-		&m.Overlaps, &m.Intrusions, &m.Clearance, &m.Stubs, &m.Labels, &m.Violations)
-	if err != nil {
-		return Metrics{}, fmt.Errorf("metrics.Parse %q: %w", s, err)
-	}
-	if n != 14 {
-		return Metrics{}, fmt.Errorf("metrics.Parse %q: read %d of 14 fields", s, n)
-	}
-	m.Fans = fans
-	return m, nil
-}
-
 func length(p, q model.Point) float64 { return math.Hypot(q.X-p.X, q.Y-p.Y) }
 
 // drawn is pts without a point within tol of the one before it: a

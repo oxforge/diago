@@ -11,23 +11,20 @@ import (
 // Export converts a PositionedGraph to Excalidraw v2 JSON bytes.
 func Export(pg *model.PositionedGraph, th theme.Theme) ([]byte, error) {
 	b := builder{
-		th:              th,
-		elements:        make([]element, 0, len(pg.Nodes)*2+len(pg.Edges)*2),
-		nodeGroupIDs:    make(map[string][]string),
-		nodeMembership:  make(map[string]string),
-		groupMembership: make(map[string]string),
-		groupByID:       make(map[string]*model.PositionedGroup),
+		th:           th,
+		elements:     make([]element, 0, len(pg.Nodes)*2+len(pg.Edges)*2),
+		nodeGroupIDs: make(map[string][]string),
 	}
 
 	// Build membership maps.
-	for i := range pg.Groups {
-		g := &pg.Groups[i]
-		b.groupByID[g.ID] = g
+	nodeMembership := make(map[string]string)
+	groupMembership := make(map[string]string)
+	for _, g := range pg.Groups {
 		for _, nid := range g.Contains {
-			b.nodeMembership[nid] = g.ID
+			nodeMembership[nid] = g.ID
 		}
 		for _, cid := range g.Children {
-			b.groupMembership[cid] = g.ID
+			groupMembership[cid] = g.ID
 		}
 	}
 
@@ -37,7 +34,7 @@ func Export(pg *model.PositionedGraph, th theme.Theme) ([]byte, error) {
 		chain := []string{g.ID}
 		cur := g.ID
 		for {
-			parent, ok := b.groupMembership[cur]
+			parent, ok := groupMembership[cur]
 			if !ok {
 				break
 			}
@@ -49,7 +46,7 @@ func Export(pg *model.PositionedGraph, th theme.Theme) ([]byte, error) {
 
 	// Assign groupIds to nodes.
 	for _, n := range pg.Nodes {
-		if gid, ok := b.nodeMembership[n.ID]; ok {
+		if gid, ok := nodeMembership[n.ID]; ok {
 			b.nodeGroupIDs[n.ID] = groupChains[gid]
 		}
 	}

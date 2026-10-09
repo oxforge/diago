@@ -162,7 +162,7 @@ func TestBuildUnion_IdenticalIsAllSame(t *testing.T) {
 	for id, s := range u.Edges {
 		assert.Equal(t, Same, s, id)
 	}
-	assert.True(t, u.Diff.Empty())
+	assert.True(t, noChange(u.Diff))
 	assert.Equal(t, 3, len(u.Graph.Nodes))
 }
 
