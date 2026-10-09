@@ -3,8 +3,6 @@
 // without inheritance or overrides from other themes.
 package theme
 
-import "fmt"
-
 // Theme is the complete visual specification for rendering a diagram.
 type Theme struct {
 	Name        string // theme name (e.g., "default", "midnight", "sketch")
@@ -104,16 +102,4 @@ type DiffStyle struct {
 type ClassStyle struct {
 	MemberFont     FontStyle
 	SeparatorWidth float64
-}
-
-// DefaultTheme returns the default light theme.
-// It delegates to Load("default") for the canonical JSON source.
-func DefaultTheme() Theme {
-	th, err := Load("default")
-	if err != nil {
-		// Panic is intentional: the default theme is embedded at compile time.
-		// A load failure here means the binary itself is corrupt.
-		panic(fmt.Sprintf("theme: failed to load embedded default theme: %v", err))
-	}
-	return th
 }

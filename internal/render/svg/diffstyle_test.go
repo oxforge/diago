@@ -6,6 +6,7 @@ import (
 
 	"github.com/oxforge/diago/internal/model"
 	"github.com/oxforge/diago/internal/theme"
+	"github.com/oxforge/diago/internal/theme/themetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,14 +31,14 @@ func statusOpts(th theme.Theme, classes map[string]string) *RenderOptions {
 }
 
 func TestRenderWithOptions_NilIsRender(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g := twoNodeGraph()
 	assert.Equal(t, Render(g, th), RenderWithOptions(g, th, nil))
 	assert.NotContains(t, Render(g, th), "class=")
 }
 
 func TestRenderWithOptions_ClassesAndStyle(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	out := RenderWithOptions(diffGraph(), th, statusOpts(th, map[string]string{
 		"node:A": "dimmed", "node:B": "added", "node:C": "removed",
 		"edge:A->B#0": "changed", "edge:A->C#0": "removed", "group:grp": "changed",
@@ -58,7 +59,7 @@ func TestRenderWithOptions_ClassesAndStyle(t *testing.T) {
 }
 
 func TestRenderWithOptions_StatusMarkers(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g := diffGraph()
 	g.Edges[0].Color = "red" // user color must lose to status for the marker
 	out := RenderWithOptions(g, th, statusOpts(th, map[string]string{
@@ -75,11 +76,11 @@ func TestDiffStyles_DarkPalette(t *testing.T) {
 	dark, err := theme.Load("dark")
 	require.NoError(t, err)
 	assert.Contains(t, DiffStyles(dark), dark.Diff.Added)
-	assert.NotContains(t, DiffStyles(dark), theme.DefaultTheme().Diff.Added)
+	assert.NotContains(t, DiffStyles(dark), themetest.Default().Diff.Added)
 }
 
 func TestClassDiffStyles(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	out := ClassDiffStyles(th)
 	assert.Contains(t, out, DiffStyles(th), "class diff styles extend the flow diff styles")
 	assert.Contains(t, out, "text.member.added { fill: "+th.Diff.Added+"; font-weight: 600; }")
@@ -98,7 +99,7 @@ func groupOf(t *testing.T, out, id string) string {
 }
 
 func TestRenderWithOptions_StatusPaintKeepsOnlyFills(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g := diffGraph()
 	g.Nodes[0].Color = "red"   // A, unchanged
 	g.Edges[0].Color = "red"   // A->B, unchanged
@@ -128,14 +129,14 @@ func TestRenderWithOptions_StatusPaintKeepsOnlyFills(t *testing.T) {
 }
 
 func TestRenderWithOptions_RemovedMarkers(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	out := RenderWithOptions(diffGraph(), th, statusOpts(th, map[string]string{"edge:A->B#0": "removed"}))
 	assert.Contains(t, out, `id="diago-arrow-removed"`)
 	assert.Contains(t, out, `marker-end="url(#diago-arrow-removed)"`)
 }
 
 func TestDiffStyles_Removed(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	out := DiffStyles(th)
 	assert.Contains(t, out, ".removed { opacity: 0.6; }")
 	assert.Contains(t, out, ".removed rect, .removed polygon, .removed circle, .removed ellipse, .removed path, .removed polyline { stroke: "+th.Diff.Removed+"; stroke-dasharray: 6 4; }")

@@ -9,6 +9,7 @@ import (
 
 	"github.com/oxforge/diago/internal/model"
 	"github.com/oxforge/diago/internal/theme"
+	"github.com/oxforge/diago/internal/theme/themetest"
 )
 
 func classGraph() *model.PositionedGraph {
@@ -36,7 +37,7 @@ func classGraph() *model.PositionedGraph {
 }
 
 func TestRenderClassNode_Structure(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	out := Render(classGraph(), th)
 	// Outer group has no class; the inner group is bare too in a plain render.
 	assert.Contains(t, out, `<g id="node-shape"><g>`)
@@ -56,7 +57,7 @@ func TestRenderClassNode_Structure(t *testing.T) {
 }
 
 func TestRenderClassNode_StatusSplit(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	opts := &RenderOptions{
 		Class: func(kind, id string) string {
 			switch {
@@ -78,7 +79,7 @@ func TestRenderClassNode_StatusSplit(t *testing.T) {
 }
 
 func TestRenderClass_MarkersAndShortening(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	out := Render(classGraph(), th)
 	assert.Contains(t, out, `<marker id="diago-uml-triangle" viewBox="-1 -1 14 16" refX="0" refY="7" markerWidth="14" markerHeight="16" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M 0 0 L 12 7 L 0 14 Z" fill="none" stroke="#6c757d" stroke-width="1.5"/></marker>`)
 	assert.Contains(t, out, `<marker id="diago-uml-diamond-filled" viewBox="-1 -1 16 14" refX="0" refY="6" markerWidth="16" markerHeight="14" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M 0 6 L 7 0 L 14 6 L 7 12 Z" fill="#6c757d" stroke="#6c757d" stroke-width="1.5"/></marker>`)
@@ -106,7 +107,7 @@ func TestRenderClass_ShorteningOnEveryPathKind(t *testing.T) {
 	assert.Contains(t, out, `marker-start="url(#diago-uml-triangle)"`)
 	hop := classGraph()
 	hop.Edges[0].Crossings = []model.Crossing{{SegmentIndex: 0, T: 0.5}}
-	out = Render(hop, theme.DefaultTheme())
+	out = Render(hop, themetest.Default())
 	assert.Contains(t, out, `d="M100,143.5 `)
 	// The crossing is parametric against the UNSHORTENED polyline, so its
 	// absolute position is (100, 131.5 + 0.5*94) = (100, 178.5). Shortening
@@ -119,7 +120,7 @@ func TestRenderClass_ShorteningOnEveryPathKind(t *testing.T) {
 	// A crossing that the shortening swallowed is dropped, not re-projected.
 	swallowed := classGraph()
 	swallowed.Edges[0].Crossings = []model.Crossing{{SegmentIndex: 0, T: 0.05}}
-	out = Render(swallowed, theme.DefaultTheme())
+	out = Render(swallowed, themetest.Default())
 	assert.NotContains(t, out, ` A5,5 `, "a crossing before the shortened start is dropped")
 }
 
@@ -131,7 +132,7 @@ func elementString(e Element) string {
 }
 
 func TestRenderClassNode_NilGuards(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	style := th.Node
 	// No Members: fall back to the plain shape render, not a nil dereference.
 	plain := model.PositionedNode{ID: "n", Label: "N", Shape: model.ShapeRect, X: 50, Y: 50, Width: 80, Height: 40}
@@ -144,7 +145,7 @@ func TestRenderClassNode_NilGuards(t *testing.T) {
 }
 
 func TestRenderClass_AccentAndStatusMarkers(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g := classGraph()
 	g.Edges[0].Color = "red"
 	out := Render(g, th)
@@ -168,7 +169,7 @@ func TestRenderClass_AccentAndStatusMarkers(t *testing.T) {
 }
 
 func TestRenderClass_Legend(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g := classGraph()
 	g.Legend = []model.LegendEntry{{Kind: "composition", Label: "composition"}, {Kind: "dependency", Label: "depends on"}, {Kind: "inheritance", Label: "is-a"}, {Kind: "association", Label: "association"}, {Kind: "realization", Label: "implements"}}
 	out := Render(g, th)
@@ -200,7 +201,7 @@ func TestRenderClass_Legend(t *testing.T) {
 func TestRenderClass_FlowRenderUnchanged(t *testing.T) {
 	// A graph without class data emits no UML markers, no legend and no members group.
 	g := &model.PositionedGraph{Width: 100, Height: 100, Nodes: []model.PositionedNode{{ID: "a", Label: "A", X: 50, Y: 50, Width: 40, Height: 20}}}
-	out := Render(g, theme.DefaultTheme())
+	out := Render(g, themetest.Default())
 	assert.NotContains(t, out, "diago-uml")
 	assert.NotContains(t, out, `id="legend"`)
 	assert.NotContains(t, out, `class="members"`)

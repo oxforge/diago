@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/oxforge/diago/internal/model"
-	"github.com/oxforge/diago/internal/theme"
+	"github.com/oxforge/diago/internal/theme/themetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +17,7 @@ func TestSingleNode(t *testing.T) {
 		},
 	}
 
-	data, err := Export(pg, theme.DefaultTheme())
+	data, err := Export(pg, themetest.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ func TestTwoNodesWithEdge(t *testing.T) {
 		},
 	}
 
-	data, err := Export(pg, theme.DefaultTheme())
+	data, err := Export(pg, themetest.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestDiamondShape(t *testing.T) {
 		},
 	}
 
-	data, err := Export(pg, theme.DefaultTheme())
+	data, err := Export(pg, themetest.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +179,7 @@ func TestCircleShape(t *testing.T) {
 		},
 	}
 
-	data, err := Export(pg, theme.DefaultTheme())
+	data, err := Export(pg, themetest.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +198,7 @@ func TestLossyShapes(t *testing.T) {
 				{ID: "n", Label: "N", Shape: s, X: 50, Y: 50, Width: 80, Height: 40},
 			},
 		}
-		data, err := Export(pg, theme.DefaultTheme())
+		data, err := Export(pg, themetest.Default())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -217,7 +217,7 @@ func TestRoundedShape(t *testing.T) {
 		},
 	}
 
-	data, err := Export(pg, theme.DefaultTheme())
+	data, err := Export(pg, themetest.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +251,7 @@ func TestEdgeWithLabel(t *testing.T) {
 		},
 	}
 
-	data, err := Export(pg, theme.DefaultTheme())
+	data, err := Export(pg, themetest.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +287,7 @@ func TestGroups(t *testing.T) {
 		},
 	}
 
-	data, err := Export(pg, theme.DefaultTheme())
+	data, err := Export(pg, themetest.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -324,7 +324,7 @@ func TestGroupTitleAtItsOffset(t *testing.T) {
 					LabelWidth: 50, LabelHeight: 15, LabelOffset: offset},
 			},
 		}
-		data, err := Export(pg, theme.DefaultTheme())
+		data, err := Export(pg, themetest.Default())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -355,7 +355,7 @@ func TestGroupTitleInFront(t *testing.T) {
 				LabelWidth: 50, LabelHeight: 15, LabelOffset: 80, LabelBlocked: true},
 		},
 	}
-	data, err := Export(pg, theme.DefaultTheme())
+	data, err := Export(pg, themetest.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -389,7 +389,7 @@ func TestGroupTitleInFront(t *testing.T) {
 	}
 
 	pg.Groups[0].LabelWidth = 0
-	data, err = Export(pg, theme.DefaultTheme())
+	data, err = Export(pg, themetest.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -411,7 +411,7 @@ func TestNestedGroups(t *testing.T) {
 		},
 	}
 
-	data, err := Export(pg, theme.DefaultTheme())
+	data, err := Export(pg, themetest.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -441,7 +441,7 @@ func TestEdgeDirectionBackward(t *testing.T) {
 		},
 	}
 
-	data, err := Export(pg, theme.DefaultTheme())
+	data, err := Export(pg, themetest.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -468,7 +468,7 @@ func TestEdgeDirectionBoth(t *testing.T) {
 		},
 	}
 
-	data, err := Export(pg, theme.DefaultTheme())
+	data, err := Export(pg, themetest.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -505,7 +505,7 @@ func TestEdgeStyles(t *testing.T) {
 					Points: []model.Point{{X: 80, Y: 50}, {X: 120, Y: 50}}},
 			},
 		}
-		data, err := Export(pg, theme.DefaultTheme())
+		data, err := Export(pg, themetest.Default())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -600,7 +600,7 @@ func TestExport_EveryElementIDIsUniqueAndEveryReferenceResolves(t *testing.T) {
 	pg := collidingGraph()
 	pg.Edges = append(pg.Edges, model.PositionedEdge{ID: "loop", From: "0", To: "0",
 		Points: []model.Point{{X: 100, Y: 30}, {X: 120, Y: 30}, {X: 120, Y: 50}, {X: 100, Y: 50}}})
-	data, err := Export(pg, theme.DefaultTheme())
+	data, err := Export(pg, themetest.Default())
 	require.NoError(t, err)
 	doc := parseDoc(t, data)
 	ids := map[string]bool{}

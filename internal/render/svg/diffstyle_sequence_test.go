@@ -6,6 +6,7 @@ import (
 
 	"github.com/oxforge/diago/internal/model"
 	"github.com/oxforge/diago/internal/theme"
+	"github.com/oxforge/diago/internal/theme/themetest"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,7 +40,7 @@ func seqStatusOpts(th theme.Theme, classes map[string]string) *RenderOptions {
 }
 
 func TestRenderSequenceWithOptions_NilIsRenderSequence(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	s := diffSequence()
 	assert.Equal(t, RenderSequence(s, th), RenderSequenceWithOptions(s, th, nil))
 	assert.NotContains(t, RenderSequence(s, th), "class=")
@@ -47,7 +48,7 @@ func TestRenderSequenceWithOptions_NilIsRenderSequence(t *testing.T) {
 }
 
 func TestRenderSequenceWithOptions_ClassesAndGroups(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	out := RenderSequenceWithOptions(diffSequence(), th, seqStatusOpts(th, map[string]string{
 		"actor:u": "dimmed", "lifeline:u": "dimmed", "actor:w": "added", "lifeline:w": "added",
 		"interaction:0": "changed", "interaction:1": "added", "interaction:2": "dimmed",
@@ -69,7 +70,7 @@ func TestRenderSequenceWithOptions_ClassesAndGroups(t *testing.T) {
 }
 
 func TestRenderSequenceWithOptions_StatusMarkers(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	out := RenderSequenceWithOptions(diffSequence(), th, seqStatusOpts(th, map[string]string{
 		"interaction:0": "changed", "interaction:1": "added", "interaction:2": "dimmed",
 	}))
@@ -83,14 +84,14 @@ func TestRenderSequenceWithOptions_StatusMarkers(t *testing.T) {
 }
 
 func TestSequenceDiffStyles_ExtendsFlowStyles(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	s := SequenceDiffStyles(th)
 	assert.True(t, strings.HasPrefix(s, DiffStyles(th)))
 	assert.Contains(t, s, ".removed line { stroke: "+th.Diff.Removed+"; stroke-dasharray: 6 4; }")
 }
 
 func TestSequenceDiffStyles_SectionStatusOutranksItsFragment(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	s := SequenceDiffStyles(th)
 	// A section's group sits inside its fragment's: .changed line and
 	// .added line tie on specificity, so the later one would win.
@@ -106,7 +107,7 @@ func TestSequenceDiffStyles_SectionStatusOutranksItsFragment(t *testing.T) {
 }
 
 func TestRenderSequenceWithOptions_LabelBackingTakesNoStatusStroke(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	out := RenderSequenceWithOptions(diffSequence(), th, seqStatusOpts(th, map[string]string{
 		"interaction:0": "changed", "interaction:1": "added",
 	}))
@@ -120,7 +121,7 @@ func TestRenderSequenceWithOptions_LabelBackingTakesNoStatusStroke(t *testing.T)
 }
 
 func TestRenderSequenceWithOptions_StatusPaint(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	s := diffSequence()
 	s.Actors[0].Color = "red" // u, unchanged
 	dc := theme.DeriveColors(th.Colors["red"], th.Background, theme.ElementNode)

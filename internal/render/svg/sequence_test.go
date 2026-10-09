@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/oxforge/diago/internal/model"
-	"github.com/oxforge/diago/internal/theme"
+	"github.com/oxforge/diago/internal/theme/themetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -48,7 +48,7 @@ func basicSequence() *model.PositionedSequence {
 }
 
 func TestRenderSequenceBasicSVGValid(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	out := RenderSequence(basicSequence(), th)
 
 	// Output must start with XML declaration.
@@ -74,7 +74,7 @@ func TestRenderSequenceBasicSVGValid(t *testing.T) {
 }
 
 func TestRenderSequenceHasLifelines(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	out := RenderSequence(basicSequence(), th)
 
 	// Lifelines are rendered as dashed lines.
@@ -84,7 +84,7 @@ func TestRenderSequenceHasLifelines(t *testing.T) {
 }
 
 func TestRenderSequenceHasArrows(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	out := RenderSequence(basicSequence(), th)
 
 	// Interactions are polylines with marker-end.
@@ -93,7 +93,7 @@ func TestRenderSequenceHasArrows(t *testing.T) {
 }
 
 func TestRenderSequenceDeterministic(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	seq := basicSequence()
 	out1 := RenderSequence(seq, th)
 	out2 := RenderSequence(seq, th)
@@ -101,7 +101,7 @@ func TestRenderSequenceDeterministic(t *testing.T) {
 }
 
 func TestRenderSequenceWithSelfMessage(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	seq := &model.PositionedSequence{
 		Width:  400,
 		Height: 300,
@@ -138,7 +138,7 @@ func TestRenderSequenceWithSelfMessage(t *testing.T) {
 }
 
 func TestRenderSequenceWithFragment(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	seq := basicSequence()
 	seq.Fragments = []model.PositionedFragment{
 		{
@@ -156,7 +156,7 @@ func TestRenderSequenceWithFragment(t *testing.T) {
 }
 
 func TestRenderSequenceWithActivationBoxes(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	seq := basicSequence()
 	seq.Activations = []model.PositionedActivation{
 		{ActorID: "server", X: 305, Y: 120, Width: 10, Height: 60},
@@ -180,7 +180,7 @@ func TestOpenArrowMarkerRender(t *testing.T) {
 }
 
 func TestRenderSequenceAsyncInteraction(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	seq := &model.PositionedSequence{
 		Width:  400,
 		Height: 300,
@@ -218,7 +218,7 @@ func TestRenderSequence_ActorWithColor(t *testing.T) {
 		},
 		Width: 200, Height: 150,
 	}
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	svg := RenderSequence(seq, th)
 	// Colored actor should not use the default theme fill.
 	assert.NotContains(t, svg, fmt.Sprintf(`fill="%s"`, th.Actor.Fill), "colored actor should not use default theme fill")
@@ -239,7 +239,7 @@ func TestRenderSequence_InteractionWithColor(t *testing.T) {
 			},
 		},
 	}
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	svg := RenderSequence(seq, th)
 	// Should contain a custom arrow marker for the color.
 	assert.Contains(t, svg, "diago-arrow-e74c3c", "colored interaction should have a custom arrow marker")
@@ -286,7 +286,7 @@ func parseSVG(t *testing.T, out string) svgNode {
 // pentagon tab at the frame's top-left with the operator inside it, and
 // the guards sit where the layout put them.
 func TestRenderSequence_FragmentTabHoldsItsOperator(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	for _, typ := range []model.FragmentType{model.FragmentAlt, model.FragmentOpt, model.FragmentLoop, model.FragmentPar, model.FragmentBreak} {
 		for _, diff := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/diff=%v", typ, diff), func(t *testing.T) {

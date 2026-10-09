@@ -10,7 +10,7 @@ import (
 
 	"github.com/oxforge/diago/internal/font"
 	"github.com/oxforge/diago/internal/model"
-	"github.com/oxforge/diago/internal/theme"
+	"github.com/oxforge/diago/internal/theme/themetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,7 +31,7 @@ func twoNodeGraph() *model.PositionedGraph {
 }
 
 func TestRenderBasicGraph(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	out := Render(twoNodeGraph(), th)
 
 	assert.Contains(t, out, `xmlns="http://www.w3.org/2000/svg"`)
@@ -44,7 +44,7 @@ func TestRenderBasicGraph(t *testing.T) {
 }
 
 func TestRenderDeterministic(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g := twoNodeGraph()
 	out1 := Render(g, th)
 	out2 := Render(g, th)
@@ -52,7 +52,7 @@ func TestRenderDeterministic(t *testing.T) {
 }
 
 func TestRenderEdgeStyleDashed(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g := &model.PositionedGraph{
 		Width: 300, Height: 200,
 		Nodes: []model.PositionedNode{
@@ -69,7 +69,7 @@ func TestRenderEdgeStyleDashed(t *testing.T) {
 }
 
 func TestRenderEdgeStyleDotted(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g := &model.PositionedGraph{
 		Width: 300, Height: 200,
 		Nodes: []model.PositionedNode{
@@ -86,7 +86,7 @@ func TestRenderEdgeStyleDotted(t *testing.T) {
 }
 
 func TestRenderEdgeStyleThick(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g := &model.PositionedGraph{
 		Width: 300, Height: 200,
 		Nodes: []model.PositionedNode{
@@ -105,7 +105,7 @@ func TestRenderEdgeStyleThick(t *testing.T) {
 }
 
 func TestRenderAllShapes(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	shapes := []model.Shape{
 		model.ShapeRect, model.ShapeRounded, model.ShapeCircle,
 		model.ShapeDiamond, model.ShapeCylinder, model.ShapeHexagon,
@@ -127,7 +127,7 @@ func TestRenderAllShapes(t *testing.T) {
 }
 
 func TestRenderWithGroups(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g := &model.PositionedGraph{
 		Width: 400, Height: 300,
 		Nodes: []model.PositionedNode{
@@ -143,7 +143,7 @@ func TestRenderWithGroups(t *testing.T) {
 }
 
 func TestRenderEdgeLabelPositioned(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	out := Render(twoNodeGraph(), th)
 	assert.Contains(t, out, "call", "edge label should appear in SVG")
 }
@@ -188,7 +188,7 @@ func textAt(t *testing.T, svgStr, content string) (x, y float64) {
 // TestEdgeLabelPosition: an edge label is drawn at the position the layout
 // gave it (LabelPos), and at the middle of the wire when it gave none.
 func TestEdgeLabelPosition(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g := twoNodeGraph() // A->B labeled "call", wire (100,104) to (100,176)
 
 	x, y := textAt(t, Render(g, th), "call")
@@ -206,13 +206,13 @@ func TestEdgeLabelPosition(t *testing.T) {
 // once per element over the whole canvas.
 func TestRenderSketch_NoFilter(t *testing.T) {
 	for _, style := range []string{"sketch", "clean"} {
-		th := theme.DefaultTheme()
+		th := themetest.Default()
 		th.Style = style
 		out := Render(twoNodeGraph(), th)
 		assert.NotContains(t, out, "<filter", style)
 		assert.NotContains(t, out, "filter=", style)
 	}
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	th.Style = "sketch"
 	assert.Contains(t, Render(twoNodeGraph(), th), "<path", "sketch shapes are hand-drawn paths")
 }
@@ -235,7 +235,7 @@ func TestRender_NodeWithColor(t *testing.T) {
 		},
 		Width: 200, Height: 100,
 	}
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	svg := Render(graph, th)
 	// Should NOT use the default node fill
 	if strings.Contains(svg, fmt.Sprintf(`fill="%s"`, th.Node.Fill)) {
@@ -255,7 +255,7 @@ func TestRender_EdgeWithColor(t *testing.T) {
 				Points: []model.Point{{X: 80, Y: 80}, {X: 80, Y: 140}}},
 		},
 	}
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	svg := Render(graph, th)
 	// Should have a custom arrow marker for the colored edge
 	assert.Contains(t, svg, "diago-arrow-e03131", "should create custom marker for colored edge")
@@ -271,7 +271,7 @@ func TestRender_GroupWithColor(t *testing.T) {
 			{ID: "g1", Label: "Backend", X: 60, Y: 50, Width: 180, Height: 100, Color: "blue"},
 		},
 	}
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	svg := Render(graph, th)
 	// Should NOT use the default group fill
 	if strings.Contains(svg, fmt.Sprintf(`fill="%s"`, th.Group.Fill)) {
@@ -291,7 +291,7 @@ func TestRender_GroupTitleAtItsOffset(t *testing.T) {
 			},
 		}
 	}
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	assert.Contains(t, Render(graph(0), th), `<text x="68" y="66"`, "the renderer's default slot")
 	assert.Contains(t, Render(graph(100), th), `<text x="160" y="66"`, "the placed title")
 }
@@ -301,7 +301,7 @@ func TestRender_GroupTitleAtItsOffset(t *testing.T) {
 // backing in its group's fill, 4 px wider than the drawn text on each
 // side, so a wire under it shows a gap and a wire beside it does not.
 func TestRender_GroupTitleInFront(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	// A layout measures the title at the theme's size read as points
 	// (the layered engine's size stage, S1); the
 	// renderer draws it at that many px, three quarters as wide.
@@ -354,7 +354,7 @@ func TestRender_EdgeElementIDsUnique(t *testing.T) {
 	g.Edges = append(g.Edges, model.PositionedEdge{ID: "A->B#1", From: "A", To: "B",
 		Points: []model.Point{{X: 110, Y: 104}, {X: 110, Y: 176}}})
 	g.Edges[0].ID = "A->B#0"
-	out := Render(g, theme.DefaultTheme())
+	out := Render(g, themetest.Default())
 	assert.Contains(t, out, `id="edge-A-B"`)
 	assert.Contains(t, out, `id="edge-A-B-1"`)
 }

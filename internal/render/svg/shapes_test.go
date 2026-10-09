@@ -6,12 +6,13 @@ import (
 
 	"github.com/oxforge/diago/internal/model"
 	"github.com/oxforge/diago/internal/theme"
+	"github.com/oxforge/diago/internal/theme/themetest"
 	"github.com/stretchr/testify/assert"
 )
 
 // testStyle returns a default node style for tests.
 func testStyle() theme.NodeStyle {
-	return theme.DefaultTheme().Node
+	return themetest.Default().Node
 }
 
 // testNode builds a PositionedNode centered at (100, 100) with given shape.

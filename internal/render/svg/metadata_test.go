@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/oxforge/diago/internal/model"
-	"github.com/oxforge/diago/internal/theme"
+	"github.com/oxforge/diago/internal/theme/themetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +18,7 @@ func TestRender_EmbedsLayoutMetadata(t *testing.T) {
 	s.Order["A"], s.Order["B"] = 0, 0
 	g.LayoutHints.Reversed = []string{"x->y#0"}
 	g.LayoutHints.Ranked = []string{"A->B#0"}
-	out := Render(g, theme.DefaultTheme())
+	out := Render(g, themetest.Default())
 	assert.Contains(t, out, `<metadata id="diago-layout">`)
 	assert.Less(t, strings.Index(out, "</defs>"), strings.Index(out, "<metadata"), "metadata follows defs")
 	assert.Less(t, strings.Index(out, "<metadata"), strings.Index(out, "<rect"), "metadata precedes the background")
@@ -28,7 +28,7 @@ func TestRender_EmbedsLayoutMetadata(t *testing.T) {
 }
 
 func TestRender_NoMetadataWithoutHints(t *testing.T) {
-	out := Render(twoNodeGraph(), theme.DefaultTheme())
+	out := Render(twoNodeGraph(), themetest.Default())
 	assert.NotContains(t, out, "<metadata")
 	_, err := ExtractLayoutHints(out)
 	assert.Error(t, err)

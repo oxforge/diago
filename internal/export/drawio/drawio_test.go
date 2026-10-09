@@ -7,6 +7,7 @@ import (
 
 	"github.com/oxforge/diago/internal/model"
 	"github.com/oxforge/diago/internal/theme"
+	"github.com/oxforge/diago/internal/theme/themetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +18,7 @@ func TestExport_SingleNode(t *testing.T) {
 			{ID: "a", Label: "Node A", Shape: model.ShapeRect, X: 100, Y: 50, Width: 120, Height: 60},
 		},
 	}
-	data := Export(pg, theme.DefaultTheme())
+	data := Export(pg, themetest.Default())
 	s := string(data)
 
 	if !strings.Contains(s, `<?xml version="1.0" encoding="UTF-8"?>`) {
@@ -55,7 +56,7 @@ func TestExport_TwoNodesWithEdge(t *testing.T) {
 				Points: []model.Point{{X: 100, Y: 70}, {X: 100, Y: 130}}},
 		},
 	}
-	data := Export(pg, theme.DefaultTheme())
+	data := Export(pg, themetest.Default())
 	s := string(data)
 
 	if !strings.Contains(s, `source="n:a"`) {
@@ -97,7 +98,7 @@ func TestExport_AllShapeTypes(t *testing.T) {
 					{ID: "n", Label: "N", Shape: tt.shape, X: 50, Y: 50, Width: 80, Height: 40},
 				},
 			}
-			data := Export(pg, theme.DefaultTheme())
+			data := Export(pg, themetest.Default())
 			if !strings.Contains(string(data), tt.want) {
 				t.Errorf("shape %s: expected style %q in output", tt.shape, tt.want)
 			}
@@ -121,7 +122,7 @@ func TestExport_EdgeWithWaypoints(t *testing.T) {
 				}},
 		},
 	}
-	data := Export(pg, theme.DefaultTheme())
+	data := Export(pg, themetest.Default())
 	s := string(data)
 
 	if !strings.Contains(s, "<Array") {
@@ -148,7 +149,7 @@ func TestExport_GroupsWithChildren(t *testing.T) {
 				Contains: []string{"api", "db"}, Depth: 1},
 		},
 	}
-	data := Export(pg, theme.DefaultTheme())
+	data := Export(pg, themetest.Default())
 	s := string(data)
 
 	// Group should be a container.
@@ -181,7 +182,7 @@ func TestExport_NestedGroups(t *testing.T) {
 				Contains: []string{"n1"}, Depth: 2},
 		},
 	}
-	data := Export(pg, theme.DefaultTheme())
+	data := Export(pg, themetest.Default())
 	s := string(data)
 
 	// inner group should have parent=outer.
@@ -259,7 +260,7 @@ func TestExport_EdgeStyles(t *testing.T) {
 						Points: []model.Point{{X: 90, Y: 50}, {X: 160, Y: 50}}},
 				},
 			}
-			data := Export(pg, theme.DefaultTheme())
+			data := Export(pg, themetest.Default())
 			if !strings.Contains(string(data), tt.want) {
 				t.Errorf("edge style %s: expected %q in output", tt.style, tt.want)
 			}
@@ -289,7 +290,7 @@ func TestExport_EdgeDirections(t *testing.T) {
 						Points: []model.Point{{X: 90, Y: 50}, {X: 160, Y: 50}}},
 				},
 			}
-			data := Export(pg, theme.DefaultTheme())
+			data := Export(pg, themetest.Default())
 			if !strings.Contains(string(data), tt.want) {
 				t.Errorf("edge direction %s: expected %q in output", tt.dir, tt.want)
 			}
@@ -303,7 +304,7 @@ func TestExport_MultiLineLabel(t *testing.T) {
 			{ID: "n", Label: "Line 1\nLine 2", Shape: model.ShapeRect, X: 50, Y: 50, Width: 80, Height: 40},
 		},
 	}
-	data := Export(pg, theme.DefaultTheme())
+	data := Export(pg, themetest.Default())
 
 	// XML round-trip should preserve the newline in the label.
 	var file mxFile
@@ -336,7 +337,7 @@ func TestExport_OnePageOfCells(t *testing.T) {
 				Contains: []string{"a", "b"}, Depth: 1},
 		},
 	}
-	data := Export(pg, theme.DefaultTheme())
+	data := Export(pg, themetest.Default())
 
 	// Strip XML header for unmarshal.
 	var file mxFile
@@ -356,7 +357,7 @@ func TestExport_OnePageOfCells(t *testing.T) {
 
 func TestExport_EmptyGraph(t *testing.T) {
 	pg := &model.PositionedGraph{}
-	data := Export(pg, theme.DefaultTheme())
+	data := Export(pg, themetest.Default())
 
 	// Should produce valid XML with just the 2 root cells.
 	var file mxFile
@@ -382,7 +383,7 @@ func TestExport_EdgeExitEntryPoints(t *testing.T) {
 				Points: []model.Point{{X: 100, Y: 70}, {X: 100, Y: 180}}},
 		},
 	}
-	data := Export(pg, theme.DefaultTheme())
+	data := Export(pg, themetest.Default())
 	s := string(data)
 
 	// exitX=0.50 (center), exitY=1.00 (bottom)
@@ -406,7 +407,7 @@ func TestExport_OrthogonalEdges(t *testing.T) {
 				Points: []model.Point{{X: 50, Y: 70}, {X: 50, Y: 150}, {X: 160, Y: 150}}},
 		},
 	}
-	data := Export(pg, theme.DefaultTheme())
+	data := Export(pg, themetest.Default())
 	s := string(data)
 
 	if !strings.Contains(s, "edgeStyle=orthogonalEdgeStyle;") {
@@ -424,7 +425,7 @@ func TestExport_GroupsVisibleAsSwimlane(t *testing.T) {
 				Contains: []string{"a"}, Depth: 1},
 		},
 	}
-	data := Export(pg, theme.DefaultTheme())
+	data := Export(pg, themetest.Default())
 	s := string(data)
 
 	if !strings.Contains(s, "swimlane;") {
@@ -447,7 +448,7 @@ func TestExport_GroupTitleAtItsOffset(t *testing.T) {
 					LabelWidth: 60, LabelHeight: 15, LabelOffset: offset},
 			},
 		}
-		return string(Export(pg, theme.DefaultTheme()))
+		return string(Export(pg, themetest.Default()))
 	}
 	assert.Contains(t, export(40), `<mxGeometry x="90" y="38.5" width="60" height="15" as="geometry">`, "the placed title")
 	assert.Contains(t, export(0), `<mxGeometry x="58" y="38.5" width="60" height="15" as="geometry">`, "the renderer's default slot")
@@ -469,7 +470,7 @@ func TestExport_GroupTitleInFront(t *testing.T) {
 				LabelWidth: 60, LabelHeight: 15, LabelOffset: 40, LabelBlocked: true},
 		},
 	}
-	s := string(Export(pg, theme.DefaultTheme()))
+	s := string(Export(pg, themetest.Default()))
 	title := strings.Index(s, `<mxCell id="t:g" value="My Group" style="text;`)
 	edge := strings.Index(s, `id="e:a-&gt;b#0"`)
 	require.GreaterOrEqual(t, edge, 0, "the edge's cell")
@@ -484,8 +485,8 @@ func TestExport_GroupTitleInFront(t *testing.T) {
 	assert.Contains(t, s, `<mxCell id="g:g" style="swimlane;`, "the swimlane has no value")
 
 	pg.Groups[0].Color = "blue"
-	dc := theme.DeriveColors(theme.DefaultTheme().Colors["blue"], theme.DefaultTheme().Background, theme.ElementGroup)
-	assert.Contains(t, string(Export(pg, theme.DefaultTheme())), "fontColor="+dc.Text+";labelBackgroundColor="+dc.Fill+";", "an accent group's colors")
+	dc := theme.DeriveColors(themetest.Default().Colors["blue"], themetest.Default().Background, theme.ElementGroup)
+	assert.Contains(t, string(Export(pg, themetest.Default())), "fontColor="+dc.Text+";labelBackgroundColor="+dc.Fill+";", "an accent group's colors")
 }
 
 // TestExport_ALabelWithMarkupKeepsTheFileWellFormed: a label holding XML
@@ -498,7 +499,7 @@ func TestExport_ALabelWithMarkupKeepsTheFileWellFormed(t *testing.T) {
 		},
 	}
 	var file mxFile
-	require.NoError(t, xml.Unmarshal(Export(pg, theme.DefaultTheme()), &file))
+	require.NoError(t, xml.Unmarshal(Export(pg, themetest.Default()), &file))
 	ids := map[string]bool{}
 	for _, c := range file.Diagram.GraphModel.Root.Cells {
 		ids[c.ID] = true
@@ -541,7 +542,7 @@ func collidingGraph() *model.PositionedGraph {
 
 func TestExport_EveryCellIDIsUniqueAndEveryReferenceResolves(t *testing.T) {
 	var file mxFile
-	require.NoError(t, xml.Unmarshal(Export(collidingGraph(), theme.DefaultTheme()), &file))
+	require.NoError(t, xml.Unmarshal(Export(collidingGraph(), themetest.Default()), &file))
 	cells := file.Diagram.GraphModel.Root.Cells
 	ids := map[string]bool{}
 	for _, c := range cells {

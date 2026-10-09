@@ -12,6 +12,7 @@ import (
 	"github.com/oxforge/diago/internal/font"
 	"github.com/oxforge/diago/internal/model"
 	"github.com/oxforge/diago/internal/theme"
+	"github.com/oxforge/diago/internal/theme/themetest"
 )
 
 var svgSizeRe = regexp.MustCompile(`<svg [^>]*width="([0-9.]+)" height="([0-9.]+)"`)
@@ -44,7 +45,7 @@ func sampleLines(th theme.Theme) []ChangeLine {
 }
 
 func TestChangeList_Rows(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	out := RenderWithOptions(diffGraph(), th, &RenderOptions{Changes: sampleLines(th)})
 	g := changesGroup(t, out)
 	assert.Equal(t, 1, strings.Count(g, "<rect"), "one box sample, for the node")
@@ -58,7 +59,7 @@ func TestChangeList_Rows(t *testing.T) {
 }
 
 func TestChangeList_EscapesText(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	out := RenderWithOptions(diffGraph(), th, &RenderOptions{Changes: []ChangeLine{
 		{Color: th.Diff.Changed, Text: `changed: node A: label "x<y&z" → none`},
 	}})
@@ -66,7 +67,7 @@ func TestChangeList_EscapesText(t *testing.T) {
 }
 
 func TestChangeList_GrowsCanvas(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g := diffGraph()
 	plainW, plainH := svgSize(t, RenderWithOptions(g, th, &RenderOptions{}))
 	lines := sampleLines(th)
@@ -80,7 +81,7 @@ func TestChangeList_GrowsCanvas(t *testing.T) {
 }
 
 func TestChangeList_NoneWithoutLines(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g := diffGraph()
 	out := RenderWithOptions(g, th, &RenderOptions{})
 	assert.NotContains(t, out, `id="changes"`)
@@ -91,7 +92,7 @@ func TestChangeList_NoneWithoutLines(t *testing.T) {
 }
 
 func TestChangeList_UnderClassLegend(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g := diffGraph()
 	g.Legend = []model.LegendEntry{{Kind: "inheritance", Label: "inheritance"}, {Kind: "composition", Label: "composition"}}
 	out := RenderWithOptions(g, th, &RenderOptions{Changes: sampleLines(th)})
@@ -109,7 +110,7 @@ func TestChangeList_SketchSamplesByHand(t *testing.T) {
 }
 
 func TestChangeList_Sequence(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	s := diffSequence()
 	_, plainH := svgSize(t, RenderSequenceWithOptions(s, th, &RenderOptions{}))
 	out := RenderSequenceWithOptions(s, th, &RenderOptions{Changes: sampleLines(th)})
@@ -125,7 +126,7 @@ func TestChangeList_ValueArrowFollowsTheFont(t *testing.T) {
 	assert.Contains(t, g, "style solid -&gt; dashed", "the sketch font has no arrow glyph")
 	assert.NotContains(t, g, "→")
 
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g = changesGroup(t, RenderWithOptions(diffGraph(), th, &RenderOptions{Changes: sampleLines(th)}))
 	assert.Contains(t, g, "style solid → dashed")
 
@@ -137,7 +138,7 @@ func TestChangeList_ValueArrowFollowsTheFont(t *testing.T) {
 }
 
 func TestChangeList_CaptionFirst(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g := diffGraph()
 	_, plainH := svgSize(t, RenderWithOptions(g, th, &RenderOptions{}))
 	out := RenderWithOptions(g, th, &RenderOptions{Caption: "v1.json → v2.json", Changes: sampleLines(th)})
@@ -153,7 +154,7 @@ func TestChangeList_CaptionFirst(t *testing.T) {
 }
 
 func TestChangeList_CaptionAlone(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	g := diffGraph()
 	out := RenderWithOptions(g, th, &RenderOptions{Caption: "v1.json → v1.json"})
 	list := changesGroup(t, out)
@@ -165,7 +166,7 @@ func TestChangeList_CaptionAlone(t *testing.T) {
 }
 
 func TestChangeList_CaptionWidensTheCanvas(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	long := "a-diagram-with-a-long-name.v1.json @ HEAD~12 (a1b2c3d) → a-diagram-with-a-long-name.v1.json"
 	g := diffGraph()
 	w, _ := svgSize(t, RenderWithOptions(g, th, &RenderOptions{Caption: long}))
@@ -175,7 +176,7 @@ func TestChangeList_CaptionWidensTheCanvas(t *testing.T) {
 }
 
 func TestChangeList_SequenceCaption(t *testing.T) {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	s := diffSequence()
 	_, plainH := svgSize(t, RenderSequenceWithOptions(s, th, &RenderOptions{}))
 	out := RenderSequenceWithOptions(s, th, &RenderOptions{Caption: "a.json → b.json", Changes: sampleLines(th)})

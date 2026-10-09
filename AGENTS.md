@@ -79,7 +79,7 @@ diago/
 │   ├── export/
 │   │   ├── drawio/       # draw.io XML export
 │   │   └── excalidraw/   # Excalidraw JSON export
-│   ├── theme/            # Theme loading, validation, conversion
+│   ├── theme/            # Theme loading, validation, conversion; themetest/ gives tests the embedded default theme
 │   ├── model/            # Internal graph model (nodes, edges, groups, positioned variants) + enums_gen.go
 │   ├── font/             # Embedded Inter + Pangolin fonts and text measurement
 │   └── pipeline/         # Orchestration: pipeline.go (RenderWithOptions, every format), diff.go (RenderDiff), previous.go (-previous parsing), validate.go (`Validate`: what `check` runs), advisories.go, engine.go (`layoutWith`: the layered engine under the text Config or a theme's screen Config)
@@ -130,7 +130,7 @@ between themes. Each theme is a complete standalone definition.
 
 ## Code Conventions
 
-- **Go**: stdlib first; add a dependency only with a reason. Use `slog` for structured logging. Use `encoding/json` for schema handling. Wrap errors with `fmt.Errorf("operation: %w", err)`. Table-driven tests. Never use `panic`; the sole exception is a package-init assertion that an embedded asset is intact (`font/metrics.go`, `theme/theme.go`), where a failure means a corrupt binary and there is no caller to return an error to.
+- **Go**: stdlib first; add a dependency only with a reason. Use `slog` for structured logging. Use `encoding/json` for schema handling. Wrap errors with `fmt.Errorf("operation: %w", err)`. Table-driven tests. Never use `panic`; the sole exception is a package-init assertion that an embedded asset is intact (`font/metrics.go`, `theme/themetest`), where a failure means a corrupt binary and there is no caller to return an error to.
 - **SVG**: Generate SVG as structured Go types, then serialize to XML. Do not use string concatenation to build SVG. Each visual primitive (rect, text, path, line, group) should be a Go struct with a `Render() string` method. Status-aware renders pass `svg.RenderOptions`; nil is the plain render and must stay byte-identical.
 - **Naming**: Packages are short, lowercase, single-word where possible (`layout`, `render`, `theme`, `model`, `schema`).
 - **Config**: Env vars with `DIAGO_` prefix. Only two exist: `DIAGO_RESVG_PATH` (override the `PATH` lookup for the resvg binary) and `DIAGO_THEME_DIR` (fallback directory for theme names not in the embedded set; a name is a plain file name, never a path; built-ins always win).

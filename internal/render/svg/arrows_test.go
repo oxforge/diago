@@ -11,6 +11,7 @@ import (
 
 	"github.com/oxforge/diago/internal/model"
 	"github.com/oxforge/diago/internal/theme"
+	"github.com/oxforge/diago/internal/theme/themetest"
 )
 
 func renderElement(e Element) string {
@@ -175,7 +176,7 @@ func markerBlocks(svg string) []string {
 }
 
 func sketchTheme() theme.Theme {
-	th := theme.DefaultTheme()
+	th := themetest.Default()
 	th.Style = "sketch"
 	return th
 }
@@ -216,7 +217,7 @@ func TestRender_SketchMarkersEverywhere(t *testing.T) {
 			for _, b := range blocks {
 				assert.Contains(t, b, `stroke-linejoin="round"`, "hand-drawn: %s", b[:min(len(b), 40)])
 			}
-			clean := c.render(theme.DefaultTheme())
+			clean := c.render(themetest.Default())
 			for _, b := range markerBlocks(clean) {
 				assert.NotContains(t, b, "stroke-linejoin", "a clean theme keeps its markers")
 			}
