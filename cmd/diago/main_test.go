@@ -861,3 +861,18 @@ func TestRun_JSONKeepsAngleBracketsAndAmpersands(t *testing.T) {
 	assert.Contains(t, out, `a&b`)
 	assert.NotContains(t, out, `\u0026`)
 }
+
+// A spec's stray format and store keys are unknown fields: check reports
+// each, render warns on each and still draws the spec, and both exit 0.
+func TestRun_StrayFormatAndStoreKeysWarn(t *testing.T) {
+	spec := `{"type":"flow","format":"png","store":false,"nodes":[{"id":"a","label":"A"}],"edges":[]}`
+	code, out, _ := runCLI(t, spec, "check")
+	assert.Equal(t, 0, code)
+	assert.Contains(t, out, "unknown-field format")
+	assert.Contains(t, out, "unknown-field store")
+	code, out, stderr := runCLI(t, spec, "render")
+	assert.Equal(t, 0, code)
+	assert.Contains(t, out, "<svg")
+	assert.Contains(t, stderr, "warning: unknown-field format")
+	assert.Contains(t, stderr, "warning: unknown-field store")
+}

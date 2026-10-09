@@ -8,10 +8,6 @@ import (
 	"strings"
 )
 
-// envelopeKeys are top-level keys the spec structs do not declare but the
-// API decoded from the same request body. They are never unknown.
-var envelopeKeys = map[string]bool{"format": true, "store": true}
-
 // Removed top-level fields, per spec type: a key that used to be part of
 // the spec reports removed-field with the reason instead of unknown-field.
 var (
@@ -88,9 +84,6 @@ func walkUnknown(v any, t reflect.Type, path string, top bool, removed map[strin
 		for _, k := range keys {
 			if ft, isKnown := known.types[strings.ToLower(k)]; isKnown {
 				walkUnknown(obj[k], ft, joinPath(path, k), false, nil, out)
-				continue
-			}
-			if top && envelopeKeys[k] {
 				continue
 			}
 			if top {

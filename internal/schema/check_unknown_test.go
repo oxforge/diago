@@ -37,18 +37,28 @@ func TestUnknownFields_NestedAndArrays(t *testing.T) {
 	assert.Equal(t, `unknown key "colour" is ignored`, byField["colour"], "no top-level key is within distance 2 of colour")
 }
 
-func TestUnknownFields_EnvelopeAndCase(t *testing.T) {
-	spec := `{"type":"flow","format":"png","theme":"dark","store":false,"Nodes":[{"ID":"a","Label":"A"}],"edges":[],"ignore":["whatever-not-a-key"]}`
+func TestUnknownFields_Case(t *testing.T) {
+	spec := `{"type":"flow","theme":"dark","Nodes":[{"ID":"a","Label":"A"}],"edges":[],"ignore":["whatever-not-a-key"]}`
 	advs, err := unknownFields([]byte(spec), reflect.TypeOf(FlowSpec{}), nil)
 	require.NoError(t, err)
-	assert.Empty(t, advs, "envelope keys are allowed at the top level, keys match case-insensitively like encoding/json, ignore entries are values")
+	assert.Empty(t, advs, "keys match case-insensitively like encoding/json, ignore entries are values")
 
-	seq := `{"type":"sequence","format":"svg","actors":[{"id":"a","label":"A"}],"interactions":[{"from":"a","to":"a","lbl":"x"}],
+	seq := `{"type":"sequence","actors":[{"id":"a","label":"A"}],"interactions":[{"from":"a","to":"a","lbl":"x"}],
 	  "fragments":[{"type":"alt","over":["a"],"sections":[{"label":"l","start":0,"end":0,"finish":0}]}]}`
 	advs, err = unknownFields([]byte(seq), reflect.TypeOf(SequenceSpec{}), nil)
 	require.NoError(t, err)
 	SortAdvisories(advs)
 	assert.Equal(t, []string{"fragments[0].sections[0].finish", "interactions[0].lbl"}, fieldsOf(advs))
+}
+
+// format and store were the old HTTP API's request-body keys; the spec has no
+// such fields, so a top-level "format" is as unknown as any other key.
+func TestUnknownFields_FormatAndStoreAreUnknown(t *testing.T) {
+	spec := `{"type":"flow","format":"png","store":false,"nodes":[{"id":"a","label":"A"}],"edges":[]}`
+	advs, err := unknownFields([]byte(spec), reflect.TypeOf(FlowSpec{}), nil)
+	require.NoError(t, err)
+	SortAdvisories(advs)
+	assert.Equal(t, []string{"format", "store"}, fieldsOf(advs))
 }
 
 func TestUnknownFields_NonObjectShapesDoNotPanic(t *testing.T) {
