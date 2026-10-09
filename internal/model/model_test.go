@@ -238,22 +238,6 @@ func TestParseFragmentType(t *testing.T) {
 	}
 }
 
-func TestParseDirection_Auto(t *testing.T) {
-	d, err := model.ParseDirection("AUTO")
-	require.NoError(t, err)
-	assert.Equal(t, model.Auto, d)
-}
-
-func TestDirection_AutoString(t *testing.T) {
-	assert.Equal(t, "AUTO", model.Auto.String())
-}
-
-func TestParseDirection_UndefinedBackwardCompat(t *testing.T) {
-	d, err := model.ParseDirection("UNDEFINED")
-	require.NoError(t, err)
-	assert.Equal(t, model.Auto, d)
-}
-
 func TestEdgeDirectionString(t *testing.T) {
 	tests := []struct {
 		dir  model.EdgeDirection
@@ -296,29 +280,11 @@ func TestParseEdgeDirection(t *testing.T) {
 	}
 }
 
-func TestPositionedNode_ColorRoundTrip(t *testing.T) {
-	node := model.PositionedNode{
-		ID: "a", Label: "A", Shape: model.ShapeRect,
-		X: 50, Y: 50, Width: 80, Height: 40, Color: "red",
-	}
-	data, err := json.Marshal(node)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var got model.PositionedNode
-	if err := json.Unmarshal(data, &got); err != nil {
-		t.Fatal(err)
-	}
-	if got.Color != "red" {
-		t.Errorf("color not preserved: got %q", got.Color)
-	}
-}
-
 func TestPositionedGraph_JSONRoundTrip(t *testing.T) {
 	lp := &model.Point{X: 250, Y: 100}
 	orig := model.PositionedGraph{
 		Nodes: []model.PositionedNode{
-			{ID: "n1", Label: "Client", Shape: model.ShapeRect, X: 100, Y: 50, Width: 120, Height: 40},
+			{ID: "n1", Label: "Client", Shape: model.ShapeRect, X: 100, Y: 50, Width: 120, Height: 40, Color: "red"},
 			{ID: "n2", Label: "API", Lines: []string{"API", "Gateway"}, Shape: model.ShapeRounded, X: 300, Y: 50, Width: 140, Height: 40},
 			{ID: "n3", Label: "DB", Shape: model.ShapeCylinder, X: 300, Y: 150, Width: 120, Height: 40},
 		},

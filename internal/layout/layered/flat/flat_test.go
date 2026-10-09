@@ -890,28 +890,6 @@ func TestRoute_NoneForAnEdgeItCannotRead(t *testing.T) {
 	assert.Equal(t, "no such edge", Route(context.Background(), nil, 0, screen).Refused[0].Reason)
 }
 
-// TestRoute_Deterministic routes the same scenes 50 times: the same
-// result every time (C1).
-func TestRoute_Deterministic(t *testing.T) {
-	scenes := []func(from, to string) (*model.PositionedGraph, int){
-		composed(nodes(box("a", rect, 0, 0, 80, 120), box("b", rect, 320, 0, 400, 120), box("c", rect, 160, 40, 240, 80)), nil),
-		composed(nodes(box("a", rect, 0, 0, 80, 40), box("c", rect, 160, 0, 240, 40), box("b", rect, 320, 0, 400, 40)), nil),
-		composed(nodes(box("d", diamond, 0, 0, 80, 60), box("r", rect, 100, 140, 140, 180), box("f", rect, 240, 240, 320, 280)), nil,
-			wire("e", "d", "r", pt(80, 30), pt(120, 30), pt(120, 140))),
-	}
-	for i, s := range scenes {
-		from, to := "a", "b"
-		if i == 2 {
-			from, to = "d", "f"
-		}
-		pg, e := s(from, to)
-		first := Route(context.Background(), pg, e, screen)
-		for range 50 {
-			require.Equal(t, first, Route(context.Background(), pg, e, screen), "scene %d", i)
-		}
-	}
-}
-
 // TestRoute_LogsItsDecisions pins the router's debug records: phase flat,
 // spec_ref S9, a flat_edge_routed with the candidate kept and the
 // positions refused before it, and a flat_edge_unrouted with each

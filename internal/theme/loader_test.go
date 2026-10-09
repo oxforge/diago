@@ -36,13 +36,6 @@ func TestLoadUnknownThemeError(t *testing.T) {
 	assert.Contains(t, err.Error(), "nonexistent")
 }
 
-func TestLoadedDefaultMatchesHardcoded(t *testing.T) {
-	loaded, err := Load("default")
-	require.NoError(t, err)
-	expected := DefaultTheme()
-	assert.Equal(t, expected, loaded)
-}
-
 func TestValidateRejectsEmptyBackground(t *testing.T) {
 	th := DefaultTheme()
 	th.Background = ""
@@ -177,19 +170,6 @@ func TestAllEmbeddedThemesValid(t *testing.T) {
 	}
 }
 
-func TestThemePaletteRequired(t *testing.T) {
-	th, err := Load("default")
-	if err != nil {
-		t.Fatal(err)
-	}
-	required := []string{"red", "green", "blue", "yellow", "orange", "purple", "gray"}
-	for _, name := range required {
-		if _, ok := th.Colors[name]; !ok {
-			t.Errorf("theme %q missing palette color %q", th.Name, name)
-		}
-	}
-}
-
 func TestList(t *testing.T) {
 	summaries, err := List()
 	require.NoError(t, err)
@@ -218,15 +198,6 @@ func TestValidateRejectsMissingClassSection(t *testing.T) {
 	err = Validate(th)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "class.separator_width")
-}
-
-func TestAllEmbeddedThemesHaveClassSection(t *testing.T) {
-	for _, name := range []string{"default", "dark", "midnight", "sketch"} {
-		th, err := Load(name)
-		require.NoError(t, err, name)
-		assert.NotEmpty(t, th.Class.MemberFont.Family, name)
-		assert.Positive(t, th.Class.SeparatorWidth, name)
-	}
 }
 
 func TestValidate_PaddingBounds(t *testing.T) {

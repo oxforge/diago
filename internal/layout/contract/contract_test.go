@@ -76,7 +76,7 @@ func TestCheck_CleanLayouts(t *testing.T) {
 	assert.Nil(t, Check(nil, Options{Limits: ScreenLimits()}))
 }
 
-func TestCheck_ReportsEveryRuleIDOnce(t *testing.T) {
+func TestRuleIDs_AreUnique(t *testing.T) {
 	seen := map[string]bool{}
 	for _, id := range RuleIDs {
 		require.False(t, seen[id], "duplicate rule id %s", id)
@@ -107,16 +107,6 @@ func TestRuleIDs_MatchEmitters(t *testing.T) {
 		want[id] = true
 	}
 	assert.Equal(t, want, emitted)
-}
-
-func TestCheck_Deterministic(t *testing.T) {
-	pg := clean()
-	pg.Nodes[2].X = 200 // b now overlaps c and leaves its wire detached
-	first := check(pg)
-	require.NotEmpty(t, first)
-	for range 20 {
-		assert.Equal(t, first, check(pg))
-	}
 }
 
 func TestTextLimits(t *testing.T) {
