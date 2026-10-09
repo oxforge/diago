@@ -457,203 +457,95 @@ func TestRun_UnknownSpecTheme(t *testing.T) {
 	}
 }
 
-// buildCLI builds the CLI binary and returns its path.
-func buildCLI(t *testing.T) string {
-	t.Helper()
+// TestRun_RenderExitCodes: what each kind of input does to the exit code and
+// the stderr envelope of render: a spec that is valid draws and exits 0, a
+// validation error, a spec that is not JSON or is empty among them, exits 1
+// with a structured error.
+func TestRun_RenderExitCodes(t *testing.T) {
+	type fieldErr struct {
+		Field   string `json:"field"`
+		Message string `json:"message"`
+	}
+	for _, tt := range []struct {
+		name    string
+		input   string
+		code    int
+		drawn   []string // in stdout when the render succeeds
+		field   string   // the field of a validation error
+		message string
+	}{
+		{"flow", `{"type":"flow","direction":"DOWN","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b"}]}`,
+			0, []string{`xmlns="http://www.w3.org/2000/svg"`, "A", "B"}, "", ""},
+		{"sequence", `{"type":"sequence","actors":[{"id":"client","label":"Client"},{"id":"server","label":"Server"}],` +
+			`"interactions":[{"from":"client","to":"server","label":"request"},{"from":"server","to":"client","label":"response","style":"dashed"}]}`,
+			0, []string{`xmlns="http://www.w3.org/2000/svg"`, "Client", "Server", "request"}, "", ""},
+		{"unknown shape", `{"type":"flow","nodes":[{"id":"a","label":"A","shape":"octagon"}]}`, 1, nil, "nodes[0].shape", ""},
+		{"flat self-loop", `{"type":"flow","nodes":[{"id":"a","label":"A"}],"edges":[{"from":"a","to":"a","flat":true}]}`,
+			1, nil, "edges[0].flat", "a flat edge cannot be a self-loop"},
+		{"unknown actor", `{"type":"sequence","actors":[{"id":"a","label":"A"}],"interactions":[{"from":"a","to":"unknown_actor","label":"msg"}]}`,
+			1, nil, "", ""},
+		{"not JSON", "not json at all", 1, nil, "", "invalid JSON"},
+		{"empty stdin", "", 1, nil, "", "invalid JSON"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			code, out, stderr := runCLI(t, tt.input, "render")
+			require.Equal(t, tt.code, code, stderr)
+			if tt.code == 0 {
+				assert.True(t, strings.HasPrefix(out, "<?xml"))
+				for _, want := range tt.drawn {
+					assert.Contains(t, out, want)
+				}
+				return
+			}
+			assert.Empty(t, out)
+			if tt.code == 2 {
+				assert.True(t, strings.HasPrefix(stderr, "error: "), stderr)
+				return
+			}
+			var env struct {
+				Error struct {
+					Type   string     `json:"type"`
+					Errors []fieldErr `json:"errors"`
+				} `json:"error"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(stderr), &env), stderr)
+			assert.Equal(t, "validation_error", env.Error.Type)
+			require.NotEmpty(t, env.Error.Errors)
+			if tt.field != "" {
+				assert.Equal(t, tt.field, env.Error.Errors[0].Field)
+			}
+			assert.Contains(t, env.Error.Errors[0].Message, tt.message)
+		})
+	}
+}
+
+// TestBinary_ExitCodes builds the binary once and runs it: the one thing the
+// in-process runs above cannot see is main(), which hands run's code to
+// os.Exit, so the exit status and the streams of a real process are checked
+// here for a spec that draws and for one that does not validate.
+func TestBinary_ExitCodes(t *testing.T) {
 	bin := t.TempDir() + "/diago"
-	cmd := exec.Command("go", "build", "-o", bin, ".")
-	cmd.Dir = "."
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, "failed to build CLI: %s", string(out))
-	return bin
-}
-
-func TestCLIValidInput(t *testing.T) {
-	bin := buildCLI(t)
-
-	input := `{
-		"type": "flow",
-		"direction": "DOWN",
-		"nodes": [
-			{"id": "a", "label": "A"},
-			{"id": "b", "label": "B"}
-		],
-		"edges": [{"from": "a", "to": "b"}]
-	}`
+	build := exec.Command("go", "build", "-o", bin, ".")
+	out, err := build.CombinedOutput()
+	require.NoError(t, err, "failed to build CLI: %s", out)
 
 	cmd := exec.Command(bin, "render")
-	cmd.Stdin = strings.NewReader(input)
-	out, err := cmd.Output()
-	require.NoError(t, err, "CLI should exit 0 for valid input")
+	cmd.Stdin = strings.NewReader(twoNodeSpec)
+	var stdout, stderr strings.Builder
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	require.NoError(t, cmd.Run(), stderr.String())
+	assert.True(t, strings.HasPrefix(stdout.String(), "<?xml"))
 
-	svg := string(out)
-	assert.True(t, strings.HasPrefix(svg, "<?xml"), "output should start with XML declaration")
-	assert.Contains(t, svg, `xmlns="http://www.w3.org/2000/svg"`)
-}
-
-func TestCLIInvalidInput(t *testing.T) {
-	bin := buildCLI(t)
-
-	input := `{
-		"type": "flow",
-		"nodes": [{"id": "a", "label": "A", "shape": "octagon"}]
-	}`
-
-	cmd := exec.Command(bin, "render")
-	cmd.Stdin = strings.NewReader(input)
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-
-	// Should exit non-zero.
-	require.Error(t, err)
-	exitErr, ok := err.(*exec.ExitError)
-	require.True(t, ok, "error should be ExitError")
-	assert.Equal(t, 1, exitErr.ExitCode(), "validation error should exit with code 1")
-
-	// Stderr should contain structured JSON error.
-	var errResp struct {
-		Error struct {
-			Type   string `json:"type"`
-			Errors []struct {
-				Field   string `json:"field"`
-				Message string `json:"message"`
-			} `json:"errors"`
-		} `json:"error"`
-	}
-	err = json.Unmarshal([]byte(stderr.String()), &errResp)
-	require.NoError(t, err, "stderr should be valid JSON: %s", stderr.String())
-	assert.Equal(t, "validation_error", errResp.Error.Type)
-	assert.NotEmpty(t, errResp.Error.Errors, "should have at least one error")
-}
-
-func TestCLIFlatSelfLoopValidationError(t *testing.T) {
-	bin := buildCLI(t)
-
-	input := `{
-		"type": "flow",
-		"nodes": [{"id": "a", "label": "A"}],
-		"edges": [{"from": "a", "to": "a", "flat": true}]
-	}`
-
-	cmd := exec.Command(bin, "render")
-	cmd.Stdin = strings.NewReader(input)
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-
-	require.Error(t, err)
-	exitErr, ok := err.(*exec.ExitError)
-	require.True(t, ok, "error should be ExitError")
-	assert.Equal(t, 1, exitErr.ExitCode(), "validation error should exit with code 1")
-
-	var errResp struct {
-		Error struct {
-			Type   string `json:"type"`
-			Errors []struct {
-				Field   string `json:"field"`
-				Message string `json:"message"`
-			} `json:"errors"`
-		} `json:"error"`
-	}
-	require.NoError(t, json.Unmarshal([]byte(stderr.String()), &errResp), "stderr should be valid JSON: %s", stderr.String())
-	assert.Equal(t, "validation_error", errResp.Error.Type)
-	found := false
-	for _, e := range errResp.Error.Errors {
-		if e.Field == "edges[0].flat" {
-			found = true
-			assert.Contains(t, e.Message, "a flat edge cannot be a self-loop")
-		}
-	}
-	assert.True(t, found, "expected an error on edges[0].flat, got %+v", errResp.Error.Errors)
-}
-
-func TestCLIInvalidJSON(t *testing.T) {
-	bin := buildCLI(t)
-
-	cmd := exec.Command(bin, "render")
-	cmd.Stdin = strings.NewReader("not json at all")
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	require.Error(t, err)
-	exitErr, ok := err.(*exec.ExitError)
-	require.True(t, ok)
-	assert.Equal(t, 1, exitErr.ExitCode(), "a spec that is not JSON is a validation error")
-	assert.Contains(t, stderr.String(), `"type": "validation_error"`)
-}
-
-func TestCLIEmptyStdin(t *testing.T) {
-	bin := buildCLI(t)
-
-	cmd := exec.Command(bin, "render")
-	cmd.Stdin = strings.NewReader("")
-	err := cmd.Run()
-	require.Error(t, err, "empty stdin should fail")
-}
-
-func TestCLISequenceDiagram(t *testing.T) {
-	bin := buildCLI(t)
-
-	input := `{
-		"type": "sequence",
-		"actors": [
-			{"id": "client", "label": "Client"},
-			{"id": "server", "label": "Server"}
-		],
-		"interactions": [
-			{"from": "client", "to": "server", "label": "request"},
-			{"from": "server", "to": "client", "label": "response", "style": "dashed"}
-		]
-	}`
-
-	cmd := exec.Command(bin, "render")
-	cmd.Stdin = strings.NewReader(input)
-	out, err := cmd.Output()
-	require.NoError(t, err, "CLI should exit 0 for valid sequence diagram")
-
-	svg := string(out)
-	assert.True(t, strings.HasPrefix(svg, "<?xml"), "output should start with XML declaration")
-	assert.Contains(t, svg, `xmlns="http://www.w3.org/2000/svg"`)
-	assert.Contains(t, svg, "Client", "actor label should appear in SVG")
-	assert.Contains(t, svg, "Server", "actor label should appear in SVG")
-	assert.Contains(t, svg, "request", "interaction label should appear in SVG")
-}
-
-func TestCLISequenceValidationError(t *testing.T) {
-	bin := buildCLI(t)
-
-	// Reference an actor that doesn't exist.
-	input := `{
-		"type": "sequence",
-		"actors": [{"id": "a", "label": "A"}],
-		"interactions": [{"from": "a", "to": "unknown_actor", "label": "msg"}]
-	}`
-
-	cmd := exec.Command(bin, "render")
-	cmd.Stdin = strings.NewReader(input)
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-
-	require.Error(t, err)
-	exitErr, ok := err.(*exec.ExitError)
-	require.True(t, ok)
-	assert.Equal(t, 1, exitErr.ExitCode(), "validation error should exit with code 1")
-
-	var errResp struct {
-		Error struct {
-			Type   string `json:"type"`
-			Errors []struct {
-				Field   string `json:"field"`
-				Message string `json:"message"`
-			} `json:"errors"`
-		} `json:"error"`
-	}
-	jsonErr := json.Unmarshal([]byte(stderr.String()), &errResp)
-	require.NoError(t, jsonErr, "stderr should be valid JSON: %s", stderr.String())
-	assert.Equal(t, "validation_error", errResp.Error.Type)
-	assert.NotEmpty(t, errResp.Error.Errors)
+	cmd = exec.Command(bin, "render")
+	cmd.Stdin = strings.NewReader(`{"type":"flow","nodes":[{"id":"a","label":"A","shape":"octagon"}]}`)
+	stdout.Reset()
+	stderr.Reset()
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	var exitErr *exec.ExitError
+	require.ErrorAs(t, cmd.Run(), &exitErr)
+	assert.Equal(t, 1, exitErr.ExitCode())
+	assert.Empty(t, stdout.String())
+	assert.Contains(t, stderr.String(), `"validation_error"`)
 }
 
 func writeTemp(t *testing.T, name, content string) string {
@@ -749,24 +641,15 @@ func TestRun_ClassRenderCheckAndPrevious(t *testing.T) {
 	assert.NotContains(t, errb.String(), "must be a  diagram")
 }
 
-func TestRender_StyleFlagRemoved(t *testing.T) {
+// TestRun_RemovedStyleFlag: -style was removed; each verb that took it now
+// reports the flag as unknown, exit 2.
+func TestRun_RemovedStyleFlag(t *testing.T) {
 	spec := `{"type":"flow","nodes":[{"id":"a","label":"A"}],"edges":[]}`
-	code, _, stderr := runCLI(t, spec, "render", "-style", "lawful")
-	if code != 2 {
-		t.Fatalf("exit code = %d, want 2 (unknown flag); stderr: %s", code, stderr)
-	}
-	if !strings.Contains(stderr, "flag provided but not defined: -style") {
-		t.Errorf("stderr = %q, want the flag package's unknown-flag message", stderr)
-	}
-}
-
-func TestDiff_StyleFlagRemoved(t *testing.T) {
-	code, _, stderr := runCLI(t, "", "diff", "-style", "lawful", "a.json", "b.json")
-	if code != 2 {
-		t.Fatalf("exit code = %d, want 2 (unknown flag); stderr: %s", code, stderr)
-	}
-	if !strings.Contains(stderr, "flag provided but not defined: -style") {
-		t.Errorf("stderr = %q, want the flag package's unknown-flag message", stderr)
+	for _, args := range [][]string{{"render", "-style", "lawful"}, {"diff", "-style", "lawful", "a.json", "b.json"}} {
+		code, out, stderr := runCLI(t, spec, args...)
+		assert.Equal(t, 2, code, args)
+		assert.Empty(t, out, args)
+		assert.Contains(t, stderr, "flag provided but not defined: -style", args)
 	}
 }
 
