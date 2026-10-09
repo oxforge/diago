@@ -55,8 +55,8 @@ type FragmentSectionSpec struct {
 // Multiple validation errors are collected and returned together.
 func ParseSequence(data []byte) (*model.SequenceDiagram, error) {
 	var spec SequenceSpec
-	if err := json.Unmarshal(data, &spec); err != nil {
-		return nil, fmt.Errorf("parse sequence: %w", err)
+	if err := decode(data, &spec); err != nil {
+		return nil, err
 	}
 	// The keys each section gives: decoded into an int, a missing start or
 	// end would read as 0. The decode above succeeded, so this one does.

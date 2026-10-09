@@ -1,7 +1,6 @@
 package schema
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -75,8 +74,8 @@ var visibilities = map[string]bool{"+": true, "-": true, "#": true, "~": true}
 // error is collected into ValidationErrors.
 func ParseClass(data []byte) (*model.Graph, error) {
 	var spec ClassSpec
-	if err := json.Unmarshal(data, &spec); err != nil {
-		return nil, fmt.Errorf("parse class: %w", err)
+	if err := decode(data, &spec); err != nil {
+		return nil, err
 	}
 	var errs ValidationErrors
 

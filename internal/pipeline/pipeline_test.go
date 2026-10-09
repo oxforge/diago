@@ -210,9 +210,8 @@ func TestRenderWithOptions_SpecTheme(t *testing.T) {
 }
 
 // TestRenderWithOptions_UnknownSpecTheme: a theme the spec names that does
-// not load is a validation error on the spec's field; text art takes no
-// theme and never reads it. A theme the option names stays an error of the
-// invocation.
+// not load is a validation error on the spec's field, in text art too. A
+// theme the option names stays an error of the invocation.
 func TestRenderWithOptions_UnknownSpecTheme(t *testing.T) {
 	ctx := context.Background()
 	for _, s := range themedSpecs {
@@ -226,7 +225,8 @@ func TestRenderWithOptions_UnknownSpecTheme(t *testing.T) {
 			assert.Contains(t, ve[0].Message, `"nope"`)
 
 			_, err = RenderWithOptions(ctx, spec, Options{Format: "text"})
-			require.NoError(t, err)
+			require.ErrorAs(t, err, &ve)
+			assert.Equal(t, "theme", ve[0].Field)
 			_, err = RenderWithOptions(ctx, spec, Options{Theme: "default"})
 			require.NoError(t, err, "the option over a field that does not load")
 

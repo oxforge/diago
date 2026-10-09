@@ -223,8 +223,8 @@ func TestRun_CheckErrors(t *testing.T) {
 	assert.Contains(t, stderr, `"field": "ignore[0]"`)
 
 	code, _, stderr = runCLI(t, `{`, "check")
-	assert.Equal(t, 2, code)
-	assert.Contains(t, stderr, "error:")
+	assert.Equal(t, 1, code)
+	assert.Contains(t, stderr, `"field": ""`)
 
 	code, _, stderr = runCLI(t, "", "check", "a.json", "b.json")
 	assert.Equal(t, 2, code)
@@ -412,8 +412,8 @@ func TestRun_PreviousSpecLaidOutAsTheRender(t *testing.T) {
 // TestRun_UnknownSpecTheme: a theme the spec names that does not load is a
 // validation error on its field, exit 1, with or without a -previous spec
 // laid out under it; an unknown -theme is an invocation error, exit 2,
-// reported as the flag's, not as the -previous spec's; text art takes no
-// theme.
+// reported as the flag's, not as the -previous spec's; text art checks it
+// too.
 func TestRun_UnknownSpecTheme(t *testing.T) {
 	spec := strings.Replace(twoNodeSpec, `{"type":"flow",`, `{"type":"flow","theme":"nope",`, 1)
 	prev := writeTemp(t, "v1.json", twoNodeSpec)
@@ -427,7 +427,7 @@ func TestRun_UnknownSpecTheme(t *testing.T) {
 	}{
 		{"render", spec, []string{"render"}, 1, "theme", ""},
 		{"previous spec", spec, []string{"render", "-previous", prev}, 1, "theme", ""},
-		{"text", spec, []string{"render", "-format", "text", "-previous", prev}, 0, "", ""},
+		{"text", spec, []string{"render", "-format", "text", "-previous", prev}, 1, "theme", ""},
 		{"flag", twoNodeSpec, []string{"render", "-theme", "nope", "-previous", prev}, 2, "", "error: theme \"nope\" not found\n"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -567,11 +567,14 @@ func TestCLIInvalidJSON(t *testing.T) {
 
 	cmd := exec.Command(bin, "render")
 	cmd.Stdin = strings.NewReader("not json at all")
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
 	err := cmd.Run()
 	require.Error(t, err)
 	exitErr, ok := err.(*exec.ExitError)
 	require.True(t, ok)
-	assert.Equal(t, 2, exitErr.ExitCode(), "internal error should exit with code 2")
+	assert.Equal(t, 1, exitErr.ExitCode(), "a spec that is not JSON is a validation error")
+	assert.Contains(t, stderr.String(), `"type": "validation_error"`)
 }
 
 func TestCLIEmptyStdin(t *testing.T) {
@@ -733,10 +736,10 @@ func TestRun_ClassRenderCheckAndPrevious(t *testing.T) {
 	errb.Reset()
 	out.Reset()
 	code = run([]string{"render", "-previous", flowPrev}, strings.NewReader(`{"nodes":[]}`), &out, &errb)
-	// The spec's own "unknown diagram type" error surfaces through the plain
-	// error path (exit 2), not as a -previous mismatch against a blank type.
-	assert.Equal(t, 2, code)
-	assert.Contains(t, errb.String(), "unknown diagram type")
+	// The spec's own missing-type error surfaces as a validation error on
+	// "type", not as a -previous mismatch against a blank type.
+	assert.Equal(t, 1, code)
+	assert.Contains(t, errb.String(), "\"field\": \"type\"")
 	assert.NotContains(t, errb.String(), "must be a  diagram")
 }
 
@@ -808,4 +811,25 @@ func TestRender_RemovedFieldsIgnored(t *testing.T) {
 			assert.NotContains(t, stderrStripped, "removed-field", "a spec without the removed keys must not warn about them")
 		})
 	}
+}
+
+func TestRun_CheckStrictRejectsAnUnknownSpecTheme(t *testing.T) {
+	code, _, stderr := runCLI(t, `{"type":"flow","theme":"nope","nodes":[{"id":"a","label":"A"}],"edges":[]}`, "check", "-strict")
+	assert.Equal(t, 1, code)
+	assert.Contains(t, stderr, `"field": "theme"`)
+}
+
+func TestRun_UnknownThemeFlagFailsInTextToo(t *testing.T) {
+	code, _, stderr := runCLI(t, twoNodeSpec, "render", "-format", "text", "-theme", "nope")
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "error:")
+}
+
+func TestRun_DiffWithAnUnsupportedFormatIsAUsageError(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "a.json")
+	require.NoError(t, os.WriteFile(p, []byte(twoNodeSpec), 0o644))
+	code, _, stderr := runCLI(t, "", "diff", "-format", "bogus", p, p)
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "error: diff: unsupported format")
 }

@@ -1,7 +1,6 @@
 package schema
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -54,8 +53,8 @@ type GroupSpec struct {
 // Multiple validation errors are collected and returned together.
 func ParseFlow(data []byte) (*model.Graph, error) {
 	var spec FlowSpec
-	if err := json.Unmarshal(data, &spec); err != nil {
-		return nil, fmt.Errorf("parse flow: %w", err)
+	if err := decode(data, &spec); err != nil {
+		return nil, err
 	}
 
 	var errs ValidationErrors

@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -45,15 +44,20 @@ func withFooter(art, caption string, legend []string) string {
 	return strings.TrimRight(art, "\n") + "\n\n" + strings.Join(lines, "\n") + "\n"
 }
 
-// prefixFields prepends prefix to every field path of a ValidationErrors.
-func prefixFields(err error, prefix string) error {
+// prefixFields puts side ("before", "after") in front of every field of a
+// ValidationErrors; the whole document's field "" becomes side itself.
+func prefixFields(err error, side string) error {
 	var ve schema.ValidationErrors
 	if !errors.As(err, &ve) {
 		return err
 	}
 	out := make(schema.ValidationErrors, len(ve))
 	for i, e := range ve {
-		out[i] = schema.ValidationError{Field: prefix + e.Field, Message: e.Message}
+		f := side
+		if e.Field != "" {
+			f += "." + e.Field
+		}
+		out[i] = schema.ValidationError{Field: f, Message: e.Message}
 	}
 	return out
 }
@@ -74,49 +78,50 @@ type diffInputs struct {
 // parseDiffInputs probes both types, parses both specs with before./after.
 // field prefixes, and rejects mixed types on after.type.
 func parseDiffInputs(before, after []byte) (diffInputs, error) {
-	var pb, pa specProbe
-	if err := json.Unmarshal(before, &pb); err != nil {
-		return diffInputs{}, validationError("before", "invalid JSON: "+err.Error())
+	bk, err := schema.DiagramType(before)
+	if err != nil {
+		return diffInputs{}, prefixFields(err, "before")
 	}
-	if err := json.Unmarshal(after, &pa); err != nil {
-		return diffInputs{}, validationError("after", "invalid JSON: "+err.Error())
+	ak, err := schema.DiagramType(after)
+	if err != nil {
+		return diffInputs{}, prefixFields(err, "after")
 	}
-	if pb.Type != pa.Type {
-		return diffInputs{}, validationError("after.type", fmt.Sprintf("must match before (%q), got %q", pb.Type, pa.Type))
+	if bk != ak {
+		return diffInputs{}, validationError("after.type", fmt.Sprintf("must match before (%q), got %q", bk, ak))
 	}
-	switch pb.Type {
+	switch bk {
 	case "flow":
 		bg, err := schema.ParseFlow(before)
 		if err != nil {
-			return diffInputs{}, prefixFields(err, "before.")
+			return diffInputs{}, prefixFields(err, "before")
 		}
 		ag, err := schema.ParseFlow(after)
 		if err != nil {
-			return diffInputs{}, prefixFields(err, "after.")
+			return diffInputs{}, prefixFields(err, "after")
 		}
 		return diffInputs{kind: "flow", flowBefore: bg, flowAfter: ag}, nil
 	case "class":
 		bg, err := schema.ParseClass(before)
 		if err != nil {
-			return diffInputs{}, prefixFields(err, "before.")
+			return diffInputs{}, prefixFields(err, "before")
 		}
 		ag, err := schema.ParseClass(after)
 		if err != nil {
-			return diffInputs{}, prefixFields(err, "after.")
+			return diffInputs{}, prefixFields(err, "after")
 		}
 		return diffInputs{kind: "class", flowBefore: bg, flowAfter: ag}, nil
 	case "sequence":
 		bd, err := schema.ParseSequence(before)
 		if err != nil {
-			return diffInputs{}, prefixFields(err, "before.")
+			return diffInputs{}, prefixFields(err, "before")
 		}
 		ad, err := schema.ParseSequence(after)
 		if err != nil {
-			return diffInputs{}, prefixFields(err, "after.")
+			return diffInputs{}, prefixFields(err, "after")
 		}
 		return diffInputs{kind: "sequence", seqBefore: bd, seqAfter: ad}, nil
 	default:
-		return diffInputs{}, validationError("before.type", fmt.Sprintf("unknown diagram type %q", pb.Type))
+		return diffInputs{}, fmt.Errorf("diff: unknown diagram type %q", bk)
 	}
 }
 
@@ -272,7 +277,7 @@ func RenderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 }
 
 // renderDiff renders the union of before and after with per-element
-// status. Validation errors carry before./after. prefixes. flatRanked names
+// status. Validation errors carry before/after prefixes. flatRanked names
 // the union edges the layout ranked (flatRankedDiffFields); nil for a
 // sequence diff, which has no flat edges.
 func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]byte, []textrender.DroppedLabel, []flatRankedField, error) {
@@ -286,20 +291,18 @@ func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 	switch format {
 	case "svg", "png", "text":
 	case "drawio", "excalidraw":
-		return nil, nil, nil, validationError("format", "format not supported for diff")
+		return nil, nil, nil, fmt.Errorf("diff: %s format is not supported for diff: want svg, png or text", format)
 	default:
-		return nil, nil, nil, validationError("format", fmt.Sprintf("unsupported format %q: want svg, png, or text", opts.Format))
+		return nil, nil, nil, fmt.Errorf("diff: unsupported format %q: want svg, png or text", opts.Format)
 	}
 	in, err := parseDiffInputs(before, after)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	// Text art takes no theme; the others take the after spec's (specTheme).
-	var th theme.Theme
-	if format != "text" {
-		if th, err = specTheme(after, opts.Theme); err != nil {
-			return nil, nil, nil, fmt.Errorf("diff: theme: %w", prefixFields(err, "after."))
-		}
+	// Text art ignores the theme, but one that does not load is still an error.
+	th, err := specTheme(after, opts.Theme)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("diff: theme: %w", prefixFields(err, "after"))
 	}
 
 	if in.kind == "sequence" {

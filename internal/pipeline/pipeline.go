@@ -183,9 +183,9 @@ func RenderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte,
 }
 
 func renderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte, []textrender.DroppedLabel, []flatRankedField, error) {
-	var probe specProbe
-	if err := json.Unmarshal(input, &probe); err != nil {
-		return nil, nil, nil, fmt.Errorf("render: invalid JSON: %w", err)
+	kind, err := schema.DiagramType(input)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 	// Validate a supplied Previous anchor once, up front, for every diagram
 	// type: a malformed carrier must be rejected before layout runs, not
@@ -210,14 +210,18 @@ func renderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte,
 	switch format {
 	case "svg", "png", "text":
 	case "drawio", "excalidraw":
-		data, flatRanked, err := renderExport(ctx, input, probe.Type, format, themeName, &opts)
+		data, flatRanked, err := renderExport(ctx, input, kind, format, themeName, &opts)
 		return data, nil, flatRanked, err
 	default:
 		return nil, nil, nil, fmt.Errorf("render: unsupported format %q: want svg, png, text, drawio, or excalidraw", opts.Format)
 	}
 
 	if format == "text" {
-		switch probe.Type {
+		// Text art takes no theme, but a theme the spec or -theme names must load.
+		if _, err := specTheme(input, themeName); err != nil {
+			return nil, nil, nil, err
+		}
+		switch kind {
 		case "flow":
 			res, hints, flatRanked, err := renderFlowText(ctx, input, themeName, opts.Previous)
 			if err != nil {
@@ -251,14 +255,13 @@ func renderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte,
 			}
 			return []byte(art), res.DroppedLabels, flatRanked, nil
 		default:
-			return nil, nil, nil, fmt.Errorf("render: unknown diagram type: %q", probe.Type)
+			return nil, nil, nil, fmt.Errorf("render: unknown diagram type: %q", kind)
 		}
 	}
 
 	var svg string
 	var flatRanked []flatRankedField
-	var err error
-	switch probe.Type {
+	switch kind {
 	case "flow":
 		var hints *model.LayoutHints
 		svg, hints, flatRanked, err = renderFlowFull(ctx, input, themeName, opts.Previous)
@@ -277,7 +280,7 @@ func renderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte,
 			*opts.LayoutHints = *hints
 		}
 	default:
-		return nil, nil, nil, fmt.Errorf("render: unknown diagram type: %q", probe.Type)
+		return nil, nil, nil, fmt.Errorf("render: unknown diagram type: %q", kind)
 	}
 	if err != nil {
 		return nil, nil, nil, err

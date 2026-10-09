@@ -294,15 +294,12 @@ func runRender(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		// missing or unknown, is left to the pipeline below so it is
 		// reported as the spec error it is rather than as a -previous type
 		// mismatch naming a type the spec never had.
-		var probe struct {
-			Type string `json:"type"`
-		}
-		if json.Unmarshal(input, &probe) == nil && knownDiagramType(probe.Type) {
+		if kind, err := schema.DiagramType(input); err == nil {
 			renderTheme, err := pipeline.RenderTheme(input, *format, *themeName)
 			if err != nil {
 				return reportError(stderr, err)
 			}
-			previous, err = pipeline.ParsePrevious(baseCtx, data, probe.Type, *format, renderTheme)
+			previous, err = pipeline.ParsePrevious(baseCtx, data, kind, *format, renderTheme)
 			if err != nil {
 				return reportError(stderr, err)
 			}
@@ -399,17 +396,6 @@ func writeReports(w io.Writer, reports []mermaid.Report, side string) {
 
 // reportError writes err to stderr and returns the exit code: 1 for a
 // structured schema.ValidationErrors JSON envelope, 2 for a plain message.
-// knownDiagramType reports whether a probed spec type is one the pipeline
-// can anchor. Anything else (missing, misspelled) belongs to the spec's own
-// validation error, not to a -previous mismatch message.
-func knownDiagramType(t string) bool {
-	switch t {
-	case "flow", "sequence", "class":
-		return true
-	}
-	return false
-}
-
 func reportError(stderr io.Writer, err error) int {
 	var ve schema.ValidationErrors
 	if errors.As(err, &ve) {
@@ -557,7 +543,7 @@ func runCheck(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return reportSourceError(stderr, "check", err)
 	}
 	writeReports(stderr, reports, "")
-	if err := parseSpec(input); err != nil {
+	if err := pipeline.Validate(input); err != nil {
 		return reportError(stderr, err)
 	}
 	advs, err := schema.Check(input, schema.CheckOptions{})
@@ -581,29 +567,6 @@ func runCheck(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
-}
-
-// parseSpec validates a spec of either type without rendering it.
-func parseSpec(data []byte) error {
-	var probe struct {
-		Type string `json:"type"`
-	}
-	if err := json.Unmarshal(data, &probe); err != nil {
-		return fmt.Errorf("check: invalid JSON: %w", err)
-	}
-	switch probe.Type {
-	case "flow":
-		_, err := schema.ParseFlow(data)
-		return err
-	case "sequence":
-		_, err := schema.ParseSequence(data)
-		return err
-	case "class":
-		_, err := schema.ParseClass(data)
-		return err
-	default:
-		return fmt.Errorf("check: unknown diagram type: %q", probe.Type)
-	}
 }
 
 // writeAdvisories prints one line per finding, each prefixed (render and
