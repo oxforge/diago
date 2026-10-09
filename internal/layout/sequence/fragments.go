@@ -187,7 +187,7 @@ func spaceForFragmentHeaders(plans []fragmentPlan, interactions []model.Interact
 	leftExt := make([]float64, len(plans))
 	needLeft := make([]float64, len(centerX))
 	for i, pl := range plans {
-		e := boxW[pl.leftIdx]/2 + p.FragmentPaddingX
+		e := max(boxW[pl.leftIdx]/2+p.FragmentPaddingX, p.FragmentLifelineInset)
 		if pl.headerW > 0 {
 			e = max(e, p.SectionLabelPadding+pl.headerW)
 		}
@@ -251,7 +251,8 @@ func spaceForFragmentHeaders(plans []fragmentPlan, interactions []model.Interact
 // declaration order.
 //
 // A frame spans its plan's actors, FragmentPaddingX beyond the outermost
-// header boxes, and reaches right past every self-message loop in its range
+// header boxes and at least FragmentLifelineInset left of its leftmost
+// lifeline, and reaches right past every self-message loop in its range
 // and that loop's label. Each section's line, the frame top for the first
 // section and a divider for every later one, sits SectionTopInset above the
 // section's first message; the bottom sits FragmentPaddingY below the last
@@ -290,7 +291,7 @@ func computeFragments(
 	for i, pl := range plans {
 		f := pl.frag
 
-		leftEdge := posActors[pl.leftIdx].BoxX - p.FragmentPaddingX
+		leftEdge := min(posActors[pl.leftIdx].BoxX-p.FragmentPaddingX, centerX[pl.leftIdx]-p.FragmentLifelineInset)
 		if pl.headerW > 0 {
 			leftEdge = min(leftEdge, centerX[pl.leftIdx]-p.SectionLabelPadding-pl.headerW)
 		}

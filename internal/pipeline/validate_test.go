@@ -89,7 +89,9 @@ func TestRender_StopsWhenTheContextIsDone(t *testing.T) {
 // lifeline they cross (layout rule SQ1.2), and keeps two blank columns
 // between every side of a frame and every lifeline (SQ1.1): a frame starts
 // right of the lifelines left of its span, and a header wider than the
-// span carries the right side past the next lifeline (SQ1.3).
+// span carries the right side past the next lifeline (SQ1.3). Six blank
+// columns lie between a frame's left side and the first lifeline inside
+// it (SQ1.5).
 func TestRenderWithOptions_TextFrameHeadersAndSides(t *testing.T) {
 	for _, tc := range []struct {
 		name, spec string
@@ -108,8 +110,10 @@ func TestRenderWithOptions_TextFrameHeadersAndSides(t *testing.T) {
 			2, 0, []string{"╔══ loop ══"}, true},
 		{"header short of the next lifeline", `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"interactions":[{"from":"a","to":"b","label":"go"},{"from":"b","to":"c","label":"on"}],"fragments":[{"type":"opt","over":["a","b"],"sections":[{"label":"ok","start":0,"end":0}]}]}`,
 			3, 0, []string{"╔══ opt [ok] ══"}, false},
-		{"header ending at the next lifeline", `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"interactions":[{"from":"a","to":"b","label":"go"},{"from":"b","to":"a","label":"back"},{"from":"b","to":"c","label":"on"}],"fragments":[{"type":"alt","over":["a","b"],"sections":[{"label":"logged in","start":0,"end":0},{"label":"session has expired","start":1,"end":1}]}]}`,
-			3, 0, []string{"╔══ alt [logged in] ══", "╟╌╌ [session has expired] ╌╌"}, true},
+		{"guards over a narrow actor", `{"type":"sequence","actors":[{"id":"u","label":"User"},{"id":"w","label":"Web App"}],"interactions":[{"from":"u","to":"w","label":"log in"},{"from":"w","to":"u","label":"welcome"},{"from":"w","to":"u","label":"error"},{"from":"w","to":"u","label":"account locked"}],"fragments":[{"type":"alt","over":["u","w"],"sections":[{"label":"valid","start":0,"end":1},{"label":"invalid","start":2,"end":2},{"label":"locked","start":3,"end":3}]}]}`,
+			2, 0, []string{"╔══ alt [valid] ══", "╟╌╌ [invalid] ╌╌", "╟╌╌ [locked] ╌╌"}, true},
+		{"header ending at the next lifeline", `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"interactions":[{"from":"a","to":"b","label":"go"},{"from":"b","to":"a","label":"back"},{"from":"b","to":"c","label":"on"}],"fragments":[{"type":"alt","over":["a","b"],"sections":[{"label":"logged in","start":0,"end":0},{"label":"the session has expired","start":1,"end":1}]}]}`,
+			3, 0, []string{"╔══ alt [logged in] ══", "╟╌╌ [the session has expired] ╌╌"}, true},
 		{"header past the next lifeline", `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"interactions":[{"from":"a","to":"b","label":"go"},{"from":"b","to":"c","label":"on"}],"fragments":[{"type":"opt","over":["a","b"],"sections":[{"label":"a guard far longer than the frame's span","start":0,"end":0}]}]}`,
 			3, 0, []string{"╔══ opt [a guard far longer than the frame's span] ══"}, true},
 	} {
@@ -140,6 +144,9 @@ func TestRenderWithOptions_TextFrameHeadersAndSides(t *testing.T) {
 					continue
 				}
 				headers = append(headers, string(rs[left:]))
+				if i := slices.IndexFunc(lifelines, func(l int) bool { return l > left }); i >= 0 {
+					assert.GreaterOrEqual(t, lifelines[i]-left, 7, "the first lifeline inside the frame at %d, its left side at %d: %q", lifelines[i], left, row)
+				}
 				for k, l := range lifelines[:tc.outside] {
 					assert.Less(t, l, left, "lifeline %d lies left of the frame: %q", k, row)
 				}

@@ -24,7 +24,12 @@ type Profile struct {
 	FragmentHeaderHeight          float64 // vertical room reserved above each section start, per frame
 	FragmentFooterHeight          float64 // extra gap after the last interaction of each fragment that closes there
 	SectionLabelPadding           float64
-	SectionTopInset               float64 // a section's line (frame top or divider) sits this far above its first interaction
+	// FragmentLifelineInset is the least distance from a frame's left side
+	// to the first lifeline inside it: in text art seven cells, so that
+	// lifeline crosses a header row on its eighth rune, past the operator's
+	// first letters (╔══ alt [). Zero on screen.
+	FragmentLifelineInset float64
+	SectionTopInset       float64 // a section's line (frame top or divider) sits this far above its first interaction
 	// The operator tab at a frame's top-left: its width is the operator's
 	// text plus 2·FragmentTabPadX plus FragmentTabCut, its height the label
 	// height plus 2·FragmentTabPadY, and its bottom-right corner is cut by
@@ -84,32 +89,33 @@ func ScreenProfile(fonts LayoutFonts) Profile {
 // activation and fragment edge lies on the 8 × 16 px cell grid.
 func TextProfile() Profile {
 	return Profile{
-		MeasureText:          layout.RuneMeasure,
-		Fonts:                LayoutFonts{Family: "Inter", HeaderSize: 14, LabelSize: 12, FragLabelSize: 11},
-		ActorPaddingX:        16,
-		ActorPaddingY:        16,
-		ActorMinWidth:        56,
-		ActorMinHeight:       48,
-		ActorSpacing:         96,
-		ActorBoxGap:          16,
-		InteractionSpacingY:  32,
-		SelfLoopWidth:        32,
-		SelfLoopHeight:       32,
-		SelfLabelGap:         16, // the renderer writes the label after a blank cell past the loop
-		FragmentPaddingX:     8,
-		FragmentPaddingY:     16,
-		FragmentHeaderHeight: 16,
-		FragmentFooterHeight: 16, // one row per closing frame, so the next message never lands on a ╚═╝ line
-		SectionLabelPadding:  16,
-		SectionTopInset:      16,
-		ActivationWidth:      8,
-		TopMargin:            16,
-		LeftMargin:           16,
-		RightMargin:          16,
-		BottomMargin:         32, // one lifeline row past the last message, then the footer
-		LabelAboveOffset:     0,
-		NormalizeMargin:      16,
-		CellW:                8,
-		CellH:                16,
+		MeasureText:           layout.RuneMeasure,
+		Fonts:                 LayoutFonts{Family: "Inter", HeaderSize: 14, LabelSize: 12, FragLabelSize: 11},
+		ActorPaddingX:         16,
+		ActorPaddingY:         16,
+		ActorMinWidth:         56,
+		ActorMinHeight:        48,
+		ActorSpacing:          96,
+		ActorBoxGap:           16,
+		InteractionSpacingY:   32,
+		SelfLoopWidth:         32,
+		SelfLoopHeight:        32,
+		SelfLabelGap:          16, // the renderer writes the label after a blank cell past the loop
+		FragmentPaddingX:      8,
+		FragmentLifelineInset: 56,
+		FragmentPaddingY:      16,
+		FragmentHeaderHeight:  16,
+		FragmentFooterHeight:  16, // one row per closing frame, so the next message never lands on a ╚═╝ line
+		SectionLabelPadding:   16,
+		SectionTopInset:       16,
+		ActivationWidth:       8,
+		TopMargin:             16,
+		LeftMargin:            16,
+		RightMargin:           16,
+		BottomMargin:          32, // one lifeline row past the last message, then the footer
+		LabelAboveOffset:      0,
+		NormalizeMargin:       16,
+		CellW:                 8,
+		CellH:                 16,
 	}
 }

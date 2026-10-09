@@ -801,6 +801,29 @@ func TestLayoutFragment_TextFrameSidesKeepTwoColumnsFromEveryLifeline(t *testing
 	}
 }
 
+// SQ1.5: in text art a frame's left side lies at least seven columns left
+// of the first lifeline inside it, six blank columns between them, so that
+// lifeline crosses a header row past its first runes: ╔══ alt [ on the
+// space after a three-rune type.
+func TestLayoutFragment_TextFrameLeftSideKeepsSevenColumnsFromItsFirstLifeline(t *testing.T) {
+	p := seqlayout.TextProfile()
+	for name, spec := range textFrameSpecs() {
+		t.Run(name, func(t *testing.T) {
+			ps := layOut(t, spec, p)
+			for fi, f := range ps.Fragments {
+				first := math.Inf(1)
+				for _, a := range ps.Actors {
+					if a.LineX > f.X {
+						first = min(first, a.LineX)
+					}
+				}
+				assert.GreaterOrEqual(t, first-f.X, 7*p.CellW,
+					"fragment %d (%s): its left side at column %g, the first lifeline inside at %g", fi, f.Type, f.X/p.CellW, first/p.CellW)
+			}
+		})
+	}
+}
+
 // SQ1.2: a text frame is at least as wide as its header rows: both corners,
 // two border runes on each side, and its top row's or a divider's text.
 func TestLayoutFragment_TextFrameFitsItsHeaderRows(t *testing.T) {
