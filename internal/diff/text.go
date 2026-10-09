@@ -67,23 +67,40 @@ func StampLabels(u UnionGraph) model.Graph {
 // class / relation / package (a moved class's parent field is package) and
 // appends one changed line per changed member, in node id order.
 func FlowChanges(u UnionGraph) []Change {
-	label := func(id string, removed bool) string {
+	// labelOf names an element: a removed one by its before label, any
+	// other by the label find gives it in the union. Nodes and groups are
+	// looked up apart, so an id that changed kind (a node become a group)
+	// names each side by its own label.
+	labelOf := func(id string, removed bool, find func(string) (string, bool)) string {
 		if removed {
 			if l, ok := u.BeforeLabels[id]; ok {
 				return oneLine(l)
 			}
 		}
-		for _, n := range u.Graph.Nodes {
-			if n.ID == id {
-				return oneLine(n.Label)
-			}
-		}
-		for _, g := range u.Graph.Groups {
-			if g.ID == id {
-				return oneLine(g.Label)
-			}
+		if l, ok := find(id); ok {
+			return oneLine(l)
 		}
 		return id
+	}
+	nodeLabel := func(id string, removed bool) string {
+		return labelOf(id, removed, func(id string) (string, bool) {
+			for _, n := range u.Graph.Nodes {
+				if n.ID == id {
+					return n.Label, true
+				}
+			}
+			return "", false
+		})
+	}
+	groupLabel := func(id string, removed bool) string {
+		return labelOf(id, removed, func(id string) (string, bool) {
+			for _, g := range u.Graph.Groups {
+				if g.ID == id {
+					return g.Label, true
+				}
+			}
+			return "", false
+		})
 	}
 	edgeName := func(id string, removed bool) string {
 		for _, e := range u.Graph.Edges {
@@ -92,7 +109,7 @@ func FlowChanges(u UnionGraph) []Change {
 				if e.Relation.Swapped() {
 					from, to = to, from
 				}
-				return label(from, removed) + " -> " + label(to, removed)
+				return nodeLabel(from, removed) + " -> " + nodeLabel(to, removed)
 			}
 		}
 		return id
@@ -121,35 +138,35 @@ func FlowChanges(u UnionGraph) []Change {
 	}
 	d := u.Diff
 	for _, id := range d.AddedNodes {
-		add(Added, false, kindNode, label(id, false), "")
+		add(Added, false, kindNode, nodeLabel(id, false), "")
 	}
 	for _, id := range d.AddedEdges {
 		add(Added, true, kindEdge, edgeName(id, false), "")
 	}
 	for _, id := range d.AddedGroups {
-		add(Added, false, kindGroup, label(id, false), "")
+		add(Added, false, kindGroup, groupLabel(id, false), "")
 	}
 	for _, id := range d.RemovedNodes {
-		add(Removed, false, kindNode, label(id, true), "")
+		add(Removed, false, kindNode, nodeLabel(id, true), "")
 	}
 	for _, id := range d.RemovedEdges {
 		add(Removed, true, kindEdge, edgeName(removedUnionID(u, id), true), "")
 	}
 	for _, id := range d.RemovedGroups {
-		add(Removed, false, kindGroup, label(id, true), "")
+		add(Removed, false, kindGroup, groupLabel(id, true), "")
 	}
 	for _, id := range d.ChangedNodes {
 		fields := nodeFields(id)
 		if len(fields) == 0 && len(u.Members[id].Records) > 0 {
 			continue // a members-only change: its member lines name the class
 		}
-		add(Changed, false, kindNode, label(id, false), changedSuffix(fields))
+		add(Changed, false, kindNode, nodeLabel(id, false), changedSuffix(fields))
 	}
 	for _, id := range d.ChangedEdges {
 		add(Changed, true, kindEdge, edgeName(id, false), changedSuffix(d.EdgeFields[id]))
 	}
 	for _, id := range d.ChangedGroups {
-		add(Changed, false, kindGroup, label(id, false), changedSuffix(d.GroupFields[id]))
+		add(Changed, false, kindGroup, groupLabel(id, false), changedSuffix(d.GroupFields[id]))
 	}
 	if u.Class {
 		ids := make([]string, 0, len(u.Members))
@@ -165,7 +182,7 @@ func FlowChanges(u UnionGraph) []Change {
 		}
 		for _, id := range ids {
 			for _, r := range u.Members[id].Records {
-				add(Changed, false, kindNode, label(id, false)+", "+string(r.Status)+" "+noun(r.Compartment)+" "+memberText(r.Member), "")
+				add(Changed, false, kindNode, nodeLabel(id, false)+", "+string(r.Status)+" "+noun(r.Compartment)+" "+memberText(r.Member), "")
 			}
 		}
 	}

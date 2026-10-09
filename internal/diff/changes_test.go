@@ -125,3 +125,23 @@ func TestTexts(t *testing.T) {
 	assert.Equal(t, []string{"a", "b"}, Texts([]Change{{Text: "a"}, {Text: "b"}}))
 	assert.Empty(t, Texts(nil))
 }
+
+// An id that changes kind is named on each side by its own label: the
+// added group by the group's label, the removed node by the node's.
+func TestFlowChanges_AnIDThatChangesKindNamesEachSideByItsOwnLabel(t *testing.T) {
+	node := `{"type":"flow","nodes":[{"id":"x","label":"Node X"},{"id":"y","label":"Y"}],"edges":[]}`
+	group := `{"type":"flow","nodes":[{"id":"y","label":"Y"}],"edges":[],"groups":[{"id":"x","label":"Group X","contains":[]}]}`
+	texts := func(before, after string) []string {
+		var out []string
+		for _, c := range FlowChanges(BuildUnion(parse(t, before), parse(t, after))) {
+			out = append(out, c.Text)
+		}
+		return out
+	}
+	forward := texts(node, group)
+	assert.Contains(t, forward, "added: group Group X")
+	assert.Contains(t, forward, "removed: node Node X")
+	backward := texts(group, node)
+	assert.Contains(t, backward, "added: node Node X")
+	assert.Contains(t, backward, "removed: group Group X")
+}
