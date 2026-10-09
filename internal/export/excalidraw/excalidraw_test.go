@@ -610,8 +610,8 @@ func hasBound(refs []boundRef, id, typ string) bool {
 	return false
 }
 
-// collidingGraph has user ids that look like the exporters' old ones, plus an
-// edge without an id.
+// collidingGraph has user ids shaped like exporter-made ones: "0", "1",
+// "edge_0", a group "title_0", plus an edge without an id.
 func collidingGraph() *model.PositionedGraph {
 	return &model.PositionedGraph{
 		Nodes: []model.PositionedNode{

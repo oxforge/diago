@@ -171,14 +171,19 @@ func TestAlignSequences_AGapKeepsAfterOrder(t *testing.T) {
 	assert.Equal(t, [][3]any{{Same, 0, 0}, {Added, -1, 1}, {Changed, 1, 2}, {Same, 2, 3}}, steps(AlignSequences(before, after)))
 }
 
-// Pairs inside a gap never cross: both sides keep their order.
+// Pairs inside a gap never cross: of the two pairs on from|to, which cross,
+// one is made, and both sides keep their order.
 func TestAlignSequences_GapPairsNeverCross(t *testing.T) {
 	before := parseSeq(t, `{"type":"sequence",`+gapActors+`,"interactions":[
  {"from":"a","to":"b","label":"x"},{"from":"a","to":"c","label":"y"}]}`)
 	after := parseSeq(t, `{"type":"sequence",`+gapActors+`,"interactions":[
  {"from":"a","to":"c","label":"y2"},{"from":"a","to":"b","label":"x2"}]}`)
 	var bi, ai []int
+	changed := 0
 	for _, s := range AlignSequences(before, after).Steps {
+		if s.Status == Changed {
+			changed++
+		}
 		if s.BeforeIdx >= 0 {
 			bi = append(bi, s.BeforeIdx)
 		}
@@ -186,6 +191,7 @@ func TestAlignSequences_GapPairsNeverCross(t *testing.T) {
 			ai = append(ai, s.AfterIdx)
 		}
 	}
+	assert.Equal(t, 1, changed, "one pair")
 	assert.IsIncreasing(t, bi)
 	assert.IsIncreasing(t, ai)
 }

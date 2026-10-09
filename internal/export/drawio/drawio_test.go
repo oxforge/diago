@@ -471,8 +471,10 @@ func TestExport_GroupTitleInFront(t *testing.T) {
 	}
 	s := string(Export(pg, theme.DefaultTheme()))
 	title := strings.Index(s, `<mxCell id="t:g" value="My Group" style="text;`)
+	edge := strings.Index(s, `id="e:a-&gt;b#0"`)
+	require.GreaterOrEqual(t, edge, 0, "the edge's cell")
 	if assert.GreaterOrEqual(t, title, 0, "the title is its own text cell") {
-		assert.Greater(t, title, strings.Index(s, `id="e:a-&gt;b#0"`), "after the edge")
+		assert.Greater(t, title, edge, "after the edge")
 		cell := s[title:]
 		cell = cell[:strings.Index(cell, "</mxCell>")]
 		assert.Contains(t, cell, "align=left;")
@@ -527,9 +529,8 @@ func TestEdgeStyle_AlwaysOrthogonal(t *testing.T) {
 	}
 }
 
-// collidingGraph has user ids that look like the exporters' old ones: the
-// root's "0", the layer's "1", "edge_0", a group "title_0", plus an edge
-// without an id.
+// collidingGraph has user ids shaped like exporter-made ones: "0", "1",
+// "edge_0", a group "title_0", plus an edge without an id.
 func collidingGraph() *model.PositionedGraph {
 	return &model.PositionedGraph{
 		Nodes: []model.PositionedNode{
