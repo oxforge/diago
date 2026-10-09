@@ -3,7 +3,6 @@ package excalidraw
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/oxforge/diago/internal/model"
 	"github.com/oxforge/diago/internal/theme"
@@ -66,14 +65,15 @@ func Export(pg *model.PositionedGraph, th theme.Theme) ([]byte, error) {
 
 	// Emit edges (arrow + optional label text).
 	for i, e := range pg.Edges {
-		arrowID := fmt.Sprintf("edge_%d", i)
-		labelID := fmt.Sprintf("edgelabel_%d", i)
+		arrow, label := arrowID(i, e), arrowLabelID(i, e)
 
 		// Track bindings on the source/target shapes.
-		shapeBoundArrows[e.From] = append(shapeBoundArrows[e.From], boundRef{ID: arrowID, Type: "arrow"})
-		shapeBoundArrows[e.To] = append(shapeBoundArrows[e.To], boundRef{ID: arrowID, Type: "arrow"})
+		shapeBoundArrows[shapeID(e.From)] = append(shapeBoundArrows[shapeID(e.From)], boundRef{ID: arrow, Type: "arrow"})
+		if e.To != e.From { // a self-loop binds its shape once
+			shapeBoundArrows[shapeID(e.To)] = append(shapeBoundArrows[shapeID(e.To)], boundRef{ID: arrow, Type: "arrow"})
+		}
 
-		b.addEdge(e, arrowID, labelID)
+		b.addEdge(e, arrow, label)
 	}
 
 	// Emit group labels last, in front of the arrows (C13). They follow the

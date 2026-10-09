@@ -8,6 +8,7 @@ import (
 	"github.com/oxforge/diago/internal/model"
 	"github.com/oxforge/diago/internal/theme"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestExport_SingleNode(t *testing.T) {
@@ -25,7 +26,7 @@ func TestExport_SingleNode(t *testing.T) {
 	if !strings.Contains(s, `<mxfile>`) {
 		t.Error("missing mxfile element")
 	}
-	if !strings.Contains(s, `id="a"`) {
+	if !strings.Contains(s, `id="n:a"`) {
 		t.Error("missing node ID")
 	}
 	if !strings.Contains(s, `value="Node A"`) {
@@ -57,10 +58,10 @@ func TestExport_TwoNodesWithEdge(t *testing.T) {
 	data := Export(pg, theme.DefaultTheme())
 	s := string(data)
 
-	if !strings.Contains(s, `source="a"`) {
+	if !strings.Contains(s, `source="n:a"`) {
 		t.Error("missing edge source")
 	}
-	if !strings.Contains(s, `target="b"`) {
+	if !strings.Contains(s, `target="n:b"`) {
 		t.Error("missing edge target")
 	}
 	if !strings.Contains(s, `edge="1"`) {
@@ -151,7 +152,7 @@ func TestExport_GroupsWithChildren(t *testing.T) {
 	s := string(data)
 
 	// Group should be a container.
-	if !strings.Contains(s, `id="backend"`) {
+	if !strings.Contains(s, `id="g:backend"`) {
 		t.Error("missing group ID")
 	}
 	if !strings.Contains(s, "swimlane;") {
@@ -163,8 +164,8 @@ func TestExport_GroupsWithChildren(t *testing.T) {
 
 	// Nodes should have parent=backend.
 	// Check that both nodes reference the group as parent.
-	if strings.Count(s, `parent="backend"`) != 2 {
-		t.Errorf("expected 2 cells with parent=backend, got %d", strings.Count(s, `parent="backend"`))
+	if strings.Count(s, `parent="g:backend"`) != 2 {
+		t.Errorf("expected 2 cells with parent=backend, got %d", strings.Count(s, `parent="g:backend"`))
 	}
 }
 
@@ -184,7 +185,7 @@ func TestExport_NestedGroups(t *testing.T) {
 	s := string(data)
 
 	// inner group should have parent=outer.
-	if !strings.Contains(s, `id="inner"`) {
+	if !strings.Contains(s, `id="g:inner"`) {
 		t.Error("missing inner group")
 	}
 	// inner's parent should be outer.
@@ -199,13 +200,13 @@ func TestExport_NestedGroups(t *testing.T) {
 		cellMap[c.ID] = c
 	}
 
-	inner := cellMap["inner"]
-	if inner.Parent != "outer" {
+	inner := cellMap[groupCell("inner")]
+	if inner.Parent != groupCell("outer") {
 		t.Errorf("inner group parent = %q, want %q", inner.Parent, "outer")
 	}
 
-	n1 := cellMap["n1"]
-	if n1.Parent != "inner" {
+	n1 := cellMap[nodeCell("n1")]
+	if n1.Parent != groupCell("inner") {
 		t.Errorf("node n1 parent = %q, want %q", n1.Parent, "inner")
 	}
 
@@ -310,7 +311,7 @@ func TestExport_MultiLineLabel(t *testing.T) {
 		t.Fatalf("invalid XML: %v", err)
 	}
 	for _, c := range file.Diagram.GraphModel.Root.Cells {
-		if c.ID == "n" {
+		if c.ID == nodeCell("n") {
 			if c.Value != "Line 1\nLine 2" {
 				t.Errorf("label = %q, want %q", c.Value, "Line 1\nLine 2")
 			}
@@ -469,16 +470,16 @@ func TestExport_GroupTitleInFront(t *testing.T) {
 		},
 	}
 	s := string(Export(pg, theme.DefaultTheme()))
-	title := strings.Index(s, `<mxCell id="title_0" value="My Group" style="text;`)
+	title := strings.Index(s, `<mxCell id="t:g" value="My Group" style="text;`)
 	if assert.GreaterOrEqual(t, title, 0, "the title is its own text cell") {
-		assert.Greater(t, title, strings.Index(s, `id="edge_0"`), "after the edge")
+		assert.Greater(t, title, strings.Index(s, `id="e:a-&gt;b#0"`), "after the edge")
 		cell := s[title:]
 		cell = cell[:strings.Index(cell, "</mxCell>")]
 		assert.Contains(t, cell, "align=left;")
 		assert.Contains(t, cell, "labelBackgroundColor=default;", "the swimlane header's own fill")
-		assert.Contains(t, cell, `parent="1"`, "on the page")
+		assert.Contains(t, cell, `parent="layer"`, "on the page")
 	}
-	assert.Contains(t, s, `<mxCell id="g" style="swimlane;`, "the swimlane has no value")
+	assert.Contains(t, s, `<mxCell id="g:g" style="swimlane;`, "the swimlane has no value")
 
 	pg.Groups[0].Color = "blue"
 	dc := theme.DeriveColors(theme.DefaultTheme().Colors["blue"], theme.DefaultTheme().Background, theme.ElementGroup)
@@ -501,7 +502,7 @@ func TestExport_SpecialCharsInLabel(t *testing.T) {
 
 	// After round-trip, label should be preserved.
 	for _, c := range file.Diagram.GraphModel.Root.Cells {
-		if c.ID == "n" {
+		if c.ID == nodeCell("n") {
 			if c.Value != `A <b>&</b> "C"` {
 				t.Errorf("label = %q, want %q", c.Value, `A <b>&</b> "C"`)
 			}
@@ -522,6 +523,43 @@ func TestEdgeStyle_AlwaysOrthogonal(t *testing.T) {
 		got := edgeStyle(s, model.EdgeForward)
 		if !strings.HasPrefix(got, "edgeStyle=orthogonalEdgeStyle;") {
 			t.Errorf("edgeStyle(%v) = %q, want the orthogonal prefix", s, got)
+		}
+	}
+}
+
+// collidingGraph has user ids that look like the exporters' old ones: the
+// root's "0", the layer's "1", "edge_0", a group "title_0", plus an edge
+// without an id.
+func collidingGraph() *model.PositionedGraph {
+	return &model.PositionedGraph{
+		Nodes: []model.PositionedNode{
+			{ID: "0", Label: "Start", X: 60, Y: 40, Width: 80, Height: 40},
+			{ID: "1", Label: "Load", X: 60, Y: 140, Width: 80, Height: 40},
+			{ID: "edge_0", Label: "E", X: 200, Y: 140, Width: 80, Height: 40},
+		},
+		Edges: []model.PositionedEdge{
+			{ID: "0->1#0", From: "0", To: "1", Points: []model.Point{{X: 60, Y: 60}, {X: 60, Y: 120}}},
+			{From: "1", To: "edge_0", Points: []model.Point{{X: 100, Y: 140}, {X: 160, Y: 140}}},
+		},
+		Groups: []model.PositionedGroup{{ID: "title_0", Label: "T", X: 150, Y: 100, Width: 100, Height: 80, Depth: 1,
+			Contains: []string{"edge_0"}, LabelWidth: 20, LabelHeight: 14}},
+	}
+}
+
+func TestExport_EveryCellIDIsUniqueAndEveryReferenceResolves(t *testing.T) {
+	var file mxFile
+	require.NoError(t, xml.Unmarshal(Export(collidingGraph(), theme.DefaultTheme()), &file))
+	cells := file.Diagram.GraphModel.Root.Cells
+	ids := map[string]bool{}
+	for _, c := range cells {
+		assert.False(t, ids[c.ID], "duplicate id %q", c.ID)
+		ids[c.ID] = true
+	}
+	for _, c := range cells {
+		for _, ref := range []string{c.Parent, c.Source, c.Target} {
+			if ref != "" {
+				assert.True(t, ids[ref], "cell %q refers to %q, which no cell has", c.ID, ref)
+			}
 		}
 	}
 }

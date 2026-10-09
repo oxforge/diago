@@ -37,8 +37,8 @@ func mapEdgeStyle(s model.EdgeStyle) (string, float64) {
 
 // arrowBindings creates start/end binding structs for an edge.
 func arrowBindings(e model.PositionedEdge) (*binding, *binding) {
-	return &binding{ElementID: e.From, Focus: 0, Gap: 5},
-		&binding{ElementID: e.To, Focus: 0, Gap: 5}
+	return &binding{ElementID: shapeID(e.From), Focus: 0, Gap: 5},
+		&binding{ElementID: shapeID(e.To), Focus: 0, Gap: 5}
 }
 
 // arrowheadStart returns the start arrowhead type based on edge direction.

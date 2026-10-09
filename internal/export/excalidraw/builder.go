@@ -60,7 +60,7 @@ func (b *builder) addGroupLabel(g model.PositionedGroup, gids []string) {
 		const pad = 4.0
 		b.elements = append(b.elements, element{
 			Type:            "rectangle",
-			ID:              "grpbacking_" + g.ID,
+			ID:              groupBackingID(g.ID),
 			X:               round(x - pad),
 			Y:               round(y),
 			Width:           round(g.LabelWidth + 2*pad),
@@ -78,7 +78,7 @@ func (b *builder) addGroupLabel(g model.PositionedGroup, gids []string) {
 	}
 	b.elements = append(b.elements, element{
 		Type:            "text",
-		ID:              "grplabel_" + g.ID,
+		ID:              groupLabelID(g.ID),
 		X:               round(x),
 		Y:               round(y),
 		Width:           round(w),
@@ -105,8 +105,8 @@ func (b *builder) addGroupLabel(g model.PositionedGroup, gids []string) {
 
 // addNode emits a shape element and a bound text element for a node.
 func (b *builder) addNode(n model.PositionedNode, gids []string) {
-	shapeID := n.ID
-	textID := "text_" + n.ID
+	shapeKey := shapeID(n.ID)
+	textKey := nodeTextID(n.ID)
 
 	// Center-based to top-left conversion.
 	ex := round(n.X - n.Width/2)
@@ -126,7 +126,7 @@ func (b *builder) addNode(n model.PositionedNode, gids []string) {
 
 	shape := element{
 		Type:            shapeType,
-		ID:              shapeID,
+		ID:              shapeKey,
 		X:               ex,
 		Y:               ey,
 		Width:           round(n.Width),
@@ -143,7 +143,7 @@ func (b *builder) addNode(n model.PositionedNode, gids []string) {
 		IsDeleted:       false,
 		GroupIDs:        gids,
 		BoundElements: []boundRef{
-			{ID: textID, Type: "text"},
+			{ID: textKey, Type: "text"},
 		},
 		Roundness: rnd,
 	}
@@ -151,7 +151,7 @@ func (b *builder) addNode(n model.PositionedNode, gids []string) {
 
 	text := element{
 		Type:            "text",
-		ID:              textID,
+		ID:              textKey,
 		X:               ex,
 		Y:               ey,
 		Width:           round(n.Width),
@@ -171,7 +171,7 @@ func (b *builder) addNode(n model.PositionedNode, gids []string) {
 		Seed:            1,
 		Version:         1,
 		IsDeleted:       false,
-		ContainerID:     &shapeID,
+		ContainerID:     &shapeKey,
 		GroupIDs:        gids,
 	}
 	b.elements = append(b.elements, text)

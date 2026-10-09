@@ -83,8 +83,8 @@ func resolveAccent(color string, th theme.Theme) string {
 // Export converts a PositionedGraph to draw.io XML bytes.
 func Export(pg *model.PositionedGraph, th theme.Theme) []byte {
 	cells := []mxCell{
-		{ID: "0"},
-		{ID: "1", Parent: "0"},
+		{ID: rootCell},
+		{ID: layerCell, Parent: rootCell},
 	}
 
 	nodeMembership, groupMembership, groupByID := buildMembershipMaps(pg)
@@ -135,15 +135,19 @@ func buildGroupCells(cells []mxCell, pg *model.PositionedGraph, th theme.Theme, 
 			if g.Depth != depth {
 				continue
 			}
-			parent := "1"
+			parentID := "" // the enclosing group's id, "" on the page
 			if pid, ok := groupMembership[g.ID]; ok {
-				parent = pid
+				parentID = pid
 			}
 
 			gx, gy := g.X, g.Y
-			if pg, ok := groupByID[parent]; ok {
+			if pg, ok := groupByID[parentID]; ok {
 				gx -= pg.X
 				gy -= pg.Y
+			}
+			parent := layerCell
+			if parentID != "" {
+				parent = groupCell(parentID)
 			}
 
 			// The title is its own cell, in front of the edges
@@ -155,7 +159,7 @@ func buildGroupCells(cells []mxCell, pg *model.PositionedGraph, th theme.Theme, 
 			}
 
 			cells = append(cells, mxCell{
-				ID:     g.ID,
+				ID:     groupCell(g.ID),
 				Style:  groupStyle,
 				Vertex: "1",
 				Parent: parent,
@@ -181,7 +185,7 @@ func buildGroupCells(cells []mxCell, pg *model.PositionedGraph, th theme.Theme, 
 // the group by hand leaves its title behind.
 func buildTitleCells(cells []mxCell, pg *model.PositionedGraph, th theme.Theme) []mxCell {
 	const titleMid = 16.0
-	for i, g := range pg.Groups {
+	for _, g := range pg.Groups {
 		if g.Label == "" {
 			continue
 		}
@@ -201,11 +205,11 @@ func buildTitleCells(cells []mxCell, pg *model.PositionedGraph, th theme.Theme) 
 		}
 		style += fmt.Sprintf("labelBackgroundColor=%s;", background)
 		cells = append(cells, mxCell{
-			ID:     fmt.Sprintf("title_%d", i),
+			ID:     titleCell(g.ID),
 			Value:  g.Label,
 			Style:  style,
 			Vertex: "1",
-			Parent: "1",
+			Parent: layerCell,
 			Geometry: &mxGeometry{
 				X:      round(g.X + at),
 				Y:      round(g.Y + titleMid - g.LabelHeight/2),
@@ -220,15 +224,19 @@ func buildTitleCells(cells []mxCell, pg *model.PositionedGraph, th theme.Theme) 
 
 func buildNodeCells(cells []mxCell, pg *model.PositionedGraph, th theme.Theme, nodeMembership map[string]string, groupByID map[string]*model.PositionedGroup) []mxCell {
 	for _, n := range pg.Nodes {
-		parent := "1"
+		parentID := "" // the enclosing group's id, "" on the page
 		if gid, ok := nodeMembership[n.ID]; ok {
-			parent = gid
+			parentID = gid
 		}
 
 		nx, ny := n.X-n.Width/2, n.Y-n.Height/2
-		if g, ok := groupByID[parent]; ok {
+		if g, ok := groupByID[parentID]; ok {
 			nx -= g.X
 			ny -= g.Y
+		}
+		parent := layerCell
+		if parentID != "" {
+			parent = groupCell(parentID)
 		}
 
 		nStyle := nodeStyle(n.Shape)
@@ -238,7 +246,7 @@ func buildNodeCells(cells []mxCell, pg *model.PositionedGraph, th theme.Theme, n
 		}
 
 		cells = append(cells, mxCell{
-			ID:     n.ID,
+			ID:     nodeCell(n.ID),
 			Value:  n.Label,
 			Style:  nStyle,
 			Vertex: "1",
@@ -262,7 +270,6 @@ func buildEdgeCells(cells []mxCell, pg *model.PositionedGraph, th theme.Theme) [
 	}
 
 	for i, e := range pg.Edges {
-		edgeID := fmt.Sprintf("edge_%d", i)
 		style := edgeStyle(e.Style, e.Direction)
 
 		if accent := resolveAccent(e.Color, th); accent != "" {
@@ -281,13 +288,13 @@ func buildEdgeCells(cells []mxCell, pg *model.PositionedGraph, th theme.Theme) [
 		}
 
 		cell := mxCell{
-			ID:     edgeID,
+			ID:     edgeCell(i, e),
 			Value:  e.Label,
 			Style:  style,
 			Edge:   "1",
-			Source: e.From,
-			Target: e.To,
-			Parent: "1",
+			Source: nodeCell(e.From),
+			Target: nodeCell(e.To),
+			Parent: layerCell,
 			Geometry: &mxGeometry{
 				Relative: "1",
 				As:       "geometry",

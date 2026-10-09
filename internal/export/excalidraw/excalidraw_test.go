@@ -6,6 +6,8 @@ import (
 
 	"github.com/oxforge/diago/internal/model"
 	"github.com/oxforge/diago/internal/theme"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSingleNode(t *testing.T) {
@@ -30,7 +32,7 @@ func TestSingleNode(t *testing.T) {
 		t.Fatalf("expected 2 elements, got %d", len(doc.Elements))
 	}
 
-	shape := findElement(doc.Elements, "a")
+	shape := findElement(doc.Elements, shapeID("a"))
 	if shape == nil {
 		t.Fatal("shape element not found")
 	}
@@ -45,7 +47,7 @@ func TestSingleNode(t *testing.T) {
 		t.Errorf("expected 120x60, got %vx%v", shape.Width, shape.Height)
 	}
 
-	text := findElement(doc.Elements, "text_a")
+	text := findElement(doc.Elements, nodeTextID("a"))
 	if text == nil {
 		t.Fatal("text element not found")
 	}
@@ -55,7 +57,7 @@ func TestSingleNode(t *testing.T) {
 	if text.Text != "Node A" {
 		t.Errorf("expected label 'Node A', got %q", text.Text)
 	}
-	if text.ContainerID == nil || *text.ContainerID != "a" {
+	if text.ContainerID == nil || *text.ContainerID != shapeID("a") {
 		t.Error("text containerId should reference shape")
 	}
 
@@ -65,12 +67,12 @@ func TestSingleNode(t *testing.T) {
 	}
 	found := false
 	for _, b := range shape.BoundElements {
-		if b.ID == "text_a" && b.Type == "text" {
+		if b.ID == nodeTextID("a") && b.Type == "text" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("shape boundElements missing text_a")
+		t.Error("shape boundElements missing nt:a")
 	}
 }
 
@@ -100,7 +102,7 @@ func TestTwoNodesWithEdge(t *testing.T) {
 		t.Fatalf("expected 5 elements, got %d", len(doc.Elements))
 	}
 
-	arrow := findElement(doc.Elements, "edge_0")
+	arrow := findElement(doc.Elements, "e#0")
 	if arrow == nil {
 		t.Fatal("arrow not found")
 	}
@@ -125,10 +127,10 @@ func TestTwoNodesWithEdge(t *testing.T) {
 	}
 
 	// Check bindings.
-	if arrow.StartBinding == nil || arrow.StartBinding.ElementID != "a" {
+	if arrow.StartBinding == nil || arrow.StartBinding.ElementID != shapeID("a") {
 		t.Error("startBinding should reference 'a'")
 	}
-	if arrow.EndBinding == nil || arrow.EndBinding.ElementID != "b" {
+	if arrow.EndBinding == nil || arrow.EndBinding.ElementID != shapeID("b") {
 		t.Error("endBinding should reference 'b'")
 	}
 
@@ -141,13 +143,13 @@ func TestTwoNodesWithEdge(t *testing.T) {
 	}
 
 	// Shapes should have arrow in boundElements.
-	shapeA := findElement(doc.Elements, "a")
-	if !hasBound(shapeA.BoundElements, "edge_0", "arrow") {
-		t.Error("shape 'a' should have edge_0 in boundElements")
+	shapeA := findElement(doc.Elements, shapeID("a"))
+	if !hasBound(shapeA.BoundElements, "e#0", "arrow") {
+		t.Error("shape 'a' should have e#0 in boundElements")
 	}
-	shapeB := findElement(doc.Elements, "b")
-	if !hasBound(shapeB.BoundElements, "edge_0", "arrow") {
-		t.Error("shape 'b' should have edge_0 in boundElements")
+	shapeB := findElement(doc.Elements, shapeID("b"))
+	if !hasBound(shapeB.BoundElements, "e#0", "arrow") {
+		t.Error("shape 'b' should have e#0 in boundElements")
 	}
 }
 
@@ -164,7 +166,7 @@ func TestDiamondShape(t *testing.T) {
 	}
 
 	doc := parseDoc(t, data)
-	shape := findElement(doc.Elements, "d")
+	shape := findElement(doc.Elements, shapeID("d"))
 	if shape.Type != "diamond" {
 		t.Errorf("expected diamond, got %s", shape.Type)
 	}
@@ -183,7 +185,7 @@ func TestCircleShape(t *testing.T) {
 	}
 
 	doc := parseDoc(t, data)
-	shape := findElement(doc.Elements, "c")
+	shape := findElement(doc.Elements, shapeID("c"))
 	if shape.Type != "ellipse" {
 		t.Errorf("expected ellipse, got %s", shape.Type)
 	}
@@ -201,7 +203,7 @@ func TestLossyShapes(t *testing.T) {
 			t.Fatal(err)
 		}
 		doc := parseDoc(t, data)
-		shape := findElement(doc.Elements, "n")
+		shape := findElement(doc.Elements, shapeID("n"))
 		if shape.Type != "rectangle" {
 			t.Errorf("shape %s: expected rectangle, got %s", s, shape.Type)
 		}
@@ -221,7 +223,7 @@ func TestRoundedShape(t *testing.T) {
 	}
 
 	doc := parseDoc(t, data)
-	shape := findElement(doc.Elements, "r")
+	shape := findElement(doc.Elements, shapeID("r"))
 	if shape.Type != "rectangle" {
 		t.Errorf("expected rectangle, got %s", shape.Type)
 	}
@@ -256,19 +258,19 @@ func TestEdgeWithLabel(t *testing.T) {
 
 	doc := parseDoc(t, data)
 
-	labelText := findElement(doc.Elements, "edgelabel_0")
+	labelText := findElement(doc.Elements, "le#0")
 	if labelText == nil {
 		t.Fatal("edge label text not found")
 	}
 	if labelText.Text != "connects" {
 		t.Errorf("expected 'connects', got %q", labelText.Text)
 	}
-	if labelText.ContainerID == nil || *labelText.ContainerID != "edge_0" {
-		t.Error("label should have containerId = edge_0")
+	if labelText.ContainerID == nil || *labelText.ContainerID != "e#0" {
+		t.Error("label should have containerId = e#0")
 	}
 
-	arrow := findElement(doc.Elements, "edge_0")
-	if !hasBound(arrow.BoundElements, "edgelabel_0", "text") {
+	arrow := findElement(doc.Elements, "e#0")
+	if !hasBound(arrow.BoundElements, "le#0", "text") {
 		t.Error("arrow should have label in boundElements")
 	}
 }
@@ -292,17 +294,17 @@ func TestGroups(t *testing.T) {
 
 	doc := parseDoc(t, data)
 
-	shapeA := findElement(doc.Elements, "a")
+	shapeA := findElement(doc.Elements, shapeID("a"))
 	if len(shapeA.GroupIDs) != 1 || shapeA.GroupIDs[0] != "g1" {
 		t.Errorf("expected groupIds [g1], got %v", shapeA.GroupIDs)
 	}
-	textA := findElement(doc.Elements, "text_a")
+	textA := findElement(doc.Elements, nodeTextID("a"))
 	if len(textA.GroupIDs) != 1 || textA.GroupIDs[0] != "g1" {
 		t.Errorf("text should share groupIds, got %v", textA.GroupIDs)
 	}
 
 	// Group label should exist.
-	grpLabel := findElement(doc.Elements, "grplabel_g1")
+	grpLabel := findElement(doc.Elements, groupLabelID("g1"))
 	if grpLabel == nil {
 		t.Fatal("group label element not found")
 	}
@@ -326,7 +328,7 @@ func TestGroupTitleAtItsOffset(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return findElement(parseDoc(t, data).Elements, "grplabel_g1")
+		return findElement(parseDoc(t, data).Elements, groupLabelID("g1"))
 	}
 	if l := label(120); l == nil || l.X != 130 || l.Y != 16 || l.Width != 50 {
 		t.Errorf("placed title: want x=130 y=16 width=50, got %+v", l)
@@ -366,11 +368,11 @@ func TestGroupTitleInFront(t *testing.T) {
 		}
 		return -1
 	}
-	backing, label := index("grpbacking_g1"), index("grplabel_g1")
+	backing, label := index(groupBackingID("g1")), index(groupLabelID("g1"))
 	if backing < 0 || label != backing+1 {
 		t.Fatalf("want the backing right before the label, got %d and %d", backing, label)
 	}
-	for _, id := range []string{"edge_0", "edgelabel_0"} {
+	for _, id := range []string{"e:a->b#0", "le:a->b#0"} {
 		if i := index(id); i < 0 || i > backing {
 			t.Errorf("%s at %d, want before the backing at %d", id, i, backing)
 		}
@@ -391,7 +393,7 @@ func TestGroupTitleInFront(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if findElement(parseDoc(t, data).Elements, "grpbacking_g1") != nil {
+	if findElement(parseDoc(t, data).Elements, groupBackingID("g1")) != nil {
 		t.Error("a title without extents gets no backing")
 	}
 }
@@ -416,7 +418,7 @@ func TestNestedGroups(t *testing.T) {
 
 	doc := parseDoc(t, data)
 
-	shapeA := findElement(doc.Elements, "a")
+	shapeA := findElement(doc.Elements, shapeID("a"))
 	// Node 'a' is in 'inner' which is child of 'outer'.
 	// groupIds should be [inner, outer].
 	if len(shapeA.GroupIDs) != 2 {
@@ -445,7 +447,7 @@ func TestEdgeDirectionBackward(t *testing.T) {
 	}
 
 	doc := parseDoc(t, data)
-	arrow := findElement(doc.Elements, "edge_0")
+	arrow := findElement(doc.Elements, "e#0")
 	if arrow.StartArrowhead == nil || *arrow.StartArrowhead != "arrow" {
 		t.Error("backward should have start arrowhead")
 	}
@@ -472,7 +474,7 @@ func TestEdgeDirectionBoth(t *testing.T) {
 	}
 
 	doc := parseDoc(t, data)
-	arrow := findElement(doc.Elements, "edge_0")
+	arrow := findElement(doc.Elements, "e#0")
 	if arrow.StartArrowhead == nil || *arrow.StartArrowhead != "arrow" {
 		t.Error("both should have start arrowhead")
 	}
@@ -508,7 +510,7 @@ func TestEdgeStyles(t *testing.T) {
 			t.Fatal(err)
 		}
 		doc := parseDoc(t, data)
-		arrow := findElement(doc.Elements, "edge_0")
+		arrow := findElement(doc.Elements, "e#0")
 		if arrow.StrokeStyle != tt.wantStroke {
 			t.Errorf("style %s: expected strokeStyle %q, got %q", tt.style, tt.wantStroke, arrow.StrokeStyle)
 		}
@@ -606,4 +608,52 @@ func hasBound(refs []boundRef, id, typ string) bool {
 		}
 	}
 	return false
+}
+
+// collidingGraph has user ids that look like the exporters' old ones, plus an
+// edge without an id.
+func collidingGraph() *model.PositionedGraph {
+	return &model.PositionedGraph{
+		Nodes: []model.PositionedNode{
+			{ID: "0", Label: "Start", X: 60, Y: 40, Width: 80, Height: 40},
+			{ID: "1", Label: "Load", X: 60, Y: 140, Width: 80, Height: 40},
+			{ID: "edge_0", Label: "E", X: 200, Y: 140, Width: 80, Height: 40},
+		},
+		Edges: []model.PositionedEdge{
+			{ID: "0->1#0", From: "0", To: "1", Points: []model.Point{{X: 60, Y: 60}, {X: 60, Y: 120}}},
+			{From: "1", To: "edge_0", Points: []model.Point{{X: 100, Y: 140}, {X: 160, Y: 140}}},
+		},
+		Groups: []model.PositionedGroup{{ID: "title_0", Label: "T", X: 150, Y: 100, Width: 100, Height: 80, Depth: 1,
+			Contains: []string{"edge_0"}, LabelWidth: 20, LabelHeight: 14}},
+	}
+}
+
+func TestExport_EveryElementIDIsUniqueAndEveryReferenceResolves(t *testing.T) {
+	pg := collidingGraph()
+	pg.Edges = append(pg.Edges, model.PositionedEdge{ID: "loop", From: "0", To: "0",
+		Points: []model.Point{{X: 100, Y: 30}, {X: 120, Y: 30}, {X: 120, Y: 50}, {X: 100, Y: 50}}})
+	data, err := Export(pg, theme.DefaultTheme())
+	require.NoError(t, err)
+	doc := parseDoc(t, data)
+	ids := map[string]bool{}
+	for _, el := range doc.Elements {
+		assert.False(t, ids[el.ID], "duplicate id %q", el.ID)
+		ids[el.ID] = true
+	}
+	for _, el := range doc.Elements {
+		if el.ContainerID != nil {
+			assert.True(t, ids[*el.ContainerID], "%q's container %q", el.ID, *el.ContainerID)
+		}
+		seen := map[string]bool{}
+		for _, b := range el.BoundElements {
+			assert.True(t, ids[b.ID], "%q binds %q", el.ID, b.ID)
+			assert.False(t, seen[b.ID], "%q binds %q twice", el.ID, b.ID)
+			seen[b.ID] = true
+		}
+		for _, b := range []*binding{el.StartBinding, el.EndBinding} {
+			if b != nil {
+				assert.True(t, ids[b.ElementID], "%q binds to %q", el.ID, b.ElementID)
+			}
+		}
+	}
 }
