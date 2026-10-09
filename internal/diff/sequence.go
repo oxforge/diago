@@ -73,7 +73,7 @@ func alignActors(before, after *model.SequenceDiagram) []ActorStatus {
 }
 
 // AlignSequences aligns two interaction lists by an LCS over the strong key
-// from|to|label|style, then pairs leftovers inside each gap on from|to as
+// from|to|label|style, then pairs leftovers inside each gap on from|to, in order, as
 // changed. Ties prefer the earliest before index.
 func AlignSequences(before, after *model.SequenceDiagram) SeqAlignment {
 	b, a := before.Interactions, after.Interactions
@@ -118,27 +118,25 @@ func AlignSequences(before, after *model.SequenceDiagram) SeqAlignment {
 	var steps []AlignedStep
 	bi, ai := 0, 0
 	for _, mt := range matches {
-		// Gap: b[bi:mt.bi] and a[ai:mt.ai].
-		used := make([]bool, mt.ai-ai)
-		for x := bi; x < mt.bi; x++ {
-			paired := -1
-			for y := ai; y < mt.ai; y++ {
-				if !used[y-ai] && weakKey(b[x]) == weakKey(a[y]) {
-					used[y-ai] = true
-					paired = y
-					break
-				}
-			}
-			if paired >= 0 {
-				steps = append(steps, AlignedStep{Changed, x, paired})
-			} else {
+		// Gap: b[bi:mt.bi] and a[ai:mt.ai]. Pair it on from|to without
+		// crossing pairs, then emit both sides in order: before's leftovers,
+		// after's, then the pair, for each pair in turn.
+		x, y := bi, ai
+		for _, p := range gapPairs(b[bi:mt.bi], a[ai:mt.ai]) {
+			for ; x < bi+p[0]; x++ {
 				steps = append(steps, AlignedStep{Removed, x, -1})
 			}
-		}
-		for y := ai; y < mt.ai; y++ {
-			if !used[y-ai] {
+			for ; y < ai+p[1]; y++ {
 				steps = append(steps, AlignedStep{Added, -1, y})
 			}
+			steps = append(steps, AlignedStep{Changed, x, y})
+			x, y = x+1, y+1
+		}
+		for ; x < mt.bi; x++ {
+			steps = append(steps, AlignedStep{Removed, x, -1})
+		}
+		for ; y < mt.ai; y++ {
+			steps = append(steps, AlignedStep{Added, -1, y})
 		}
 		if mt.bi < n {
 			s := Same
@@ -150,4 +148,38 @@ func AlignSequences(before, after *model.SequenceDiagram) SeqAlignment {
 		bi, ai = mt.bi+1, mt.ai+1
 	}
 	return SeqAlignment{Steps: steps, Actors: alignActors(before, after)}
+}
+
+// gapPairs pairs b's and a's items on from|to by a longest common
+// subsequence, so no two pairs cross, preferring the earliest before index
+// on a tie. Each pair is an index into b and one into a.
+func gapPairs(b, a []model.Interaction) [][2]int {
+	n, m := len(b), len(a)
+	dp := make([][]int, n+1)
+	for i := range dp {
+		dp[i] = make([]int, m+1)
+	}
+	for i := n - 1; i >= 0; i-- {
+		for j := m - 1; j >= 0; j-- {
+			if weakKey(b[i]) == weakKey(a[j]) {
+				dp[i][j] = dp[i+1][j+1] + 1
+			} else {
+				dp[i][j] = max(dp[i+1][j], dp[i][j+1])
+			}
+		}
+	}
+	var out [][2]int
+	for i, j := 0, 0; i < n && j < m; {
+		switch {
+		case weakKey(b[i]) == weakKey(a[j]):
+			out = append(out, [2]int{i, j})
+			i++
+			j++
+		case dp[i+1][j] >= dp[i][j+1]:
+			i++
+		default:
+			j++
+		}
+	}
+	return out
 }

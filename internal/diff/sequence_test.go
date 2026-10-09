@@ -160,3 +160,32 @@ func TestAlignSequences_Deterministic(t *testing.T) {
 		})
 	}
 }
+
+const gapActors = `"actors":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}]`
+
+func TestAlignSequences_AGapKeepsAfterOrder(t *testing.T) {
+	before := parseSeq(t, `{"type":"sequence",`+gapActors+`,"interactions":[
+ {"from":"a","to":"b","label":"start"},{"from":"a","to":"b","label":"old call"},{"from":"b","to":"a","label":"end"}]}`)
+	after := parseSeq(t, `{"type":"sequence",`+gapActors+`,"interactions":[
+ {"from":"a","to":"b","label":"start"},{"from":"a","to":"c","label":"first new"},{"from":"a","to":"b","label":"second new"},{"from":"b","to":"a","label":"end"}]}`)
+	assert.Equal(t, [][3]any{{Same, 0, 0}, {Added, -1, 1}, {Changed, 1, 2}, {Same, 2, 3}}, steps(AlignSequences(before, after)))
+}
+
+// Pairs inside a gap never cross: both sides keep their order.
+func TestAlignSequences_GapPairsNeverCross(t *testing.T) {
+	before := parseSeq(t, `{"type":"sequence",`+gapActors+`,"interactions":[
+ {"from":"a","to":"b","label":"x"},{"from":"a","to":"c","label":"y"}]}`)
+	after := parseSeq(t, `{"type":"sequence",`+gapActors+`,"interactions":[
+ {"from":"a","to":"c","label":"y2"},{"from":"a","to":"b","label":"x2"}]}`)
+	var bi, ai []int
+	for _, s := range AlignSequences(before, after).Steps {
+		if s.BeforeIdx >= 0 {
+			bi = append(bi, s.BeforeIdx)
+		}
+		if s.AfterIdx >= 0 {
+			ai = append(ai, s.AfterIdx)
+		}
+	}
+	assert.IsIncreasing(t, bi)
+	assert.IsIncreasing(t, ai)
+}

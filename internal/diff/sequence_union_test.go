@@ -170,3 +170,20 @@ func TestBuildUnionSequence_DropsTitle(t *testing.T) {
 	u := BuildUnionSequence(before, after)
 	assert.Equal(t, "", u.Diagram.Title)
 }
+
+// A fragment over messages that moved through a gap keeps all of them.
+func TestBuildUnionSequence_AFragmentKeepsItsMessagesThroughAGap(t *testing.T) {
+	before := parseSeq(t, `{"type":"sequence",`+gapActors+`,"interactions":[
+ {"from":"a","to":"b","label":"start"},{"from":"a","to":"b","label":"old call"},{"from":"b","to":"a","label":"end"}]}`)
+	after := parseSeq(t, `{"type":"sequence",`+gapActors+`,"interactions":[
+ {"from":"a","to":"b","label":"start"},{"from":"a","to":"c","label":"first new"},{"from":"a","to":"b","label":"second new"},{"from":"b","to":"a","label":"end"}],
+ "fragments":[{"type":"loop","over":["a","c"],"sections":[{"label":"each","start":1,"end":2}]}]}`)
+	u := BuildUnionSequence(before, after)
+	require.Len(t, u.Diagram.Fragments, 1)
+	sec := u.Diagram.Fragments[0].Sections[0]
+	var inside []string
+	for k := sec.Start; k <= sec.End; k++ {
+		inside = append(inside, u.Diagram.Interactions[k].Label)
+	}
+	assert.Equal(t, []string{"first new", "second new"}, inside)
+}
