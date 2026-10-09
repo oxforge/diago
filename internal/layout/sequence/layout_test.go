@@ -2,6 +2,7 @@ package sequence_test
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -616,14 +617,21 @@ const showcaseSpec = `{"type":"sequence","actors":[{"id":"user","label":"User"},
 {"type":"opt","over":["web"],"sections":[{"label":"items found","start":5,"end":5}]},
 {"type":"alt","over":["web","api"],"sections":[{"label":"out of stock","start":8,"end":8},{"label":"in stock","start":9,"end":9}]}]}`
 
-// A frame's left side, out in the gutter its header needs, and its right
-// side, out past a self-message's label, keep FragmentPaddingX and half an
-// activation bar clear of the lifelines beside its span: the actors move
-// apart to make room.
+// A frame's left side, out in the gutter its header needs on screen, and
+// its right side, out past a self-message's label, keep clear of the
+// lifelines beside its span: FragmentPaddingX and half an activation bar
+// on screen, three columns in text art (SQ1.1). The actors move apart to
+// make room. In text art a header wider than the span may carry the right
+// side past a lifeline beside it (SQ1.3), so only the left side is checked
+// there; TestLayoutFragment_TextFrameSidesKeepTwoColumnsFromEveryLifeline
+// checks both.
 func TestLayoutFragment_FrameClearsTheLifelinesBesideItsSpan(t *testing.T) {
 	for _, np := range screenAndText() {
 		p := np.p
 		clearance := p.FragmentPaddingX + p.ActivationWidth/2
+		if p.TextMode() {
+			clearance = 3 * p.CellW
+		}
 		for name, spec := range map[string]string{"showcase": showcaseSpec, "self": selfSpec, "nested": nestedCases[0].spec, "header": headerSpec} {
 			t.Run(np.name+"/"+name, func(t *testing.T) {
 				d, err := schema.ParseSequence([]byte(spec))
@@ -651,6 +659,9 @@ func TestLayoutFragment_FrameClearsTheLifelinesBesideItsSpan(t *testing.T) {
 					for _, a := range ps.Actors[:leftmost] {
 						assert.GreaterOrEqual(t, f.X-a.LineX, clearance-1e-9,
 							"fragment %d (%s): its left side at %g is %g right of the %s lifeline", fi, f.Type, f.X, f.X-a.LineX, a.ID)
+					}
+					if p.TextMode() {
+						continue
 					}
 					for _, a := range ps.Actors[rightmost+1:] {
 						assert.GreaterOrEqual(t, a.LineX-(f.X+f.Width), clearance-1e-9,
@@ -732,5 +743,100 @@ func TestLayout_AMessageAcrossActorsHasRoomForItsLabel(t *testing.T) {
 			lw, _ := np.p.MeasureText(label, np.p.Fonts.LabelSize, np.p.Fonts.Family)
 			assert.GreaterOrEqual(t, ps.Actors[2].LineX-ps.Actors[0].LineX, lw+2*np.p.ActorPaddingX)
 		})
+	}
+}
+
+// guardSpec is three actors and an alt over the first two whose first
+// guard is n runes long and its second 2n: as n grows the header rows
+// outgrow the span, and some end just left of the third lifeline, some on
+// it, some past it.
+func guardSpec(n int) string {
+	guard := strings.Repeat("x", n)
+	return `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],` +
+		`"interactions":[{"from":"a","to":"b","label":"go"},{"from":"b","to":"a","label":"back"},{"from":"b","to":"c","label":"on"}],` +
+		`"fragments":[{"type":"alt","over":["a","b"],"sections":[{"label":"` + guard + `","start":0,"end":0},{"label":"` + guard + guard + `","start":1,"end":1}]}]}`
+}
+
+// deepSpec nests seven frames over the second and third of three actors,
+// each a column left of the one inside it: without the actors moving
+// apart, the outermost one's left side would come within two columns of
+// the first lifeline.
+func deepSpec() string {
+	frames := make([]string, 7)
+	for i := range frames {
+		frames[i] = `{"type":"loop","over":["b","c"],"sections":[{"start":0,"end":0}]}`
+	}
+	return `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],` +
+		`"interactions":[{"from":"b","to":"c","label":"m"}],"fragments":[` + strings.Join(frames, ",") + `]}`
+}
+
+// textFrameSpecs are the specs the text-art frame rules (SQ1) are checked
+// on: the frame cases above, deepSpec and guardSpec's sweep.
+func textFrameSpecs() map[string]string {
+	specs := map[string]string{"showcase": showcaseSpec, "self": selfSpec, "nested": nestedCases[0].spec, "header": headerSpec, "deep": deepSpec()}
+	for n := 0; n <= 40; n++ {
+		specs[fmt.Sprintf("guard %d", n)] = guardSpec(n)
+	}
+	return specs
+}
+
+// SQ1.1: in text art two blank columns lie between each side of a frame and
+// every lifeline, inside the frame or outside it.
+func TestLayoutFragment_TextFrameSidesKeepTwoColumnsFromEveryLifeline(t *testing.T) {
+	p := seqlayout.TextProfile()
+	for name, spec := range textFrameSpecs() {
+		t.Run(name, func(t *testing.T) {
+			ps := layOut(t, spec, p)
+			for fi, f := range ps.Fragments {
+				// Each side's column, by its left edge: the right side is
+				// drawn in the cell left of the frame's right edge.
+				for _, side := range []float64{f.X, f.X + f.Width - p.CellW} {
+					for _, a := range ps.Actors {
+						assert.GreaterOrEqual(t, math.Abs(a.LineX-side), 3*p.CellW,
+							"fragment %d (%s): a side at column %g, the %s lifeline at %g", fi, f.Type, side/p.CellW, a.ID, a.LineX/p.CellW)
+					}
+				}
+			}
+		})
+	}
+}
+
+// SQ1.2: a text frame is at least as wide as its header rows: both corners,
+// two border runes on each side, and its top row's or a divider's text.
+func TestLayoutFragment_TextFrameFitsItsHeaderRows(t *testing.T) {
+	p := seqlayout.TextProfile()
+	for name, spec := range textFrameSpecs() {
+		t.Run(name, func(t *testing.T) {
+			ps := layOut(t, spec, p)
+			for fi, f := range ps.Fragments {
+				rows := []string{model.FragmentHeader(f.Type, f.Sections[0].Label)}
+				for _, s := range f.Sections[1:] {
+					if s.Label != "" {
+						rows = append(rows, model.FragmentGuard(s.Label))
+					}
+				}
+				for _, r := range rows {
+					need := float64(len([]rune(r))+2*(1+model.FragmentHeaderMargin)) * p.CellW
+					assert.GreaterOrEqual(t, f.Width, need, "fragment %d (%s): %q", fi, f.Type, r)
+				}
+			}
+		})
+	}
+}
+
+// SQ1.3: text art never moves the actors for a frame's header: the
+// lifelines stand where they do with no guard, whatever the guards' length.
+func TestLayoutFragment_TextHeadersNeverMoveTheActors(t *testing.T) {
+	p := seqlayout.TextProfile()
+	lines := func(ps *model.PositionedSequence) []float64 {
+		var x []float64
+		for _, a := range ps.Actors {
+			x = append(x, a.LineX)
+		}
+		return x
+	}
+	want := lines(layOut(t, guardSpec(0), p))
+	for n := 1; n <= 40; n++ {
+		assert.Equal(t, want, lines(layOut(t, guardSpec(n), p)), "guards of %d and %d runes", n, 2*n)
 	}
 }

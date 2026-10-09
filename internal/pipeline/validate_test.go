@@ -84,18 +84,34 @@ func TestRender_StopsWhenTheContextIsDone(t *testing.T) {
 	assert.ErrorIs(t, err, context.Canceled)
 }
 
-// In text art a frame's header runs (its tab, its guards) never cover a
-// lifeline where it crosses the frame, and a frame starts right of every
-// lifeline left of its span.
-func TestRenderWithOptions_TextFrameHeadersKeepTheLifelines(t *testing.T) {
+// Text art draws a frame's header rows from its left corner, ══ type
+// [guard] ══ on the top row and ╌╌ [guard] ╌╌ on each divider, over any
+// lifeline they cross (layout rule SQ1.2), and keeps two blank columns
+// between every side of a frame and every lifeline (SQ1.1): a frame starts
+// right of the lifelines left of its span, and a header wider than the
+// span carries the right side past the next lifeline (SQ1.3).
+func TestRenderWithOptions_TextFrameHeadersAndSides(t *testing.T) {
 	for _, tc := range []struct {
 		name, spec string
 		actors     int
-		outside    int // how many leftmost lifelines lie left of the frame
+		outside    int      // how many leftmost lifelines lie left of the frame
+		headers    []string // the frame's header rows, each from its left corner
+		lastInside bool     // the last lifeline lies inside the frame
 	}{
-		{"guard over the first actor", `{"type":"sequence","actors":[{"id":"c","label":"Client"},{"id":"s","label":"Server"}],"interactions":[{"from":"c","to":"s","label":"try"},{"from":"s","to":"c","label":"fail"}],"fragments":[{"type":"loop","over":["c","s"],"sections":[{"label":"retry < 3","start":0,"end":1}]}]}`, 2, 0},
-		{"guard right of the first actor", `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"interactions":[{"from":"b","to":"c","label":"get"},{"from":"c","to":"b","label":"miss"}],"fragments":[{"type":"opt","over":["b","c"],"sections":[{"label":"cache miss","start":0,"end":1}]}]}`, 3, 1},
-		{"two guards", `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"interactions":[{"from":"a","to":"b","label":"x"},{"from":"b","to":"a","label":"y"}],"fragments":[{"type":"alt","over":["a","b"],"sections":[{"label":"valid token","start":0,"end":0},{"label":"expired token","start":1,"end":1}]}]}`, 2, 0},
+		{"guard over the first actor", `{"type":"sequence","actors":[{"id":"c","label":"Client"},{"id":"s","label":"Server"}],"interactions":[{"from":"c","to":"s","label":"try"},{"from":"s","to":"c","label":"fail"}],"fragments":[{"type":"loop","over":["c","s"],"sections":[{"label":"retry < 3","start":0,"end":1}]}]}`,
+			2, 0, []string{"╔══ loop [retry < 3] ══"}, true},
+		{"guard right of the first actor", `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"interactions":[{"from":"b","to":"c","label":"get"},{"from":"c","to":"b","label":"miss"}],"fragments":[{"type":"opt","over":["b","c"],"sections":[{"label":"cache miss","start":0,"end":1}]}]}`,
+			3, 1, []string{"╔══ opt [cache miss] ══"}, true},
+		{"two guards", `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"interactions":[{"from":"a","to":"b","label":"x"},{"from":"b","to":"a","label":"y"}],"fragments":[{"type":"alt","over":["a","b"],"sections":[{"label":"valid token","start":0,"end":0},{"label":"expired token","start":1,"end":1}]}]}`,
+			2, 0, []string{"╔══ alt [valid token] ══", "╟╌╌ [expired token] ╌╌"}, true},
+		{"no guard", `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"interactions":[{"from":"a","to":"b","label":"x"}],"fragments":[{"type":"loop","over":["a","b"],"sections":[{"start":0,"end":0}]}]}`,
+			2, 0, []string{"╔══ loop ══"}, true},
+		{"header short of the next lifeline", `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"interactions":[{"from":"a","to":"b","label":"go"},{"from":"b","to":"c","label":"on"}],"fragments":[{"type":"opt","over":["a","b"],"sections":[{"label":"ok","start":0,"end":0}]}]}`,
+			3, 0, []string{"╔══ opt [ok] ══"}, false},
+		{"header ending at the next lifeline", `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"interactions":[{"from":"a","to":"b","label":"go"},{"from":"b","to":"a","label":"back"},{"from":"b","to":"c","label":"on"}],"fragments":[{"type":"alt","over":["a","b"],"sections":[{"label":"logged in","start":0,"end":0},{"label":"session has expired","start":1,"end":1}]}]}`,
+			3, 0, []string{"╔══ alt [logged in] ══", "╟╌╌ [session has expired] ╌╌"}, true},
+		{"header past the next lifeline", `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"interactions":[{"from":"a","to":"b","label":"go"},{"from":"b","to":"c","label":"on"}],"fragments":[{"type":"opt","over":["a","b"],"sections":[{"label":"a guard far longer than the frame's span","start":0,"end":0}]}]}`,
+			3, 0, []string{"╔══ opt [a guard far longer than the frame's span] ══"}, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			out, err := RenderWithOptions(context.Background(), []byte(tc.spec), Options{Format: "text"})
@@ -108,22 +124,33 @@ func TestRenderWithOptions_TextFrameHeadersKeepTheLifelines(t *testing.T) {
 				}
 			}
 			require.Len(t, lifelines, tc.actors, "lifelines on the row under the headers:\n%s", out)
+			var headers []string
 			for _, row := range rows {
 				rs := []rune(row)
+				for c, r := range rs {
+					if !strings.ContainsRune("╔╗╚╝║╟╢", r) {
+						continue
+					}
+					for k, l := range lifelines {
+						assert.GreaterOrEqual(t, max(c-l, l-c), 3, "a frame side at column %d, lifeline %d at %d: %q", c, k, l, row)
+					}
+				}
 				left := slices.IndexFunc(rs, func(r rune) bool { return r == '╔' || r == '╟' })
 				if left < 0 {
 					continue
 				}
-				right := slices.IndexFunc(rs[left+1:], func(r rune) bool { return r == '╗' || r == '╢' }) + left + 1
-				for k, c := range lifelines {
-					if k < tc.outside {
-						assert.Less(t, c, left, "lifeline %d lies left of the frame: %q", k, row)
-						continue
-					}
-					if c > left && c < right {
-						assert.Equal(t, '╪', rs[c], "lifeline %d crosses the frame on %q", k, row)
-					}
+				headers = append(headers, string(rs[left:]))
+				for k, l := range lifelines[:tc.outside] {
+					assert.Less(t, l, left, "lifeline %d lies left of the frame: %q", k, row)
 				}
+				if rs[left] == '╔' {
+					right := slices.Index(rs, '╗')
+					assert.Equal(t, tc.lastInside, right > lifelines[len(lifelines)-1], "the frame's right side at %d: %q", right, row)
+				}
+			}
+			require.Len(t, headers, len(tc.headers), "header rows:\n%s", out)
+			for i, want := range tc.headers {
+				assert.True(t, strings.HasPrefix(headers[i], want), "header row %d: want %q at the corner, got %q", i, want, headers[i])
 			}
 		})
 	}

@@ -2,6 +2,7 @@ package text
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/oxforge/diago/internal/model"
 )
@@ -78,9 +79,10 @@ func RenderSequence(ps *model.PositionedSequence, showActivations bool) (Result,
 	return Result{Art: titledArt, TopRow: top - titleLines}, nil
 }
 
-// drawFragment paints the double-line frame, the tab slid right past any
-// pierced lifeline, ╪ at every lifeline on frame and divider rows, and the
-// section dividers with their guards.
+// drawFragment paints the double-line frame, ╪ at every lifeline on frame
+// and divider rows, the dividers, and the header rows: ══ type [guard] ══
+// from the top-left corner and ╌╌ [guard] ╌╌ from each divider's left end,
+// written over any lifeline they cross.
 func drawFragment(g *charGrid, f model.PositionedFragment, colOf map[string]int) {
 	// The frame's top row is the row above the first message (f.Y sits one
 	// row above it); the bottom edge f.Y+f.Height is one row below the last
@@ -108,74 +110,42 @@ func drawFragment(g *charGrid, f model.PositionedFragment, colOf map[string]int)
 			pierce = append(pierce, c)
 		}
 	}
-	sort.Ints(pierce)
-	pierceRow := func(row int, protect map[int]bool) {
+	pierceRow := func(row int) {
 		for _, c := range pierce {
-			if !protect[c] {
-				g.setGlyph(c, row, '╪')
-			}
+			g.setGlyph(c, row, '╪')
 		}
 	}
-	writeTracked := func(start, row int, text string) map[int]bool {
-		used := map[int]bool{}
-		for i, r := range []rune(text) {
-			g.setGlyph(start+i, row, r)
-			if r != ' ' {
-				used[start+i] = true
+	// header writes text on row after FragmentHeaderMargin border runes,
+	// then that many more, never past the frame's right side.
+	header := func(row int, border rune, text string) {
+		run := []rune(strings.Repeat(string(border), model.FragmentHeaderMargin) + text +
+			strings.Repeat(string(border), model.FragmentHeaderMargin))
+		for i, r := range run {
+			if x+1+i >= right {
+				break
 			}
+			g.setGlyph(x+1+i, row, r)
 		}
-		return used
-	}
-	slide := func(base int, text string) int {
-		n := len([]rune(text))
-		maxStart := right - n
-		// Every character, padding spaces included, must avoid a pierced
-		// column, so a slid tab or guard never reads glued to a ╪.
-		for start := base; start <= maxStart; start++ {
-			ok := true
-			for i := range []rune(text) {
-				for _, c := range pierce {
-					if c == start+i {
-						ok = false
-					}
-				}
-			}
-			if ok {
-				return start
-			}
-		}
-		// No collision-free start: keep the text inside the frame at least.
-		return max(x+1, min(base, maxStart))
 	}
 
-	tab := model.FragmentTab(f.Type)
-	tabStart := slide(x+2, tab)
-	used := writeTracked(tabStart, y, tab)
-	pierceRow(y, used)
-	pierceRow(bottom, nil)
-
-	for i, s := range f.Sections {
-		if i == 0 {
-			continue // the first section shares the frame's top row
-		}
+	pierceRow(y)
+	pierceRow(bottom)
+	first := ""
+	if len(f.Sections) > 0 {
+		first = f.Sections[0].Label
+	}
+	header(y, '═', model.FragmentHeader(f.Type, first))
+	for _, s := range f.Sections[min(1, len(f.Sections)):] {
 		row := px2row(s.Y)
 		g.setGlyph(x, row, '╟')
 		g.setGlyph(right, row, '╢')
 		for cx := x + 1; cx < right; cx++ {
 			g.setGlyph(cx, row, '╌')
 		}
-		var guardUsed map[int]bool
+		pierceRow(row)
 		if s.Label != "" {
-			text := model.FragmentGuard(s.Label)
-			guardUsed = writeTracked(slide(x+2, text), row, text)
+			header(row, '╌', model.FragmentGuard(s.Label))
 		}
-		pierceRow(row, guardUsed)
-	}
-	// First section's guard sits after the tab on the top row.
-	if len(f.Sections) > 0 && f.Sections[0].Label != "" {
-		text := model.FragmentGuard(f.Sections[0].Label)
-		start := slide(tabStart+len([]rune(tab)), text)
-		writeTracked(start, y, text)
 	}
 }
 

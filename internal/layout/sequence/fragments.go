@@ -2,6 +2,7 @@ package sequence
 
 import (
 	"math"
+	"slices"
 	"sort"
 
 	"github.com/oxforge/diago/internal/model"
@@ -22,9 +23,13 @@ type fragmentPlan struct {
 	guardW            []float64 // each section's guard ("[label]") width; zero without a label and in text art
 	// headerW is the widest header row: the tab, then the first guard
 	// after FragmentGuardGap, or a later guard after FragmentGuardGap from
-	// the frame's left side. In text art it is textHeaderWidth.
+	// the frame's left side. Zero in text art, which writes its header on
+	// the frame's rows.
 	headerW float64
-	inner   []int // the plans (indexes into the plan list) this one contains
+	// textW is, in text art, the narrowest frame its header rows fit
+	// (textFrameWidth).
+	textW float64
+	inner []int // the plans (indexes into the plan list) this one contains
 }
 
 // planFragments plans every fragment with sections and actors, smallest
@@ -82,10 +87,10 @@ func planFragments(fragments []model.Fragment, interactions []model.Interaction,
 		}
 
 		// The header. On screen the tab and each guard are measured; text
-		// art writes its own runs (textHeaderWidth).
+		// art writes its own on the frame's rows (textFrameWidth).
 		pl.guardW = make([]float64, len(f.Sections))
 		if p.TextMode() {
-			pl.headerW = textHeaderWidth(f, p)
+			pl.textW = textFrameWidth(f, p)
 		} else {
 			ow, oh := p.MeasureText(f.Type.String(), p.Fonts.FragLabelSize, p.Fonts.Family)
 			pl.tabW = ow + 2*p.FragmentTabPadX + p.FragmentTabCut
@@ -106,24 +111,53 @@ func planFragments(fragments []model.Fragment, interactions []model.Interaction,
 	return plans
 }
 
-// textHeaderWidth is the gutter text art needs left of a frame's leftmost
-// lifeline: the tab and the first guard share the top row, and a later guard
-// has its divider. A frame without guards needs none, because its tab slides
-// along the top row between the lifelines.
-func textHeaderWidth(f model.Fragment, p Profile) float64 {
-	w := 0.0
-	for k, sec := range f.Sections {
-		if sec.Label == "" {
-			continue
-		}
-		run := model.FragmentGuard(sec.Label)
-		if k == 0 {
-			run = model.FragmentTab(f.Type) + run
-		}
-		rw, _ := p.MeasureText(run, p.Fonts.FragLabelSize, p.Fonts.Family)
-		w = max(w, rw)
+// textFrameWidth is the narrowest frame text art fits its header rows in:
+// both corners, FragmentHeaderMargin border runes on each side, and the
+// widest header text, the top row's (model.FragmentHeader) or a later
+// guard's (model.FragmentGuard).
+func textFrameWidth(f model.Fragment, p Profile) float64 {
+	first := ""
+	if len(f.Sections) > 0 {
+		first = f.Sections[0].Label
 	}
-	return w
+	w, _ := p.MeasureText(model.FragmentHeader(f.Type, first), p.Fonts.FragLabelSize, p.Fonts.Family)
+	for _, sec := range f.Sections[min(1, len(f.Sections)):] {
+		if sec.Label != "" {
+			gw, _ := p.MeasureText(model.FragmentGuard(sec.Label), p.Fonts.FragLabelSize, p.Fonts.Family)
+			w = max(w, gw)
+		}
+	}
+	return w + 2*(1+model.FragmentHeaderMargin)*p.CellW
+}
+
+// frameClearance is the least distance between a frame's side and a
+// lifeline: on screen FragmentPaddingX and half an activation bar, in text
+// art three cells, so two blank columns lie between them.
+func frameClearance(p Profile) float64 {
+	if p.TextMode() {
+		return 3 * p.CellW
+	}
+	return p.FragmentPaddingX + p.ActivationWidth/2
+}
+
+// sideWidth is how far left of a frame's right edge its right side is
+// drawn: text art draws it in the cell left of the edge.
+func sideWidth(p Profile) float64 {
+	if p.TextMode() {
+		return p.CellW
+	}
+	return 0
+}
+
+// clearRightOfLifelines moves a text frame's right edge right a cell at a
+// time until its right side, drawn in the cell left of the edge, keeps
+// frameClearance from every lifeline, passing one that is in the way.
+func clearRightOfLifelines(rightEdge float64, centerX []float64, p Profile) float64 {
+	clear := frameClearance(p)
+	for slices.ContainsFunc(centerX, func(c float64) bool { return math.Abs(c-(rightEdge-sideWidth(p))) < clear }) {
+		rightEdge += p.CellW
+	}
+	return rightEdge
 }
 
 // headerRoom is how far below a frame's line (its top, or a divider) an
@@ -134,16 +168,17 @@ func (pl fragmentPlan) headerRoom(p Profile) float64 {
 }
 
 // spaceForFragmentHeaders moves actors right until every frame's sides keep
-// FragmentPaddingX and half an activation bar clear of the lifelines beside
-// its span, which the frame does not cover: its left side out in the gutter
-// its header rows need left of its leftmost lifeline, its right side out
-// past the self-message loops and labels in its range. In text art every
-// shift is whole cells.
+// frameClearance from the lifelines beside its span, which the frame does
+// not cover: its left side out in the gutter its header rows need left of
+// its leftmost lifeline on screen, its right side out past the
+// self-message loops and labels in its range. Text art has no gutter, and
+// a header wider than the span moves the frame's right side instead
+// (computeFragments). In text art every shift is whole cells.
 func spaceForFragmentHeaders(plans []fragmentPlan, interactions []model.Interaction, actorIndex map[string]int, boxW, centerX []float64, p Profile) {
 	if len(centerX) < 2 {
 		return
 	}
-	clearance := p.FragmentPaddingX + p.ActivationWidth/2
+	clearance := frameClearance(p)
 
 	// leftExt is how far a frame's left side reaches left of its leftmost
 	// lifeline, as computeFragments places it once no frame crosses the
@@ -197,7 +232,7 @@ func spaceForFragmentHeaders(plans []fragmentPlan, interactions []model.Interact
 		need := needLeft[a]
 		for i, pl := range plans {
 			if pl.rightIdx == a-1 {
-				need = max(need, rightEdge(i)+clearance-centerX[a-1])
+				need = max(need, rightEdge(i)-sideWidth(p)+clearance-centerX[a-1])
 			}
 		}
 		if gap := centerX[a] - centerX[a-1]; gap < need {
@@ -225,9 +260,12 @@ func spaceForFragmentHeaders(plans []fragmentPlan, interactions []model.Interact
 // A screen layout also places the frame's header: the operator tab at the
 // frame's top-left, the first guard right of the tab on the same row, and
 // each later guard just below its divider, all left of the leftmost spanned
-// lifeline, the frame's left side moving out to make room. Text art draws
-// its own inline tab and guards on the frame's rows, so it leaves the tab
-// and guard fields zero.
+// lifeline, the frame's left side moving out to make room. Text art writes
+// its header on the frame's top row and dividers, over any lifeline they
+// cross, and leaves the tab and guard fields zero: a text frame is at least
+// as wide as its header rows, its right side moving right for them, and
+// both sides keep two blank columns from every lifeline, the right side
+// passing a lifeline in its way (layout rule SQ1).
 //
 // An outer frame contains each inner one: FragmentPaddingX left and right,
 // FragmentPaddingY below, and its own header room above, both at its top
@@ -290,6 +328,14 @@ func computeFragments(
 			}
 		}
 		lineY[0] = topY
+
+		// Text art: the frame is as wide as its header rows, and its right
+		// side keeps frameClearance from every lifeline, passing one in its
+		// way (layout rule SQ1); spaceForFragmentHeaders keeps the left side
+		// clear.
+		if p.TextMode() {
+			rightEdge = clearRightOfLifelines(max(rightEdge, leftEdge+pl.textW), centerX, p)
+		}
 
 		// Sections: the first one's line is the frame top, every later
 		// one's a divider. On screen the first guard shares the tab's row,

@@ -41,10 +41,20 @@ type Fragment struct {
 	Sections []FragmentSection // at least one; alt may have multiple
 }
 
-// FragmentTab is a fragment's operator tab as text art draws it.
-func FragmentTab(t FragmentType) string { return " " + t.String() + " " }
+// FragmentHeaderMargin is how many border runes text art draws on each side
+// of a frame's header text: ╔══ loop [label] ══╗, ╟╌╌ [label] ╌╌╢.
+const FragmentHeaderMargin = 2
 
-// FragmentGuard is a section's guard as text art draws it.
+// FragmentHeader is the text text art writes on a frame's top row: the
+// operator, then the first section's guard when it has one.
+func FragmentHeader(t FragmentType, guard string) string {
+	if guard == "" {
+		return " " + t.String() + " "
+	}
+	return " " + t.String() + " [" + guard + "] "
+}
+
+// FragmentGuard is the text text art writes on a later section's divider.
 func FragmentGuard(label string) string { return " [" + label + "] " }
 
 // --- Sequence diagram positioned model ---
