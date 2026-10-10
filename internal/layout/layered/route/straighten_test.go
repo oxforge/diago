@@ -197,20 +197,19 @@ func TestRoute_AStraightenedStopKeepsClearOfALoopLeg(t *testing.T) {
 	}
 }
 
-// TestRoute_AStraightenedStopKeepsClearOfALoopLegInText pins S8's stops
-// in the text profile, on the probe's seed 218 under RIGHT: a dummy stop
+// TestRoute_AStraightenedStopKeepsClearOfALoopLegInText pins S8's stops in
+// the text profile, on the probe's seed 218 under RIGHT: a dummy stop
 // moves only to an x that keeps InLaneGap, two cells, from every self-loop
-// leg of its row. l's loop leg runs Reach
-// out of its right face and half a cell farther, on a cell's middle, at
-// 16.5 (Self-loops); s->c's dummy sits beside l at 18.5, two cells from
-// it, and c's in-port at 17.5 lies within Span of it, but one cell from
-// the leg. The dummy keeps its column whether the walk up or the pull
-// onto both ports' x (s at 17.5) would move it. Under RIGHT and LEFT,
-// where the engine's cross axis runs along the art's rows (S14: Reach two
-// rows, InLaneGap one), the leg runs at 15.5 and the dummy at 16.5: c's
-// in-port on the leg's own row is closer than InLaneGap, and the dummy
-// keeps its row, while one row off the leg, at 16.5 with the dummy at
-// 17.5, it moves.
+// leg of its row. l's loop leg runs Reach out of its right face and half a
+// cell farther, on a cell's middle, at 16.5 (Self-loops); s->c's dummy
+// sits beside l at 18.5, two cells from it, and c's in-port at 17.5 lies
+// within Span of it, but one cell from the leg. The dummy keeps its column
+// whether the walk up or the pull onto both ports' x (s at 17.5) would
+// move it. Under RIGHT and LEFT, where the engine's cross axis runs along
+// the art's rows (S14: Reach two rows, InLaneGap one), the leg runs at
+// 15.5 and the dummy at 16.5: c's in-port on the leg's own row is closer
+// than InLaneGap, and the dummy keeps its row, while one row off the leg,
+// at 16.5 with the dummy at 17.5, it moves.
 func TestRoute_AStraightenedStopKeepsClearOfALoopLegInText(t *testing.T) {
 	sideways := Options{Clearance: 1, Span: 1, Reach: 2, BaseGap: 4, LaneGap: 2, InLaneGap: 1, Snap: 0.5, Dir: model.Right, Text: true}
 	for _, tc := range []struct {

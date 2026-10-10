@@ -706,8 +706,7 @@ func wideAndNarrow(t *testing.T) model.Graph {
 // (two and three data centers, and a pair whose representative's label is
 // far wider than its members' offset) in every direction and profile and
 // checks the result against the full C14, member and fan-out labels
-// included: two- and three-member congruences and the wide/narrow label
-// case.
+// included.
 func TestLayout_CongruenceLabelsPassC14(t *testing.T) {
 	for _, g := range []model.Graph{datacenters(t), threeDCs(t), wideAndNarrow(t)} {
 		for _, dir := range []model.Direction{model.Down, model.Up, model.Right, model.Left} {

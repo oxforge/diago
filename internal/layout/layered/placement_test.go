@@ -37,20 +37,20 @@ func lrPipeline(dir model.Direction) model.Graph {
 }
 
 // TestLayout_LRPipelineKeepsItsMainLineStraight pins S7's act 1 and
-// side-exit forcing on lr-pipeline, in every direction: the back
-// edge errors->extract does not pull Extract (a node with faces), and
-// Valid?'s "yes" exit is its primary (Transform leads on to Warehouse,
-// Error log only back), so the main line Source -> Extract -> Valid? ->
-// Transform runs straight through the diamond; "no" leaves a side vertex
-// as an L into Error log, whose in-face it shares with the back edge. The
-// back edge's pull would put Extract 30 px off Valid?'s axis, and side-exit
-// forcing judged by Error log's center would pack both ends 10 px apart at
-// one end of the face. Under RIGHT and LEFT the two ends sit at a third and
-// two thirds of that face and the back edge runs as an L into Extract;
-// under DOWN and UP "no"'s port gives way from the back edge's dummy
-// column, which S7 leaves where act 1 puts it (both of that chain's hops
-// end at counter-flow ends, so it has no link), and the back edge jogs to
-// that column.
+// side-exit forcing on lr-pipeline, in every direction: the back edge
+// errors->extract does not pull Extract (a node with faces), and Valid?'s
+// "yes" exit is its primary (Transform leads on to Warehouse, Error log
+// only back), so the main line Source -> Extract -> Valid? -> Transform
+// runs straight through the diamond; "no" leaves a side vertex as an L into
+// Error log, whose in-face it shares with the back edge. The back edge's
+// pull would put Extract 30 px off Valid?'s axis, and side-exit forcing
+// judged by Error log's center would pack both ends 10 px apart at one end
+// of the face. Under RIGHT and LEFT the two ends sit at a third and two
+// thirds of that face and the back edge runs as an L into Extract; under
+// DOWN and UP "no"'s port gives way from the back edge's dummy column,
+// which S7 leaves where act 1 puts it (both of that chain's hops end at
+// counter-flow ends, so it has no link), and the back edge jogs to that
+// column.
 func TestLayout_LRPipelineKeepsItsMainLineStraight(t *testing.T) {
 	for _, dir := range []model.Direction{model.Down, model.Up, model.Right, model.Left} {
 		t.Run(dir.String(), func(t *testing.T) {
@@ -217,13 +217,13 @@ func TestLayout_ACascadesSecondariesRouteAsLs(t *testing.T) {
 // branch, c, lands beyond d's side column, where o, in d's row but in
 // another part of the level (x->o shares no edge with the rest), blocks
 // the column's way out, so c gets room. Packing then moves the two parts
-// toward the level's center; kept apart only by in-layer separations,
-// they closed up over the room and d->c jogged from the column Reach out
-// to its port, with the rounds already settled. The room is a separation
-// between the parts too, so d's main line runs straight on and d->c is an
-// L. Under RIGHT and LEFT o leaves the row clear when the rounds judge it,
-// so c gets no room, and packing still closes up over the column the
-// router moves out.
+// toward the level's center; kept apart only by in-layer separations, they
+// would close up over the room and d->c would jog from the column Reach
+// out to its port, with the rounds already settled. The room is a
+// separation between the parts too, so d's main line runs straight on and
+// d->c is an L. Under RIGHT and LEFT o leaves the row clear when the
+// rounds judge it, so c gets no room, and packing still closes up over the
+// column the router moves out.
 func TestLayout_PackingKeepsARoom(t *testing.T) {
 	specs := []string{"s->d:diamond", "d->a", "a->b", "d->c", "x->o"}
 	labels := map[string]string{"c": "Other branch", "o": "Other node"}
@@ -369,7 +369,7 @@ func TestLayout_ARoomWaitsForItsPrimary(t *testing.T) {
 // else. On the probe's decision seed 27 DOWN, n0 sits at the node gap from
 // n3, which puts the lane n3->n6's column would give way to exactly on
 // n0's clearance (40 - 12 = Reach + InLaneGap); taken, as the allowance
-// let it, the wire jogged 8 px back to its port. It stays an L.
+// would let it, the wire would jog 8 px back to its port. It stays an L.
 func TestLayout_AColumnGivesWayOnlyWhereTheRowIsClear(t *testing.T) {
 	g := decisionSeed27()
 	g.Direction = model.Down
@@ -719,10 +719,8 @@ func cascades(k, l int) model.Graph {
 // TestLayout_CascadesSideBySideGetRoomTogether pins S7's batched rooms on
 // the benchmark's cascade graph, smaller: every cascade's lower decisions
 // keep their primaries, their secondaries get room, and nothing restarts
-// the rounds. One restart per diamond made S7's cost grow with the number
-// of diamonds: the benchmark's 30 cascades of 8 took 1.09 s with one
-// restart per denial, 35 ms with every round's denials in one restart,
-// and take 52 ms with rooms instead.
+// the rounds. One restart per denied diamond would make S7's cost grow
+// with the number of diamonds; rooms take one more round and no restart.
 func TestLayout_CascadesSideBySideGetRoomTogether(t *testing.T) {
 	g := cascades(4, 4)
 	ctx, buf := layoutdbgtest.Capture()

@@ -65,8 +65,8 @@ func TestC9_2_SameFaceBundle(t *testing.T) {
 	// Two wires from p: their first segments are a rake (terminal at p),
 	// 5 px apart, within the port gap. Their second segments are near p's
 	// face too but neither is terminal there, so the full track gap
-	// applies and they now violate. Their third segments share no
-	// endpoint node and always violate.
+	// applies and they violate. Their third segments share no endpoint
+	// node and always violate.
 	e1 := wire("p", "q", 20, 50, 20, 70, 60, 70, 60, 120)
 	e2 := wire("p", "s", 25, 50, 25, 65, 65, 65, 65, 120)
 	vs := pair(e1, e2)

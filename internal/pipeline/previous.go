@@ -15,20 +15,19 @@ import (
 // ParsePrevious turns a -previous file into a carrier. It accepts, sniffed
 // by content: an SVG diago rendered (the carrier in its metadata is the
 // anchor, exact when the same diago drew it and a best effort otherwise),
-// a carrier JSON, or a spec of the same type as the diagram
-// being rendered (specType). A flow or class spec is laid out fresh
-// as the render anchored on it lays out its own spec (S13): under the text
-// profile when format is text ("text" or "txt"), else under the screen
-// profile of the theme themeName ("" for the default), the render's
-// -format and the theme it uses (RenderTheme of the render's spec and
-// -theme, never the previous spec's field); so it is exact for one step,
-// since layout is deterministic. An SVG or a carrier is what it is,
-// whatever the format and the theme. A sequence render discards its
-// previous (sequence diagrams have no layout freedom), so for specType
-// "sequence" the file is only checked to be what -previous accepts, any
-// SVG, a carrier or a valid sequence spec, and an empty carrier stands for
-// it. Every failure of the file itself is a schema.ValidationErrors on
-// field "previous".
+// a carrier JSON, or a spec of the same type as the diagram being rendered
+// (specType). A flow or class spec is laid out fresh as the render
+// anchored on it lays out its own spec (S13): under the text profile when
+// format is text ("text" or "txt"), else under the screen profile of the
+// theme themeName ("" for the default), the render's -format and the theme
+// it uses (RenderTheme of the render's spec and -theme, never the previous
+// spec's field); so it is exact for one step, since layout is
+// deterministic. An SVG or a carrier is what it is, whatever the format
+// and the theme. A sequence render discards its previous (sequence
+// diagrams have no layout freedom), so for specType "sequence" the file is
+// only checked to be what -previous accepts, any SVG, a carrier or a valid
+// sequence spec, and an empty carrier stands for it. Every failure of the
+// file itself is a schema.ValidationErrors on field "previous".
 func ParsePrevious(ctx context.Context, data []byte, specType, format, themeName string) (*model.LayoutHints, error) {
 	trimmed := bytes.TrimSpace(data)
 	switch {

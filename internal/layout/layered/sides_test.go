@@ -41,7 +41,8 @@ func TestLayout_WithoutASideAttachmentRouteRunsOnce(t *testing.T) {
 // and leaves the diamond at two adjacent vertices, Process's exit and the
 // back edge's return, and End's exit takes the vertex left over, the one
 // opposite the loop's side vertex, outside the loop; nothing crosses.
-// With End inside the loop the two loop ends took opposite vertices.
+// With End inside the loop the two loop ends would take opposite
+// vertices.
 func TestLayout_FlowLoopTakesTwoAdjacentVertices(t *testing.T) {
 	for _, dir := range []model.Direction{model.Down, model.Up, model.Right, model.Left} {
 		t.Run(dir.String(), func(t *testing.T) {
@@ -178,9 +179,9 @@ func mergedFanOut(t *testing.T, pg *model.PositionedGraph, dir model.Direction, 
 // the finished layout, in every direction: a circle's two or three forward
 // exits all leave its out-vertex and run on together, at least C7's stub,
 // before they split toward their children (a bracket, C8.5's merged
-// fan-out), rather than leaving its side vertices as Ls. A
-// diamond with the same exits still spreads them over its vertices, which
-// C8.5 forbids it to share. The layouts meet the whole contract.
+// fan-out), rather than leaving its side vertices as Ls. A diamond with
+// the same exits still spreads them over its vertices, which C8.5 forbids
+// it to share. The layouts meet the whole contract.
 func TestLayout_ACirclesExitsShareOneTrunk(t *testing.T) {
 	for _, dir := range []model.Direction{model.Down, model.Up, model.Right, model.Left} {
 		t.Run(dir.String(), func(t *testing.T) {
@@ -282,13 +283,12 @@ func TestLayout_GitPushsExitsLeaveOnePoint(t *testing.T) {
 }
 
 // TestLayout_InterleavedBackEdgesRunOnOppositeSides pins S6's counter-flow
-// sides on the finished layout, in every direction and both profiles:
-// the back edges d->a and e->b, whose layer spans interleave (0 to 3 and
-// 1 to 4), run on opposite sides of c, the node both pass, and cross
-// nothing; once both ran on one side and crossed. x->a, whose span nests
-// in e->a's, keeps e->a's side, although S6 leaves the two a crossing a
-// side move of x->a would take away (order's
-// TestMinimize_NestedChainsKeepTheirSides).
+// sides on the finished layout, in every direction and both profiles: the
+// back edges d->a and e->b, whose layer spans interleave (0 to 3 and 1 to
+// 4), run on opposite sides of c, the node both pass, and cross nothing,
+// where on one side they would cross. x->a, whose span nests in e->a's,
+// keeps e->a's side, although S6 leaves the two a crossing a side move of
+// x->a would take away (order's TestMinimize_NestedChainsKeepTheirSides).
 func TestLayout_InterleavedBackEdgesRunOnOppositeSides(t *testing.T) {
 	for _, dir := range []model.Direction{model.Down, model.Up, model.Right, model.Left} {
 		for _, text := range []bool{false, true} {

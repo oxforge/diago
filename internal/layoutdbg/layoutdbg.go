@@ -56,8 +56,9 @@ func Armed(ctx context.Context) bool {
 // When the logger's level is above LevelDebug, Decision returns before it
 // builds the record: the call costs a context lookup and a level check,
 // plus, at the call site, the boxing of each attribute value into an any,
-// an allocation for a value that is not a constant or a small integer.
-// Work that is costly to compute for an attribute belongs behind Armed.
+// an allocation for a value that is not a constant, a small integer, a
+// bool or a pointer. Work that is costly to compute for an attribute
+// belongs behind Armed.
 func Decision(ctx context.Context, decision string, attrs ...any) {
 	logger := from(ctx)
 	if !logger.Enabled(ctx, slog.LevelDebug) {

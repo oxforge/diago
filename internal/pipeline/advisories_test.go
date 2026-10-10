@@ -53,9 +53,9 @@ func TestRenderWithOptions_TextLabelDropped(t *testing.T) {
 	// four labelled edges from a to b and two back, laid out DOWN, are
 	// known to drop the "four" label in text mode: S10 leaves it
 	// unresolved, and the text renderer finds no room for it on its own
-	// ladder. This end-to-end check
-	// rests on a layout that drops a label; the wiring itself is pinned on
-	// hand-built input by TestCheckAdvisories_DroppedLabels here and
+	// ladder. This end-to-end check rests on a layout that drops a label;
+	// the wiring itself is pinned on hand-built input by
+	// TestCheckAdvisories_DroppedLabels here and
 	// TestRender_LabelThatFitsNowhereIsReported in internal/render/text.
 	data := []byte(`{"type":"flow","direction":"DOWN","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],
 		"edges":[{"from":"a","to":"b","label":"one"},{"from":"a","to":"b","label":"two"},{"from":"a","to":"b","label":"three"},
@@ -216,13 +216,13 @@ func TestRenderWithOptions_FlatEdgeRankedAnchored(t *testing.T) {
 }
 
 // TestRenderWithOptions_FlatEdgeRankedKept: blockedFlatSpec falls back
-// fresh; cleanFlatSpec is the same
-// graph freed (no middle node): laid out alone it routes cleanly
-// (TestRenderWithOptions_FlatEdgeRanked), but anchored on a carrier that
-// ranked the edge (S13, keepRanked), the edge is kept ranked without its
-// side route ever being tried this render, so the warning must say "kept",
-// not "no clear side route" (which would send an agent editing v2's JSON
-// forever, since nothing in v2 can clear a kept fallback).
+// fresh; cleanFlatSpec is the same graph freed (no middle node): laid out
+// alone it routes cleanly (TestRenderWithOptions_FlatEdgeRanked), but
+// anchored on a carrier that ranked the edge (S13, keepRanked), the edge
+// is kept ranked without its side route ever being tried this render, so
+// the warning must say "kept", not "no clear side route" (which would send
+// an agent editing v2's JSON forever, since nothing in v2 can clear a kept
+// fallback).
 func TestRenderWithOptions_FlatEdgeRankedKept(t *testing.T) {
 	var carrier model.LayoutHints
 	_, err := RenderWithOptions(context.Background(), []byte(blockedFlatSpec), Options{LayoutHints: &carrier})

@@ -119,9 +119,9 @@ type Crossing struct {
 }
 
 // HopRadius is the radius of the hop the SVG renderer draws over a
-// crossing, in px (C15.2): a crossing nearer than this to an end of either
-// segment is a corner the renderers leave alone, so the layout records
-// none there and the contract asks for none.
+// crossing, in px (C15.2): a crossing within this distance of an end of
+// either segment is a corner the renderers leave alone, so the layout
+// records none there and the contract asks for none.
 const HopRadius = 5.0
 
 // Point is a 2D coordinate.

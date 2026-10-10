@@ -309,10 +309,10 @@ func TestLayout_TextASelfLoopKeepsOffItsGroupsFrame(t *testing.T) {
 // TestLayout_AnchoredPortsMeetInText pins the join at an anchoring snap:
 // S8 can move an anchored port within Snap of another fixed end (here, a
 // back edge's side column and an entering edge's anchored port), and the
-// join with the child level's own route (nest's expand) must not emit a
-// diagonal segment (C3), which the text renderer fails on with exit 2. In
-// the text profile a side column and an anchor differ by exactly Snap
-// (half a cell), so they always meet this way.
+// join with the child level's own route (nesting.expand, S9) must not
+// emit a diagonal segment (C3), which the text renderer fails on with
+// exit 2. In the text profile a side column and an anchor differ by
+// exactly Snap (half a cell), so they always meet this way.
 func TestLayout_AnchoredPortsMeetInText(t *testing.T) {
 	for _, dir := range []model.Direction{model.Down, model.Up} {
 		g := grouped(graph(t, nil, "n0->n5", "n4->n0"),

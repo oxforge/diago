@@ -249,11 +249,11 @@ func TestLayout_ClientServerTextQueryResultWiresMirror(t *testing.T) {
 	// their wires into db jog exactly the in-lane gap apart in text. They
 	// share one lane, so both turn at one flow coordinate and mirror each
 	// other about db's center across the flow (S8 Lanes), rather than
-	// auth's turning two columns past server's. Under DOWN and
-	// UP db is an even number of columns wide: its two ports fall on the
-	// lines between cells and take the cells farther from its middle, so
-	// they still mirror about its center (S8 Shape ports), while server's
-	// and auth's lone ports each take the cell right of their middle line
+	// auth's turning two columns past server's. Under DOWN and UP db is
+	// an even number of columns wide: its two ports fall on the lines
+	// between cells and take the cells farther from its middle, so they
+	// still mirror about its center (S8 Shape ports), while server's and
+	// auth's lone ports each take the cell right of their middle line
 	for _, dir := range []model.Direction{model.Down, model.Up, model.Right, model.Left} {
 		t.Run(dir.String(), func(t *testing.T) {
 			pg := layText(t, clientServer(dir))

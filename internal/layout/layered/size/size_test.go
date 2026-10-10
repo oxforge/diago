@@ -378,8 +378,8 @@ func TestMeasure_CompactLabelsRecordTheCountsTried(t *testing.T) {
 // Compact labels: a diamond's label of 3,000 distinct words sizes by
 // measuring each word's runs only up to the first wider than the wrap's
 // widest line, a few per word. Measuring every run of words, 4.5 million
-// here, took 36 s and 2.8 GB at 1,000 words. The measurer counts the
-// texts S1 measures, each once, and stops the test at 10 per word.
+// here, would take 36 s and 2.8 GB at 1,000 words. The measurer counts
+// the texts S1 measures, each once, and stops the test at 10 per word.
 func TestMeasure_CompactLabelsMeasureBoundedRuns(t *testing.T) {
 	words := make([]string, 3000)
 	for i := range words {

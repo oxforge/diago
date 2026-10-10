@@ -20,8 +20,8 @@ import (
 // from its center. On the baseline b's center lies 3.33 px beyond m's
 // right column (50 + 20 out), but that port 10 px inside it, so the exit
 // is forced and the port lands exactly under the column, where the router
-// draws an L. Judged by b's center, it was not forced, and the router
-// slid the port 10 px onto the column instead.
+// draws an L. Judged by b's center, it would not be forced, and the
+// router would slide the port 10 px onto the column instead.
 func TestPlace_ASideExitHeadsForItsPort(t *testing.T) {
 	widths := map[string]float64{"m": 100, "b": 80, "z": 60}
 	specs := []string{"m:diamond->a", "m->b", "z->b"}
@@ -266,9 +266,8 @@ func TestPlace_ASecondaryIsJudgedAfterItsPrimary(t *testing.T) {
 // TestPlace_NoPrimaryWithoutOneMainLine pins the other half of S7's primary
 // clause: when both of m's exits lead on, or neither, no branch is the main
 // line, and the exit rule keeps them symmetric about m's axis, each under
-// its side column (40 + 20 out); so does a
-// diamond with three exits, and one with a counter-flow end, which is not
-// forced at all.
+// its side column (40 + 20 out); so does a diamond with three exits, and
+// one with a counter-flow end, which is not forced at all.
 func TestPlace_NoPrimaryWithoutOneMainLine(t *testing.T) {
 	widths := map[string]float64{"yes": 40, "no": 40}
 	for _, specs := range [][]string{
@@ -872,8 +871,9 @@ func TestPlace_APinnedLoopKeepsItsRoomOnItsSide(t *testing.T) {
 	// one and faces a's right column: room for both, InLaneGap apart. Each
 	// back edge has both its ends at a side, as the router attaches a
 	// one-hop edge's two ends (S8). With n's end left on n's in-face, b->n
-	// took the other in-port, off n's center, and n, which the back edge no
-	// longer pulls (act 1), drifted after it, carrying b away from a.
+	// would take the other in-port, off n's center, and n, which the back
+	// edge does not pull (act 1), would drift after it, carrying b away
+	// from a.
 	o := screen
 	o.InLaneGap = 8
 	o.Side = [][2]ports.Vertex{{}, {ports.Right, ports.Right}, {}, {ports.Right, ports.Right}, {}}
