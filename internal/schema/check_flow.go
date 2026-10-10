@@ -104,9 +104,17 @@ func checkFlowNodes(spec *FlowSpec, ids []string) []Advisory {
 	return out
 }
 
+// checkFlowEdges returns the edge findings. edge-without-id fires only on
+// an edge that shares its ends with another: a derived id, from->to#n,
+// numbers the edges between the same ends in spec order, so only among
+// such edges can an edit hand one's id to another.
 func checkFlowEdges(spec *FlowSpec, opts CheckOptions) []Advisory {
 	var out []Advisory
 	seen := make(map[[3]string]int)
+	ends := make(map[[2]string]int, len(spec.Edges))
+	for _, e := range spec.Edges {
+		ends[[2]string{e.From, e.To}]++
+	}
 	for i, e := range spec.Edges {
 		field := fmt.Sprintf("edges[%d]", i)
 		label := strings.TrimSpace(e.Label)
@@ -122,9 +130,9 @@ func checkFlowEdges(spec *FlowSpec, opts CheckOptions) []Advisory {
 				Message: fmt.Sprintf("edge %s->%s label %q says little; prefer a specific verb phrase like \"validates order\" or \"publishes event\"",
 					e.From, e.To, label)})
 		}
-		if opts.Anchored && label != "" && (e.ID == nil || *e.ID == "") {
+		if opts.Anchored && ends[[2]string{e.From, e.To}] > 1 && (e.ID == nil || *e.ID == "") {
 			out = append(out, Advisory{Rule: RuleEdgeWithoutID, Field: field,
-				Message: fmt.Sprintf("edge %s has no id; anchoring and diffs key on ids, so give it one that survives edits", describeEdge(e))})
+				Message: fmt.Sprintf("edge %s has no id and shares its ends with another edge; anchoring and diffs key on ids, so give it one that survives edits", describeEdge(e))})
 		}
 	}
 	return out

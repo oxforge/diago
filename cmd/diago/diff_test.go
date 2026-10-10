@@ -26,8 +26,8 @@ func TestRun_DiffMermaid(t *testing.T) {
 }
 
 func TestRun_DiffPrintsPrefixedAdvisories(t *testing.T) {
-	old := writeTemp(t, "old.json", vagueSpec)
-	nw := writeTemp(t, "new.json", `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"id":"e","from":"a","to":"b","label":"publishes event"}]}`)
+	old := writeTemp(t, "old.json", `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b","label":"uses"},{"id":"r","from":"a","to":"b","label":"retries"}]}`)
+	nw := writeTemp(t, "new.json", `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"id":"e","from":"a","to":"b","label":"publishes event"},{"id":"r","from":"a","to":"b","label":"retries"}]}`)
 	code, _, stderr := runCLI(t, "", "diff", old, nw, "-format", "text")
 	require.Equal(t, 0, code)
 	assert.Contains(t, stderr, "warning: edge-without-id before.edges[0]:")

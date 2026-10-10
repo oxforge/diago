@@ -9,8 +9,9 @@ import (
 
 // checkClass returns the content findings for a class spec, unsorted and
 // before the ignore list; Check sorts and filters. Only the class rules,
-// edge-without-id over relations and empty-group over packages run here:
-// no other flow or sequence rule applies to a class document.
+// edge-without-id over relations (as over flow edges, checkFlowEdges) and
+// empty-group over packages run here: no other flow or sequence rule
+// applies to a class document.
 func checkClass(spec *ClassSpec, opts CheckOptions) []Advisory {
 	var out []Advisory
 	touched := make(map[string]bool, len(spec.Relations))
@@ -45,10 +46,14 @@ func checkClass(spec *ClassSpec, opts CheckOptions) []Advisory {
 			Message: fmt.Sprintf("%d classes is a lot for one diagram (advice threshold: %d); consider decomposing into linked sub-diagrams", len(spec.Classes), maxNodes)})
 	}
 	if opts.Anchored {
+		ends := make(map[[2]string]int, len(spec.Relations))
+		for _, r := range spec.Relations {
+			ends[[2]string{r.From, r.To}]++
+		}
 		for i, r := range spec.Relations {
-			if r.ID == nil || *r.ID == "" {
+			if ends[[2]string{r.From, r.To}] > 1 && (r.ID == nil || *r.ID == "") {
 				out = append(out, Advisory{Rule: RuleEdgeWithoutID, Field: fmt.Sprintf("relations[%d]", i),
-					Message: fmt.Sprintf("relation %s->%s has no id; anchoring and diffs key on ids, so give it one that survives edits", r.From, r.To)})
+					Message: fmt.Sprintf("relation %s->%s has no id and shares its ends with another relation; anchoring and diffs key on ids, so give it one that survives edits", r.From, r.To)})
 			}
 		}
 	}

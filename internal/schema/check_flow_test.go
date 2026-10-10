@@ -123,14 +123,20 @@ func TestCheckFlow_EmptyGroupAndDuplicateEdge(t *testing.T) {
 	assert.Equal(t, `group "g" contains nothing and renders as an empty box`, advs[2].Message)
 }
 
+// TestCheckFlow_EdgeWithoutID: an edge without an id is named by its ends
+// and its place among the edges that share them (from->to#n), so only an
+// edge that shares its ends with another, labeled or not, warns; a lone
+// edge's derived id holds, and the reverse pair is another pair.
 func TestCheckFlow_EdgeWithoutID(t *testing.T) {
-	spec := flowSpec(`{"id":"a","label":"A"},{"id":"b","label":"B"}`,
-		`{"from":"a","to":"b","label":"x"},{"id":"e","from":"a","to":"b","label":"y"},{"from":"b","to":"a"}`,
+	spec := flowSpec(`{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}`,
+		`{"from":"a","to":"b","label":"x"},{"id":"e","from":"a","to":"b","label":"y"},{"from":"b","to":"c","label":"z"},
+		 {"from":"c","to":"a","label":"p"},{"from":"c","to":"a"},{"from":"a","to":"c"}`,
 		`"ignore":["no-entry"]`)
 	assert.Empty(t, mustCheck(t, spec, CheckOptions{}), "not anchored: silent")
 	advs := mustCheck(t, spec, CheckOptions{Anchored: true})
-	require.Equal(t, []string{"edge-without-id edges[0]"}, keys(advs))
-	assert.Equal(t, `edge a->b "x" has no id; anchoring and diffs key on ids, so give it one that survives edits`, advs[0].Message)
+	require.Equal(t, []string{"edge-without-id edges[0]", "edge-without-id edges[3]", "edge-without-id edges[4]"}, keys(advs))
+	assert.Equal(t, `edge a->b "x" has no id and shares its ends with another edge; anchoring and diffs key on ids, so give it one that survives edits`, advs[0].Message)
+	assert.Equal(t, `edge c->a has no id and shares its ends with another edge; anchoring and diffs key on ids, so give it one that survives edits`, advs[2].Message)
 }
 
 func TestCheckFlow_DuplicateEdge(t *testing.T) {

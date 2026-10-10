@@ -12,7 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const vagueSpec = `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b","label":"uses"}]}`
+// vagueSpec's first edge has a vague label and, sharing its ends with the
+// second, warns edge-without-id when anchored.
+const vagueSpec = `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b","label":"uses"},{"id":"r","from":"a","to":"b","label":"retries"}]}`
 
 func advKeys(advs []schema.Advisory) []string {
 	out := make([]string, len(advs))
@@ -88,8 +90,8 @@ func TestRenderWithOptions_TextLabelDropped(t *testing.T) {
 }
 
 func TestRenderDiff_AdvisorySink(t *testing.T) {
-	before := []byte(`{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b","label":"x"}]}`)
-	after := []byte(`{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"edges":[{"id":"e","from":"a","to":"b","label":"uses"}]}`)
+	before := []byte(`{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b","label":"x"},{"id":"r","from":"a","to":"b"}]}`)
+	after := []byte(`{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"edges":[{"id":"e","from":"a","to":"b","label":"uses"},{"id":"r","from":"a","to":"b"}]}`)
 	var advs []schema.Advisory
 	_, err := RenderDiff(context.Background(), before, after, DiffOptions{Format: "text", Advisories: &advs})
 	require.NoError(t, err)
@@ -125,14 +127,14 @@ func TestRenderDiff_RepeatedAdvisoryOnce(t *testing.T) {
 	assert.Equal(t, []string{"no-entry after"}, advs(cycle, cycle))
 
 	// The same edge one place further down: another field, both stay.
-	moved := `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"edges":[{"id":"e","from":"c","to":"b"},{"from":"a","to":"b","label":"uses"}]}`
+	moved := `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"edges":[{"id":"e","from":"c","to":"b"},{"from":"a","to":"b","label":"uses"},{"id":"r","from":"a","to":"b","label":"retries"}]}`
 	assert.Equal(t, []string{
 		"edge-without-id after.edges[1]", "edge-without-id before.edges[0]",
 		"vague-edge-label after.edges[1]", "vague-edge-label before.edges[0]",
 	}, advs(vagueSpec, moved))
 
 	// The same field with another message: both stay.
-	relabelled := `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b","label":"handles"}]}`
+	relabelled := `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b","label":"handles"},{"id":"r","from":"a","to":"b","label":"retries"}]}`
 	assert.Equal(t, []string{
 		"edge-without-id after.edges[0]", "edge-without-id before.edges[0]",
 		"vague-edge-label after.edges[0]", "vague-edge-label before.edges[0]",
@@ -399,4 +401,18 @@ func TestPrefixAdvisories(t *testing.T) {
 	got := prefixAdvisories([]schema.Advisory{{Rule: "r", Field: "nodes[0]"}, {Rule: "r"}}, "before")
 	assert.Equal(t, "before.nodes[0]", got[0].Field)
 	assert.Equal(t, "before", got[1].Field)
+}
+
+// TestRenderDiff_EdgeWithoutIDWarnsOnTheSideWithASibling: each side of a
+// diff is checked against its own edges. before's edge without an id
+// shares its ends with r, so its derived id is a->b#1, and it warns; after
+// drops r, so the same edge, a->b#0 there and alone, does not.
+func TestRenderDiff_EdgeWithoutIDWarnsOnTheSideWithASibling(t *testing.T) {
+	nodes := `"nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}]`
+	before := `{"type":"flow",` + nodes + `,"edges":[{"id":"r","from":"a","to":"b","label":"retries"},{"from":"a","to":"b","label":"reads"}]}`
+	after := `{"type":"flow",` + nodes + `,"edges":[{"from":"a","to":"b","label":"reads"}]}`
+	var advs []schema.Advisory
+	_, err := RenderDiff(context.Background(), []byte(before), []byte(after), DiffOptions{Format: "text", Advisories: &advs})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"edge-without-id before.edges[1]"}, advKeys(advs))
 }

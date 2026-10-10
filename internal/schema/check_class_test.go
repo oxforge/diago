@@ -63,13 +63,18 @@ func TestCheckClass_OverlongMember(t *testing.T) {
 		Message: `member "+ reconcile(ledger: Ledger, at: Date): Report" is 45 runes long (advice threshold: 40); it widens the box, shorten the signature or its types`}, advs[0])
 }
 
+// TestCheckClass_EdgeWithoutIDOnlyAnchored: as in flow, only a relation
+// without an id that shares its ends with another warns, and only
+// anchored.
 func TestCheckClass_EdgeWithoutIDOnlyAnchored(t *testing.T) {
-	spec := `{"type":"class","classes":[{"id":"order"},{"id":"item"}],"relations":[{"from":"order","to":"item","kind":"composition"},{"id":"r","from":"item","to":"order"}]}`
+	spec := `{"type":"class","classes":[{"id":"order"},{"id":"item"},{"id":"sku"}],"relations":[
+	 {"from":"order","to":"item","kind":"composition"},{"id":"r","from":"order","to":"item"},
+	 {"from":"item","to":"sku","label":"stocks"},{"from":"sku","to":"item"}]}`
 	assert.Empty(t, classAdvisories(t, spec, CheckOptions{}))
 	advs := classAdvisories(t, spec, CheckOptions{Anchored: true})
 	require.Len(t, advs, 1)
 	assert.Equal(t, Advisory{Rule: RuleEdgeWithoutID, Field: "relations[0]",
-		Message: "relation order->item has no id; anchoring and diffs key on ids, so give it one that survives edits"}, advs[0])
+		Message: "relation order->item has no id and shares its ends with another relation; anchoring and diffs key on ids, so give it one that survives edits"}, advs[0])
 }
 
 func TestCheckClass_PackagesAndUnknownField(t *testing.T) {
