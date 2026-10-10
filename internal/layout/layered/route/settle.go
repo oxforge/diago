@@ -88,11 +88,10 @@ func (r *router) settleWire(e int, stops []float64) {
 // stop i's x, which ends at i, onto stop i+1's x, else stop i+1 moves onto
 // stop i's; ok is false where the jog stays. An unlocked stop i+1 moves.
 // A locked one and the run meet as their ends allow: where either holds
-// an anchored end, the other side moves onto it, unless, beyond float
-// noise, that side holds an end that never moves (stuckIn) or a side
-// column it would move inward (inward), where the jog stays; else the
-// side that may move gives way when exactly one may (yields); and else
-// the run, unless it holds the stop that carries the arrowhead, locked.
+// an anchored end, the other side moves onto it, unless the jog stays
+// (anchoredJog); else the side that may move gives way when exactly one
+// may (yields); and else the run, unless it holds the stop that carries
+// the arrowhead, locked.
 func (r *router) meet(e int, stops []float64, locked []bool, i, arrowhead int) (moveRun, ok bool) {
 	if !locked[i+1] {
 		return false, true
@@ -106,10 +105,9 @@ func (r *router) meet(e int, stops []float64, locked []bool, i, arrowhead int) (
 	for runEnd < last && stops[runEnd+1] == b {
 		runEnd++
 	}
-	runAnchored, bAnchored := r.anchoredIn(e, runStart, i, last), r.anchoredIn(e, i+1, runEnd, last)
+	runAnchored, bAnchored, stays := r.anchoredJog(e, stops, runStart, i, runEnd)
 	switch {
-	case math.Abs(a-b) > noise && ((runAnchored && (r.stuckIn(e, i+1, runEnd, last) || r.inward(e, stops, runEnd, a))) ||
-		(bAnchored && (r.stuckIn(e, runStart, i, last) || r.inward(e, stops, runStart, b)))):
+	case stays:
 		return false, false
 	case runAnchored:
 		return false, true

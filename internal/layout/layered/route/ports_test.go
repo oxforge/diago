@@ -533,8 +533,9 @@ func TestRoute_ExitsHeadForAnchoredPorts(t *testing.T) {
 }
 
 // TestRoute_AnAnchoredPortMeetsAPinnedVertex pins S8's stops (S9): a
-// diamond's bottom vertex and an anchored port within Snap never move; the
-// jog between them takes a lane.
+// diamond's vertex and an anchored port within Snap never move, the
+// diamond above the group or below it, and neither does a dummy stop
+// snapped onto the port; the jog between them takes a lane.
 func TestRoute_AnAnchoredPortMeetsAPinnedVertex(t *testing.T) {
 	g := shaped(t, func(lv *lgraph.Level) {
 		lv.Nodes[1].Group, lv.Nodes[1].W, lv.Nodes[1].H = true, 300, 200
@@ -542,4 +543,21 @@ func TestRoute_AnAnchoredPortMeetsAPinnedVertex(t *testing.T) {
 	}, "m:diamond->g")
 	_, route := routed(t, g, screen, map[string]float64{"m": 0, "g": 0})
 	assertRoute(t, pts(0, 40, 0, 64, 0.3, 64, 0.3, 88), route("m->g#0"))
+
+	above := func(lv *lgraph.Level) {
+		lv.Nodes[0].Group, lv.Nodes[0].W, lv.Nodes[0].H = true, 300, 200
+		lv.Edges[0].Anchor[0] = lgraph.Anchor{On: true, At: 0.3}
+	}
+	g = shaped(t, above, "g->m:diamond")
+	_, route = routed(t, g, screen, map[string]float64{"g": 0, "m": 0})
+	assertRoute(t, pts(0.3, 200, 0.3, 224, 0, 224, 0, 248), route("g->m#0"))
+
+	lv := lgraphtest.Level(t, "g->m:diamond")
+	above(lv)
+	g, err := lgraph.Build(lv, []int{0, 2}, nil, 8)
+	require.NoError(t, err)
+	_, route = routed(t, g, screen, map[string]float64{"g": 0, "m": 0, "g->m#0@1": 0.3})
+	got := route("g->m#0")
+	assert.Equal(t, model.Point{X: 0.3, Y: 200}, got[0], "on g's anchor: %v", got)
+	assert.Equal(t, model.Point{X: 0, Y: got[len(got)-1].Y}, got[len(got)-1], "on m's in-vertex: %v", got)
 }

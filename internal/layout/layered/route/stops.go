@@ -73,6 +73,21 @@ func (r *router) stuckIn(e, lo, hi, last int) bool {
 	return r.anchoredIn(e, lo, hi, last) || (lo == 0 && r.pinnedEnd(e, ports.Head)) || (hi == last && r.pinnedEnd(e, ports.Tail))
 }
 
+// anchoredJog reports, for the jog between the run of stops lo..i and the
+// run i+1..hi of edge e's wire, whether each run holds an end anchored on
+// a group's face (upper, lower), and whether the jog stays (S8, Stops;
+// S9): beyond float noise, one run holds an anchored end and the other an
+// end that never moves (stuckIn) or a side column the move would take
+// inward (inward).
+func (r *router) anchoredJog(e int, stops []float64, lo, i, hi int) (upper, lower, stays bool) {
+	last := len(stops) - 1
+	a, b := stops[i], stops[i+1]
+	upper, lower = r.anchoredIn(e, lo, i, last), r.anchoredIn(e, i+1, hi, last)
+	stays = math.Abs(a-b) > noise && ((upper && (r.stuckIn(e, i+1, hi, last) || r.inward(e, stops, hi, a))) ||
+		(lower && (r.stuckIn(e, lo, i, last) || r.inward(e, stops, lo, b))))
+	return upper, lower, stays
+}
+
 // buildWires lays every edge's stops and snaps consecutive stops within
 // Snap onto one x, toward a fixed end: the head's x runs forward, unless
 // the tail is fixed and the head is not (or the edge is reversed, whose
@@ -93,13 +108,11 @@ func (r *router) buildWires() {
 		headFixed, tailFixed := r.fixedEnd(e, ports.Head), r.fixedEnd(e, ports.Tail)
 		last := len(stops) - 1
 		for i := 0; i < last; i++ {
-			d := math.Abs(stops[i] - stops[i+1])
-			if d > r.o.Snap {
+			if math.Abs(stops[i]-stops[i+1]) > r.o.Snap {
 				continue
 			}
-			upper, lower := r.anchoredIn(e, i, i, last), r.anchoredIn(e, i+1, i+1, last)
-			if d > noise && ((upper && (r.stuckIn(e, i+1, i+1, last) || r.inward(e, stops, i+1, stops[i]))) ||
-				(lower && (r.stuckIn(e, i, i, last) || r.inward(e, stops, i, stops[i+1])))) {
+			upper, lower, stays := r.anchoredJog(e, stops, i, i, i+1)
+			if stays {
 				continue
 			}
 			tailWins := i+1 == last && tailFixed && (!r.reversed(e) || i != 0 || !headFixed)
