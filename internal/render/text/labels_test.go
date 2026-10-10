@@ -197,3 +197,24 @@ func TestGrid_AFrameSideCrossedByAWireIsNoLongerOnlyASide(t *testing.T) {
 	assert.True(t, drawAt(g, cellPoint{x: 1, y: 3}, "yes"), "a label over the plain side is")
 	assert.Equal(t, 'e', g.runeAt(2, 3))
 }
+
+// TestPlaceText_ARunElsewhereInTheSeedsRowLeavesTheWireVertical: the wire
+// runs down column 10 past the seed at (12, 2), and its last run lies in
+// row 2 too, but at columns 30..40, under none of the text's cells; so
+// the wire near the seed is vertical and the ladder writes the text at
+// the seed, beside the wire, where a run under the text would send it a
+// row up.
+func TestPlaceText_ARunElsewhereInTheSeedsRowLeavesTheWireVertical(t *testing.T) {
+	g := newCharGrid(45, 12)
+	pts := []cellPoint{{10, 0}, {10, 8}, {30, 8}, {30, 2}, {40, 2}}
+	for i := 1; i < len(pts); i++ {
+		a, b := pts[i-1], pts[i]
+		if a.x == b.x {
+			g.vline(a.y, b.y, a.x, styleSolid)
+		} else {
+			g.hline(a.x, b.x, a.y, styleSolid)
+		}
+	}
+	require.True(t, placeText(g, pts, cellPoint{12, 2}, "yes"))
+	assert.Equal(t, "yes", string([]rune{g.glyphAt(12, 2), g.glyphAt(13, 2), g.glyphAt(14, 2)}), "at the seed:\n%s", g.String())
+}

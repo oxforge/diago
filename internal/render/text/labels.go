@@ -48,12 +48,13 @@ func placeText(g *charGrid, pts []cellPoint, seed cellPoint, text string) bool {
 		}
 		return true
 	}
-	// Is the wire near the seed vertical or horizontal? Pick the segment
-	// whose row or column contains the seed; default to vertical.
+	// Is the wire near the seed vertical or horizontal? It is horizontal
+	// when one of its runs lies in the seed's row under some of the text's
+	// cells; vertical otherwise.
 	vertical := true
 	for i := 1; i < len(pts); i++ {
 		a, b := pts[i-1], pts[i]
-		if a.y == b.y && a.y == seed.y {
+		if a.y == b.y && a.y == seed.y && min(a.x, b.x) < seed.x+n && max(a.x, b.x) >= seed.x {
 			vertical = false
 			break
 		}
