@@ -72,6 +72,11 @@ func TestC17_1_Translation(t *testing.T) {
 	short := siblings()
 	short.AppliedCongruences[0].Members[0].Edges = nil
 	assert.Equal(t, []string{"C17.1"}, c17(short), "a member missing an edge")
+
+	long := siblings()
+	long.AppliedCongruences[0].Members[0].Edges = []int{3, 1}
+	assert.Equal(t, []Violation{{Rule: "C17.1", Detail: "congruence 0 member 0 lists 2 edges for 1 representative edges"}},
+		filter(check(long), "C17.1"), "a member with an edge more")
 }
 
 func TestC17_1_TextLabelsMoveWithinHalfACell(t *testing.T) {

@@ -31,6 +31,9 @@ func (c *checker) checkCongruence() {
 	}
 }
 
+// checkTranslations verifies C17.1 for congruence ci: every member lists
+// one edge per representative edge, and each one's route and label are its
+// representative's, translated.
 func (c *checker) checkTranslations(ci int, ac model.AppliedCongruence) {
 	// a text label box lies on whole cells (C14.5), so a label an odd
 	// number of cells wider or narrower than its representative's centers
@@ -42,11 +45,7 @@ func (c *checker) checkTranslations(ci int, ac model.AppliedCongruence) {
 	for mi, m := range ac.Members {
 		var tx, ty float64
 		haveT := false
-		for k, ri := range ac.RepEdges {
-			if k >= len(m.Edges) {
-				c.add("C17.1", "", "congruence %d member %d lists %d edges for %d representative edges", ci, mi, len(m.Edges), len(ac.RepEdges))
-				break
-			}
+		for k, ri := range ac.RepEdges[:min(len(ac.RepEdges), len(m.Edges))] {
 			rep, okR := c.edgeAt(ri)
 			mem, okM := c.edgeAt(m.Edges[k])
 			if !okR || !okM {
@@ -74,6 +73,9 @@ func (c *checker) checkTranslations(ci int, ac model.AppliedCongruence) {
 				(math.Abs(mem.LabelPos.X-rep.LabelPos.X-tx) > tolX || math.Abs(mem.LabelPos.Y-rep.LabelPos.Y-ty) > tolY):
 				c.add("C17.1", mem.ID, "congruence %d: label is not representative %s's label translated by (%.2f,%.2f)", ci, rep.ID, tx, ty)
 			}
+		}
+		if len(m.Edges) != len(ac.RepEdges) {
+			c.add("C17.1", "", "congruence %d member %d lists %d edges for %d representative edges", ci, mi, len(m.Edges), len(ac.RepEdges))
 		}
 	}
 }
