@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/oxforge/diago/internal/schema"
+	"github.com/stretchr/testify/assert"
 )
 
 var testFonts = LayoutFonts{Family: "Inter", HeaderSize: 14, LabelSize: 12, FragLabelSize: 11}
@@ -50,5 +51,23 @@ func TestTextProfile_NestedFragmentsClearTheNextMessage(t *testing.T) {
 	}
 	if b0, b1 := int((ps.Fragments[0].Y+ps.Fragments[0].Height)/16), int((ps.Fragments[1].Y+ps.Fragments[1].Height)/16); b0 == b1 {
 		t.Errorf("outer and inner frames close on the same row %d", b0)
+	}
+}
+
+// TestRuneMeasure: a rune is one 8 px cell and a line one 16 px row,
+// whatever the font; the widest line sets the width.
+func TestRuneMeasure(t *testing.T) {
+	for _, tc := range []struct {
+		text string
+		w, h float64
+	}{
+		{"", 0, 16},
+		{"abc", 24, 16},
+		{"ab\ncdef\nx", 32, 48},
+		{"é→ö", 24, 16},
+	} {
+		w, h := runeMeasure(tc.text, 14, "Inter")
+		assert.Equal(t, tc.w, w, "%q width", tc.text)
+		assert.Equal(t, tc.h, h, "%q height", tc.text)
 	}
 }

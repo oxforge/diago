@@ -2,7 +2,6 @@ package sequence
 
 import (
 	"github.com/oxforge/diago/internal/font"
-	"github.com/oxforge/diago/internal/layout"
 	"github.com/oxforge/diago/internal/model"
 )
 
@@ -88,7 +87,7 @@ func ScreenProfile(fonts LayoutFonts) Profile {
 // activation and fragment edge lies on the 8 × 16 px cell grid.
 func TextProfile() Profile {
 	return Profile{
-		MeasureText:           layout.RuneMeasure,
+		MeasureText:           runeMeasure,
 		Fonts:                 LayoutFonts{Family: "Inter", HeaderSize: 14, LabelSize: 12, FragLabelSize: 11},
 		ActorPaddingX:         16,
 		ActorPaddingY:         16,
@@ -116,4 +115,28 @@ func TextProfile() Profile {
 		CellW:                 model.TextCellW,
 		CellH:                 model.TextCellH,
 	}
+}
+
+// runeMeasure is the text profile's measure: one cell per rune and one row
+// per line, in px, whatever the font family and size; the widest line sets
+// the width.
+func runeMeasure(text string, _ float64, _ string) (float64, float64) {
+	widest := 0
+	lines := 1
+	cur := 0
+	for _, r := range text {
+		if r == '\n' {
+			lines++
+			if cur > widest {
+				widest = cur
+			}
+			cur = 0
+			continue
+		}
+		cur++
+	}
+	if cur > widest {
+		widest = cur
+	}
+	return float64(widest) * model.TextCellW, float64(lines) * model.TextCellH
 }
