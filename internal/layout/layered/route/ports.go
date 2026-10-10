@@ -280,15 +280,11 @@ func exitsAmong(cx, band float64, exits []ports.Exit, freeLeft, freeRight bool) 
 }
 
 // attachRects moves counter-flow ends on nodes that are not pinned to a
-// side face (S8): the back edge hugs the side at mid-height instead of
-// weaving between the forward ports. A one-hop edge puts both of its ends
-// on one side; a longer chain attaches only when its adjacent dummy's
-// column already clears the face by Reach. A row that blocks the column,
-// a side already held, or a self-loop on the right face keeps the face
-// port. In replay (Options.Side), exactly the recorded ends attach, each
-// on its recorded side. Every column then settles in columns, where one
-// that does not keep the row clear stays Reach out, the room place kept
-// for it (S7). Each end attaches on its own, head first (attachRect).
+// side face where S8 lets them (S8, Side attachments): the back edge hugs
+// the side at mid-height instead of weaving between the forward ports.
+// Each end attaches on its own, head first (attachRect). Every column then
+// settles in columns, where one that does not keep the row clear stays
+// Reach out, the room place kept for it (S7).
 func (r *router) attachRects() {
 	for e, chain := range r.g.Chains {
 		if len(chain) < 2 || !r.reversed(e) {
