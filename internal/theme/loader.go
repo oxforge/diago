@@ -42,12 +42,11 @@ func Load(name string) (Theme, error) {
 		}
 	}
 
-	var jt jsonTheme
-	if err := json.Unmarshal(data, &jt); err != nil {
+	var th Theme
+	if err := json.Unmarshal(data, &th); err != nil {
 		return Theme{}, fmt.Errorf("theme %q: invalid JSON: %w", name, err)
 	}
-
-	th := toTheme(jt)
+	th.Diff = th.Diff.orPalette(th.Colors)
 
 	if err := validate(th); err != nil {
 		return Theme{}, fmt.Errorf("theme %q: %w", name, err)

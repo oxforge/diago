@@ -1,6 +1,9 @@
 package theme
 
 import (
+	"bytes"
+	"encoding/json"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -166,6 +169,23 @@ func TestAllEmbeddedThemesValid(t *testing.T) {
 			err = validate(th)
 			assert.NoError(t, err)
 		})
+	}
+}
+
+// TestEmbeddedThemes_EveryKeyIsAField: every key of every built-in theme
+// file decodes into a Theme field, so a key without its JSON tag fails here
+// instead of loading as a zero value.
+func TestEmbeddedThemes_EveryKeyIsAField(t *testing.T) {
+	files, err := fs.Glob(themes.FS, "*.json")
+	require.NoError(t, err)
+	require.NotEmpty(t, files)
+	for _, f := range files {
+		data, err := themes.FS.ReadFile(f)
+		require.NoError(t, err)
+		dec := json.NewDecoder(bytes.NewReader(data))
+		dec.DisallowUnknownFields()
+		var th Theme
+		assert.NoError(t, dec.Decode(&th), f)
 	}
 }
 

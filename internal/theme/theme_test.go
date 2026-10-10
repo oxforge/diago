@@ -32,14 +32,13 @@ func TestTheme_DiffColors(t *testing.T) {
 }
 
 func TestTheme_DiffFallbackToPalette(t *testing.T) {
-	jt := jsonTheme{Colors: map[string]string{"green": "#00ff00", "blue": "#0000ff", "red": "#ff0000", "orange": "#ff8800"}}
-	assert.Equal(t, DiffStyle{Added: "#00ff00", Changed: "#0000ff", Removed: "#ff0000"}, toTheme(jt).Diff,
+	colors := map[string]string{"green": "#00ff00", "blue": "#0000ff", "red": "#ff0000", "orange": "#ff8800"}
+	assert.Equal(t, DiffStyle{Added: "#00ff00", Changed: "#0000ff", Removed: "#ff0000"}, DiffStyle{}.orPalette(colors),
 		"no diff block: green, blue and red")
-	jt.Diff = &jsonDiffStyle{Changed: "#222222"}
-	assert.Equal(t, DiffStyle{Added: "#00ff00", Changed: "#222222", Removed: "#ff0000"}, toTheme(jt).Diff,
+	assert.Equal(t, DiffStyle{Added: "#00ff00", Changed: "#222222", Removed: "#ff0000"}, DiffStyle{Changed: "#222222"}.orPalette(colors),
 		"a partial block falls back per key")
-	jt.Diff = &jsonDiffStyle{Added: "#111111", Changed: "#222222", Removed: "#333333"}
-	assert.Equal(t, DiffStyle{Added: "#111111", Changed: "#222222", Removed: "#333333"}, toTheme(jt).Diff)
+	full := DiffStyle{Added: "#111111", Changed: "#222222", Removed: "#333333"}
+	assert.Equal(t, full, full.orPalette(colors))
 }
 
 func TestDefaultThemeHasClassStyle(t *testing.T) {
