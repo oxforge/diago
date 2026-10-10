@@ -426,22 +426,13 @@ type Room struct {
 // eps absorbs float error in the room comparisons.
 const eps = 1e-9
 
-// Isolated places the isolated nodes of lv, those no edge touches, not
-// even a self-loop, in the rows with the most room, so as not to enlarge
-// the level by S3's estimate, which packs each row before placement
-// spreads it (S3). layers is
-// the level's layering (AssignKept), kept marks the nodes that adopted a
-// previous layer (S13), which keep it; nil marks none. Each other isolated
-// node, in declaration order, moves to the row with the most room where
-// it fits: a row is a layer holding a node that is neither a terminal nor
-// isolated, or an isolated node placed already; its extent is its nodes'
-// cross-axis extents and room.Dummy for each edge passing it, with
-// room.Gap between each two; its room is the widest row's extent minus
-// its own. A node fits a row whose room is at least its extent plus the
-// gap and whose tallest node is at least as tall; of equal rooms the
-// earliest row wins, and a node that fits none keeps its layer. The
-// layers are then renumbered to a contiguous range from 0. layers is not
-// modified.
+// Isolated moves the isolated nodes of lv, those no edge touches, not
+// even a self-loop, in declaration order, each to the row with the most
+// room where it fits by S3's estimate (S3, Isolated nodes), and returns
+// the layers renumbered to a contiguous range from 0. layers is the
+// level's layering (AssignKept), and is not modified; kept marks the
+// nodes that adopted a previous layer (S13), which keep it; nil marks
+// none.
 func Isolated(ctx context.Context, lv *lgraph.Level, reversed []bool, layers []int, kept []bool, room Room) []int {
 	touched := make([]bool, len(lv.Nodes))
 	for _, ed := range lv.Edges {
