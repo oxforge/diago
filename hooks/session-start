@@ -3,12 +3,19 @@
 # in the session's context, worded for the host. Uses bash builtins only and
 # exits 0 whatever happens, so it never blocks a session.
 
-# json_escape prints $1 escaped for a JSON string: backslashes and double
-# quotes (the texts below hold no control characters).
+# json_escape prints $1 escaped for a JSON string: backslashes, double
+# quotes and the control characters U+0001 to U+001F, which the plugin root
+# may hold.
 json_escape() {
-  local s=$1
+  local s=$1 i oct ch esc
   s=${s//\\/\\\\}
   s=${s//\"/\\\"}
+  for ((i = 1; i < 32; i++)); do
+    printf -v oct '%03o' "$i"
+    printf -v ch "\\$oct"
+    printf -v esc '\\u%04x' "$i"
+    s=${s//"$ch"/"$esc"}
+  done
   printf '%s' "$s"
 }
 

@@ -78,10 +78,17 @@ func TestSessionStart_NamesTheScript(t *testing.T) {
 	assert.NotContains(t, runHook(t, true), "diago-render script")
 }
 
+// TestSessionStart_EscapesThePluginRoot: whatever the plugin root holds,
+// quotes, backslashes, control characters or non-ASCII letters, the hook
+// prints valid JSON that carries it unchanged.
 func TestSessionStart_EscapesThePluginRoot(t *testing.T) {
-	root := `/odd "dir" \ name`
-	got := runHook(t, true, "CLAUDE_PLUGIN_ROOT="+root)
-	assert.Contains(t, got, root+"/scripts/diago-render")
+	for _, root := range []string{
+		`/odd "dir" \ name`,
+		"/a\ttab/a\nnewline/a\rreturn/\x01\x1f\x7f/über",
+	} {
+		got := runHook(t, true, "CLAUDE_PLUGIN_ROOT="+root)
+		assert.Contains(t, got, root+"/scripts/diago-render", "%q", root)
+	}
 }
 
 func TestSessionStart_WithoutDiagoTellsTheAgentToCheckItsShell(t *testing.T) {
