@@ -52,6 +52,7 @@ func TestC9_2_TrackGap(t *testing.T) {
 		{"7.5 px apart", wire("r", "s", 60, 57.5, 160, 57.5), false},
 		{"3 px end to end on one track", wire("r", "s", 123, 50, 200, 50), true},
 		{"perpendicular", wire("r", "s", 70, 20, 70, 120), false},
+		{"a shared run, C9.1's alone", wire("r", "s", 60, 50, 160, 50), false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -173,6 +174,7 @@ func TestC9_1_Rail(t *testing.T) {
 	m1 := wire("m1", "d", 40, 50, 40, 100, 100, 100, 100, 120)
 	m2 := wire("m2", "d", 70, 50, 70, 100, 100, 100, 100, 120)
 	assert.False(t, has(pair(m1, m2, d), "C9.1", "m1->d#0"), "a rail into one vertex")
+	assert.Empty(t, filter(pair(m1, m2, d), "C9.2"), "nor C9.2, which leaves a shared run to C9.1")
 
 	d.Shape = model.ShapeRect
 	assert.True(t, sharesRun(pair(m1, m2, d), 1), "a rect has no shared vertex: the run is shared")
