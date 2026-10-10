@@ -47,10 +47,10 @@ type Error struct {
 func (e *Error) Error() string { return e.Msg }
 
 // Read resolves one spec argument. "" and "-" are stdin; a name that exists
-// on disk is that file, even when it contains a colon; any other name with a
-// colon is REV:PATH, split at the first colon, PATH relative to the current
-// directory; anything else is read as a file, so a missing one fails as
-// os.ReadFile does.
+// on disk is that file, even when it contains a colon; any other name that
+// SplitRevision splits is REV:PATH, PATH relative to the current directory;
+// anything else is read as a file, so a missing one fails as os.ReadFile
+// does.
 func Read(ctx context.Context, arg string, stdin io.Reader) (Spec, error) {
 	if arg == "" || arg == "-" {
 		if stdin == nil {
@@ -65,10 +65,23 @@ func Read(ctx context.Context, arg string, stdin io.Reader) (Spec, error) {
 	if _, err := os.Stat(arg); err == nil {
 		return readFile(arg)
 	}
-	if rev, file, ok := strings.Cut(arg, ":"); ok {
+	if rev, file, ok := SplitRevision(arg); ok {
 		return readRevision(ctx, arg, rev, file)
 	}
 	return readFile(arg)
+}
+
+// SplitRevision splits a REV:PATH argument at its first colon. ok is false
+// when arg has no colon, and for a Windows drive path, an ASCII letter, a
+// colon and a slash or backslash ("C:\x\spec.json", "c:/x/spec.json"): that
+// is a path on every OS, so a one-letter revision takes a relative PATH.
+func SplitRevision(arg string) (rev, path string, ok bool) {
+	if len(arg) >= 3 && arg[1] == ':' && (arg[2] == '\\' || arg[2] == '/') {
+		if c := arg[0]; 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' {
+			return "", "", false
+		}
+	}
+	return strings.Cut(arg, ":")
 }
 
 // readFile reads a file on disk.

@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -137,4 +138,19 @@ func TestRun_DiffOneRevisionArgument(t *testing.T) {
 	assert.Equal(t, 2, code)
 	assert.Empty(t, out)
 	assert.Contains(t, stderr, "diago diff HEAD~1:arch.json arch.json")
+}
+
+// TestRun_ADrivePathIsAPath: a missing Windows drive path is a missing file
+// to render and to one-argument diff, not a revision.
+func TestRun_ADrivePathIsAPath(t *testing.T) {
+	r := sourcetest.New(t)
+	r.Commit("v1", map[string]string{"arch.json": diffOld})
+	t.Chdir(r.Dir)
+	arg := `C:\x\spec.json`
+	code, _, stderr := runCLI(t, "", "render", arg)
+	assert.Equal(t, 2, code)
+	assert.True(t, strings.HasPrefix(stderr, "error: read spec: open "+arg+": "), stderr)
+	code, _, stderr = runCLI(t, "", "diff", arg)
+	assert.Equal(t, 2, code)
+	assert.True(t, strings.HasPrefix(stderr, "error: open "+arg+": "), stderr)
 }

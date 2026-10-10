@@ -54,6 +54,48 @@ func TestRead_StdinAndFiles(t *testing.T) {
 	assert.ErrorIs(t, err, fs.ErrNotExist)
 }
 
+// TestRead_ADrivePathIsAFile: a Windows drive path that does not exist
+// fails as a missing file, on every OS, even inside a repository, where its
+// drive letter would be an unknown revision.
+func TestRead_ADrivePathIsAFile(t *testing.T) {
+	r := sourcetest.New(t)
+	r.Commit("v1", map[string]string{"arch.json": "one"})
+	t.Chdir(r.Dir)
+	for _, arg := range []string{`C:\x\spec.json`, "c:/x/spec.json"} {
+		_, err := Read(context.Background(), arg, nil)
+		assert.ErrorIs(t, err, fs.ErrNotExist, arg)
+		assert.Zero(t, kindOf(err), arg)
+	}
+}
+
+// TestSplitRevision: REV:PATH splits at the first colon, and a Windows
+// drive path is a path, whatever the OS, so a one-letter revision before
+// an absolute path is one too.
+func TestSplitRevision(t *testing.T) {
+	for _, tc := range []struct {
+		arg, rev, path string
+		ok             bool
+	}{
+		{"HEAD~1:arch.json", "HEAD~1", "arch.json", true},
+		{"v:docs/arch.json", "v", "docs/arch.json", true},
+		{"v1:/abs/arch.json", "v1", "/abs/arch.json", true},
+		{`HEAD:C:\x\arch.json`, "HEAD", `C:\x\arch.json`, true},
+		{"1:/abs/arch.json", "1", "/abs/arch.json", true},
+		{arg: `C:\x\spec.json`},
+		{arg: "c:/x/spec.json"},
+		{arg: "v:/abs/arch.json"},
+		{arg: `v:\abs\arch.json`},
+		{arg: "arch.json"},
+	} {
+		rev, path, ok := SplitRevision(tc.arg)
+		assert.Equal(t, tc.ok, ok, tc.arg)
+		if tc.ok {
+			assert.Equal(t, tc.rev, rev, tc.arg)
+			assert.Equal(t, tc.path, path, tc.arg)
+		}
+	}
+}
+
 func TestRead_Revision(t *testing.T) {
 	ctx := context.Background()
 	r := sourcetest.New(t)

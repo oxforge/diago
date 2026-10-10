@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"os"
 	"slices"
-	"strings"
 
 	"github.com/oxforge/diago/internal/layoutdbg"
 	"github.com/oxforge/diago/internal/pipeline"
@@ -112,7 +111,7 @@ func revisionHint(arg string) string {
 	if _, err := os.Stat(arg); err == nil {
 		return ""
 	}
-	rev, path, ok := strings.Cut(arg, ":")
+	rev, path, ok := source.SplitRevision(arg)
 	if !ok || rev == "" || path == "" {
 		return ""
 	}
