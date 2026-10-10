@@ -236,8 +236,10 @@ func (m *markerSet) add(accent, cls string, adorned bool, th theme.Theme, opts *
 // the emission is deterministic. pair builds a suffix's pair in a fill;
 // trio its UML trio, nil when no element is adorned.
 func (m *markerSet) defs(pair, trio func(suffix, fill string) []Element) []Element {
-	slices.SortStableFunc(m.statuses, func(a, b markerUse) int { return strings.Compare(a.suffix, b.suffix) })
-	return append(markerDefs(m.accents, pair, trio), markerDefs(m.statuses, pair, trio)...)
+	statuses := slices.SortedStableFunc(slices.Values(m.statuses), func(a, b markerUse) int {
+		return strings.Compare(a.suffix, b.suffix)
+	})
+	return append(markerDefs(m.accents, pair, trio), markerDefs(statuses, pair, trio)...)
 }
 
 // markerDefs returns the marker defs uses need, each once: a suffix's pair

@@ -275,3 +275,17 @@ func TestMarkerSet_EmissionOrder(t *testing.T) {
 		"pair added #00aa00", "trio added #00aa00", "pair removed #aa0000", "trio removed #aa0000",
 	}, got)
 }
+
+// TestMarkerSet_DefsLeavesTheSetUnchanged pins that reading a set's defs
+// does not reorder the uses it collected: the status classes' defs come
+// out sorted, while the set keeps its uses in element order.
+func TestMarkerSet_DefsLeavesTheSetUnchanged(t *testing.T) {
+	th := themetest.Default()
+	opts := &RenderOptions{MarkerFills: map[string]string{"added": "#00aa00", "removed": "#aa0000"}}
+	var set markerSet
+	set.add("", "removed", false, th, opts)
+	set.add("", "added", false, th, opts)
+	none := func(suffix, fill string) []Element { return nil }
+	set.defs(none, none)
+	assert.Equal(t, []string{"removed", "added"}, []string{set.statuses[0].suffix, set.statuses[1].suffix})
+}
