@@ -71,6 +71,17 @@ func pointBoxDist(p model.Point, b box) float64 {
 
 func dist(a, b model.Point) float64 { return math.Hypot(a.X-b.X, a.Y-b.Y) }
 
+// finite reports whether every one of vs is a finite number: neither an
+// infinity nor NaN, which every comparison reads as false.
+func finite(vs ...float64) bool {
+	for _, v := range vs {
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			return false
+		}
+	}
+	return true
+}
+
 func horizontal(p, q model.Point) bool { return math.Abs(p.Y-q.Y) <= orthoTol }
 func vertical(p, q model.Point) bool   { return math.Abs(p.X-q.X) <= orthoTol }
 

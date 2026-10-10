@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,6 +21,7 @@ func cross(h, v []model.Crossing) []Violation {
 func TestC15_1_RecordsAreValid(t *testing.T) {
 	assert.True(t, has(cross([]model.Crossing{{SegmentIndex: 3, T: 0.4444}}, nil), "C15.1", "p->q#0"))
 	assert.True(t, has(cross([]model.Crossing{{SegmentIndex: 0, T: 1.5}}, nil), "C15.1", "p->q#0"))
+	assert.True(t, has(cross([]model.Crossing{{SegmentIndex: 0, T: math.NaN()}}, nil), "C15.1", "p->q#0"), "NaN lies in no range")
 }
 
 func TestC15_2_CrossingsAreRecorded(t *testing.T) {

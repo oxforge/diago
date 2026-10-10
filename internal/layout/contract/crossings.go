@@ -17,7 +17,7 @@ func (c *checker) checkCrossings() {
 			if cr.SegmentIndex < 0 || cr.SegmentIndex >= len(e.Points)-1 {
 				c.add("C15.1", e.ID, "crossing %d names segment %d of a %d-point route", k, cr.SegmentIndex, len(e.Points))
 			}
-			if cr.T < 0 || cr.T > 1 {
+			if math.IsNaN(cr.T) || cr.T < 0 || cr.T > 1 {
 				c.add("C15.1", e.ID, "crossing %d has t=%.4f outside [0,1]", k, cr.T)
 			}
 		}

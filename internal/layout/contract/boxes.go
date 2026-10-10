@@ -176,14 +176,19 @@ func (c *checker) checkTitles() {
 
 // checkMargins verifies C16: all geometry lies at least Margin inside the
 // canvas (C16.1), and the canvas is tight: some geometry touches the margin
-// on every side (C16.2). In the text profile the geometry's extent rounds
-// out to whole cells, where it is drawn.
+// on every side (C16.2). A coordinate or a canvas size that is not a finite
+// number lies nowhere, so it breaches C16.1. In the text profile the
+// geometry's extent rounds out to whole cells, where it is drawn.
 func (c *checker) checkMargins() {
 	ext := box{math.Inf(1), math.Inf(1), math.Inf(-1), math.Inf(-1)}
 	grow := func(subject string, b box) {
 		ext = box{math.Min(ext.left, b.left), math.Min(ext.top, b.top), math.Max(ext.right, b.right), math.Max(ext.bottom, b.bottom)}
 		m := c.lim.Margin - slack
-		if b.left < m || b.top < m || b.right > c.pg.Width-m || b.bottom > c.pg.Height-m {
+		switch {
+		case !finite(b.left, b.top, b.right, b.bottom, c.pg.Width, c.pg.Height):
+			c.add("C16.1", subject, "(%.2f,%.2f)-(%.2f,%.2f) on the %gx%g canvas is not a finite position",
+				b.left, b.top, b.right, b.bottom, c.pg.Width, c.pg.Height)
+		case b.left < m || b.top < m || b.right > c.pg.Width-m || b.bottom > c.pg.Height-m:
 			c.add("C16.1", subject, "(%.2f,%.2f)-(%.2f,%.2f) is within %.0f px of the %gx%g canvas edge",
 				b.left, b.top, b.right, b.bottom, c.lim.Margin, c.pg.Width, c.pg.Height)
 		}

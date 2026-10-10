@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -218,4 +219,23 @@ func TestC16_Margins(t *testing.T) {
 	assert.True(t, has(check(label), "C16.1", "a->b#0"), "labels are bounded by the margin too")
 
 	assert.Empty(t, check(layout(0, 0, nil)), "an empty layout")
+}
+
+// TestC16_1_ANonFiniteCoordinateLiesNowhere: a node, a route point or the
+// canvas whose coordinate is not a finite number lies nowhere on the
+// canvas, so it breaches C16.1, where every comparison with NaN would
+// otherwise pass.
+func TestC16_1_ANonFiniteCoordinateLiesNowhere(t *testing.T) {
+	node := chain()
+	node.Nodes[1].X = math.NaN()
+	assert.Equal(t, []Violation{{Rule: "C16.1", Subject: "b", Detail: "(NaN,120.00)-(NaN,160.00) on the 120x180 canvas is not a finite position"}},
+		filter(check(node), "C16.1"))
+
+	point := chain()
+	point.Edges[0].Points[1].Y = math.NaN()
+	assert.True(t, has(check(point), "C16.1", "a->b#0"))
+
+	canvas := chain()
+	canvas.Width = math.NaN()
+	assert.Len(t, filter(check(canvas), "C16.1"), 3, "every node and route")
 }
