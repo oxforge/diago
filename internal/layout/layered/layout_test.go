@@ -193,6 +193,47 @@ func TestLayout_ClassDiagram(t *testing.T) {
 	assert.Equal(t, model.RelationAggregation, walks.Relation)
 }
 
+// TestLayout_LegendLabelsRenameAndHideRows pins the legend rows a class
+// diagram's legend labels make: one row per relation kind among the
+// edges, sorted by kind and labelled by the kind; a label renames its
+// kind's row, an empty one hides it, and one for a kind no edge has adds
+// no row.
+func TestLayout_LegendLabelsRenameAndHideRows(t *testing.T) {
+	g := model.Graph{Direction: model.Down,
+		Nodes: []model.Node{
+			{ID: "a", Label: "A", Members: &model.Members{}},
+			{ID: "b", Label: "B", Members: &model.Members{}},
+			{ID: "c", Label: "C", Members: &model.Members{}},
+		},
+		Edges: []model.Edge{
+			{ID: "a->b#0", From: "a", To: "b", Relation: model.RelationInheritance},
+			{ID: "a->c#0", From: "a", To: "c", Relation: model.RelationComposition},
+			{ID: "b->c#0", From: "b", To: "c", Relation: model.RelationAggregation},
+			{ID: "c->a#0", From: "c", To: "a"},
+		},
+	}
+	for _, tc := range []struct {
+		name   string
+		labels map[string]string
+		want   []model.LegendEntry
+	}{
+		{"no labels", nil, []model.LegendEntry{
+			{Kind: "aggregation", Label: "aggregation"}, {Kind: "composition", Label: "composition"}, {Kind: "inheritance", Label: "inheritance"}}},
+		{"a label renames its row", map[string]string{"inheritance": "is a"}, []model.LegendEntry{
+			{Kind: "aggregation", Label: "aggregation"}, {Kind: "composition", Label: "composition"}, {Kind: "inheritance", Label: "is a"}}},
+		{"an empty label hides its row", map[string]string{"composition": ""}, []model.LegendEntry{
+			{Kind: "aggregation", Label: "aggregation"}, {Kind: "inheritance", Label: "inheritance"}}},
+		{"a label for an absent kind adds no row", map[string]string{"dependency": "uses", "aggregation": "has"}, []model.LegendEntry{
+			{Kind: "aggregation", Label: "has"}, {Kind: "composition", Label: "composition"}, {Kind: "inheritance", Label: "inheritance"}}},
+		{"every row hidden", map[string]string{"aggregation": "", "composition": "", "inheritance": ""}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			g.Legend = &model.Legend{Labels: tc.labels}
+			assert.Equal(t, tc.want, lay(t, g, screen(), model.Down).Legend)
+		})
+	}
+}
+
 func TestLayout_CarriesTheEdgeStyle(t *testing.T) {
 	g := graph(t, nil, "a->b")
 	g.Nodes[0].Color = "red"
