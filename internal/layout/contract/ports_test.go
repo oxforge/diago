@@ -79,6 +79,25 @@ func TestC8_5_OwnVertices(t *testing.T) {
 		toA := wire("d", "a", 123, 143, 200, 143, 200, 40, 140, 40)
 		assert.False(t, has(check(fan(model.ShapeCircle, dBottomToB, dBottomToC, toA)), "C8.5", "d->c#0"))
 	})
+	t.Run("an exit off every vertex counts toward four", func(t *testing.T) {
+		// d's fourth forward edge leaves the middle of its lower right
+		// side (C8.1); with four edges the other three may share
+		e3 := dRightToC
+		e3.ID = "d->c#1"
+		off := wire("d", "c", 120, 154.5, 120, 210, 170, 210, 170, 240)
+		off.ID = "d->c#2"
+		vs := check(fan(model.ShapeDiamond, dBottomToB, dBottomToC, e3, off))
+		assert.True(t, has(vs, "C8.1", "d->c#2"))
+		assert.Empty(t, filter(vs, "C8.5"))
+	})
+	t.Run("an exit off every vertex breaks a circle's merge", func(t *testing.T) {
+		// the circle's two bottom exits are not all of its forward edges
+		off := wire("d", "c", 116.26, 159.26, 116.26, 210, 170, 210, 170, 240)
+		off.ID = "d->c#2"
+		vs := check(fan(model.ShapeCircle, dBottomToB, dBottomToC, off))
+		assert.True(t, has(vs, "C8.1", "d->c#2"))
+		assert.True(t, has(vs, "C8.5", "d->c#0"))
+	})
 	t.Run("more than three edges may share", func(t *testing.T) {
 		e3, e4 := dBottomToB, dBottomToC
 		e3.ID, e4.ID = "d->b#1", "d->c#1"

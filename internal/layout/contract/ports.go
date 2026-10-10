@@ -79,15 +79,17 @@ func pinned(n model.PositionedNode) bool {
 // leaves from it (C8.3); back edges use a cross-axis vertex (C8.4); up to
 // three outgoing forward edges each leave from their own vertex, except a
 // circle's fan-out that all heads to one side, while back edges keep to C8.4
-// alone (C8.5). Self-loops are exempt from C8.2–C8.5. Direction Auto, which
-// knows no forward edge, skips C8.2–C8.5.
+// alone (C8.5); an edge leaving off every vertex counts toward the three
+// but shares none. Self-loops are exempt from C8.2–C8.5. Direction Auto,
+// which knows no forward edge, skips C8.2–C8.5.
 func (c *checker) checkShapePorts() {
 	oriented := c.opts.Direction != model.Auto
-	// out[node] collects the start vertex of each outgoing forward edge,
-	// for C8.5.
+	// out[node] collects the start of each outgoing forward edge, for C8.5:
+	// its vertex, or none when it leaves off every vertex (C8.1).
 	type start struct {
-		edge string
-		at   side
+		edge   string
+		at     side
+		vertex bool
 	}
 	out := make(map[string][]start)
 	for _, e := range c.pg.Edges {
@@ -117,18 +119,18 @@ func (c *checker) checkShapePorts() {
 				continue
 			}
 			v, d := nearestVertex(end.n, end.p)
-			if d > attachTol {
+			onVertex := d <= attachTol
+			if !onVertex {
 				c.add("C8.1", e.ID, "endpoint (%.2f,%.2f) on %s %s is %.2f px from its nearest vertex",
 					end.p.X, end.p.Y, end.n.Shape, end.n.ID, d)
-				continue
 			}
 			if self {
 				continue
 			}
 			if end.outgoing && k == forward {
-				out[end.n.ID] = append(out[end.n.ID], start{e.ID, v})
+				out[end.n.ID] = append(out[end.n.ID], start{e.ID, v, onVertex})
 			}
-			if !oriented {
+			if !onVertex || !oriented {
 				continue
 			}
 			in := inVertex(c.opts.Direction)
@@ -152,8 +154,8 @@ func (c *checker) checkShapePorts() {
 		}
 		if n.Shape == model.ShapeCircle {
 			same := true
-			for _, s := range starts[1:] {
-				same = same && s.at == starts[0].at
+			for _, s := range starts {
+				same = same && s.vertex && s.at == starts[0].at
 			}
 			if same {
 				continue // a circle's merged fan-out
@@ -161,7 +163,7 @@ func (c *checker) checkShapePorts() {
 		}
 		for i := range starts {
 			for j := i + 1; j < len(starts); j++ {
-				if starts[i].at == starts[j].at {
+				if starts[i].vertex && starts[j].vertex && starts[i].at == starts[j].at {
 					c.add("C8.5", starts[j].edge, "leaves %s %s from the %v vertex that edge %s already uses",
 						n.Shape, n.ID, starts[j].at, starts[i].edge)
 				}
