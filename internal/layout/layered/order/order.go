@@ -24,8 +24,9 @@ const transposeRounds = 4
 
 // maxReplacements caps the orderings that replace Minimize's best: each
 // has fewer crossings, or as many and fewer enclosed vertices, so the
-// loop ends long before (no corpus or probe layout takes more than 4);
-// the cap guards against a change that breaks this (S6).
+// loop ends long before (no layout measured, the random-graph probe's
+// included, takes more than 4); the cap guards against a change that
+// breaks this (S6).
 const maxReplacements = 100
 
 // Minimize returns an ordering of g's layers that reduces the hops that

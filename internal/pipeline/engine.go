@@ -110,8 +110,7 @@ func reportContract(ctx context.Context, pg *model.PositionedGraph, g model.Grap
 }
 
 // edgeIDs lists g's edge ids, in edge order: the ids a contract check
-// expects in the layout (C2.1). Mirrors corpus.EdgeIDs, which pipeline
-// cannot import (corpus imports pipeline).
+// expects in the layout (C2.1).
 func edgeIDs(g model.Graph) []string {
 	ids := make([]string, len(g.Edges))
 	for i, e := range g.Edges {
