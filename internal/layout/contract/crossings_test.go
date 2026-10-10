@@ -57,8 +57,10 @@ func TestC15_WhatIsNotFlagged(t *testing.T) {
 		want bool
 	}{
 		{"a record at t = 0", two(recorded(h, model.Crossing{SegmentIndex: 0, T: 0}, model.Crossing{SegmentIndex: 0, T: tFor(0)}), v), "C15.1", false},
+		{"a record before t = 0", two(recorded(h, model.Crossing{SegmentIndex: 0, T: -0.01}), v), "C15.1", true},
 		{"a record at t = 1", two(recorded(h, model.Crossing{SegmentIndex: 0, T: 1}, model.Crossing{SegmentIndex: 0, T: tFor(0)}), v), "C15.1", false},
 		{"a record past t = 1", two(recorded(h, model.Crossing{SegmentIndex: 0, T: 1.01}), v), "C15.1", true},
+		{"a record before a route's first segment", two(recorded(h, model.Crossing{SegmentIndex: -1, T: tFor(0)}), v), "C15.1", true},
 		{"a record on a route's last segment",
 			two(recorded(wire("p", "q", 20, 60, 20, 100, 200, 100), model.Crossing{SegmentIndex: 1, T: tFor(0)}), v), "C15.1", false},
 		{"a record past a route's last segment",
