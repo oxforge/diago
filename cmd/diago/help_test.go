@@ -62,6 +62,36 @@ func TestRun_HelpGoesToStdout(t *testing.T) {
 	assert.Contains(t, out, "diago --version")
 }
 
+// TestRun_EveryHelpSpellingExitsZero: -h, -help and --help print a usage
+// on stdout with exit code 0 wherever they stand: alone, after help and
+// after any spelling of version, as they do after a verb.
+func TestRun_EveryHelpSpellingExitsZero(t *testing.T) {
+	for _, h := range []string{"-h", "-help", "--help"} {
+		for _, tc := range []struct {
+			args []string
+			want string
+		}{
+			{[]string{h}, "usage: diago <verb>"},
+			{[]string{"help", h}, "usage: diago <verb>"},
+			{[]string{"render", h}, "usage: diago render"},
+			{[]string{"version", h}, "usage: diago --version"},
+			{[]string{"--version", h}, "usage: diago --version"},
+			{[]string{"-version", h}, "usage: diago --version"},
+		} {
+			code, out, stderr := runCLI(t, "", tc.args...)
+			assert.Equal(t, 0, code, tc.args)
+			assert.True(t, strings.HasPrefix(out, tc.want), "%v: %q", tc.args, out)
+			assert.Empty(t, stderr, tc.args)
+		}
+	}
+	for _, v := range []string{"--version", "-version"} {
+		code, out, stderr := runCLI(t, "", "help", v)
+		assert.Equal(t, 0, code, v)
+		assert.True(t, strings.HasPrefix(out, "usage: diago --version"), "%s: %q", v, out)
+		assert.Empty(t, stderr, v)
+	}
+}
+
 func TestRun_HelpOnHelpAndVersion(t *testing.T) {
 	code, out, _ := runCLI(t, "", "help", "help")
 	assert.Equal(t, 0, code)

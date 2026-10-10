@@ -81,6 +81,10 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		fmt.Fprint(stderr, usage)
 		return 2
 	}
+	if isHelpFlag(args[0]) {
+		fmt.Fprint(stdout, usage)
+		return 0
+	}
 	switch args[0] {
 	case "render":
 		return runRender(args[1:], stdin, stdout, stderr)
@@ -90,13 +94,14 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runCheck(args[1:], stdin, stdout, stderr)
 	case "import":
 		return runImport(args[1:], stdin, stdout, stderr)
-	case "-h", "--help":
-		fmt.Fprint(stdout, usage)
-		return 0
 	case "help":
 		return runHelp(args[1:], stdout, stderr)
 	case "--version", "-version", "version":
-		if len(args) > 1 {
+		switch {
+		case len(args) == 2 && isHelpFlag(args[1]):
+			fmt.Fprint(stdout, versionUsage)
+			return 0
+		case len(args) > 1:
 			fmt.Fprint(stderr, versionUsage)
 			return 2
 		}
@@ -132,19 +137,25 @@ func runHelp(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprint(stderr, "usage: diago help [verb]\n")
 		return 2
 	}
-	if len(args) == 0 || args[0] == "help" {
+	if len(args) == 0 || args[0] == "help" || isHelpFlag(args[0]) {
 		fmt.Fprint(stdout, usage)
 		return 0
 	}
 	switch args[0] {
 	case "render", "diff", "check", "import":
 		return dispatch([]string{args[0], "-h"}, nil, stdout, stderr)
-	case "version":
+	case "version", "--version", "-version":
 		fmt.Fprint(stdout, versionUsage)
 		return 0
 	}
 	fmt.Fprintf(stderr, "diago help: unknown command %q\n%s", args[0], usage)
 	return 2
+}
+
+// isHelpFlag reports whether arg asks for help: -h, -help or --help, the
+// spellings the flag package reads among a verb's flags.
+func isHelpFlag(arg string) bool {
+	return arg == "-h" || arg == "-help" || arg == "--help"
 }
 
 // parseVerb parses a verb's flags wherever they stand (parseArgs). Help
