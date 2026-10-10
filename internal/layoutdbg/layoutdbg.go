@@ -1,8 +1,8 @@
 // Package layoutdbg provides a thin helper for layout/routing decision
 // logging. A *slog.Logger is carried in context.Context: NewContext puts it
-// there, and Armed and Decision read it. When the logger's level is above DEBUG, Decision
-// short-circuits before any allocation, so call sites are cheap when
-// debug is off.
+// there, and Armed and Decision read it. When the logger's level is above
+// DEBUG, Decision returns before it builds a record, so a call site costs
+// little when debug is off (see Decision).
 package layoutdbg
 
 import (
@@ -41,7 +41,7 @@ func from(ctx context.Context) *slog.Logger {
 }
 
 // Armed reports whether a debug logger attached to ctx is enabled at DEBUG
-// level — i.e. whether Decision calls on this ctx will actually emit records.
+// level: whether Decision calls on this ctx will actually emit records.
 // Callers use it to gate work that is only worth doing for debug output
 // (e.g. running the output-contract checker). Cost when unarmed is one
 // context lookup and one level comparison.
@@ -53,9 +53,11 @@ func Armed(ctx context.Context) bool {
 // "decision" field is filled automatically. The slog "msg" is fixed at
 // "layout decision" so consumers grep on the "decision" field, not msg.
 //
-// When the logger's level is above LevelDebug, Decision short-circuits
-// before constructing attrs. Cost in that path is one method call and
-// one comparison.
+// When the logger's level is above LevelDebug, Decision returns before it
+// builds the record: the call costs a context lookup and a level check,
+// plus, at the call site, the boxing of each attribute value into an any,
+// an allocation for a value that is not a constant or a small integer.
+// Work that is costly to compute for an attribute belongs behind Armed.
 func Decision(ctx context.Context, decision string, attrs ...any) {
 	logger := from(ctx)
 	if !logger.Enabled(ctx, slog.LevelDebug) {
