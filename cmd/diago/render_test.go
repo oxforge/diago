@@ -252,6 +252,8 @@ func TestRun_PreviousAfterTheSpec(t *testing.T) {
 		{"a field and the theme flag", badField, []string{"-theme", "nope"}},
 		{"the format", twoNodeSpec, []string{"-format", "bogus"}},
 		{"an export of a class diagram", `{"type":"class","classes":[{"id":"a"}]}`, []string{"-format", "drawio"}},
+		{"a class field", `{"type":"class","classes":[{"id":"a"}],"relations":[{"from":"a","to":"zz"}]}`, nil},
+		{"a sequence field", `{"type":"sequence","actors":[{"id":"a","label":"A"}],"interactions":[{"from":"a","to":"zz","label":"m"}]}`, nil},
 	} {
 		for _, prev := range []string{bad, badSpec} {
 			t.Run(tt.name+" "+filepath.Base(prev), func(t *testing.T) {
@@ -437,21 +439,29 @@ func TestRun_UnknownThemeFlagFailsInTextToo(t *testing.T) {
 // theme that does not load, the flag's or its own, reports the field error
 // in every format.
 func TestRun_FieldsBeforeTheTheme(t *testing.T) {
-	badField := `{"type":"flow","nodes":[{"id":"a","label":"A","shape":"octagon"}],"edges":[]}`
-	themed := strings.Replace(badField, `{"type":"flow",`, `{"type":"flow","theme":"nope",`, 1)
-	for _, tt := range []struct {
-		name, spec string
-		flags      []string
+	for _, sp := range []struct {
+		kind, spec, field string
+		formats           []string
 	}{
-		{"the theme flag", badField, []string{"-theme", "nope"}},
-		{"the spec's theme", themed, nil},
+		{"flow", `{"type":"flow","nodes":[{"id":"a","label":"A","shape":"octagon"}],"edges":[]}`, "nodes[0].shape", []string{"svg", "text", "drawio"}},
+		{"class", `{"type":"class","classes":[{"id":"a"}],"relations":[{"from":"a","to":"zz"}]}`, "relations[0].to", []string{"svg", "text"}},
+		{"sequence", `{"type":"sequence","actors":[{"id":"a","label":"A"}],"interactions":[{"from":"a","to":"zz","label":"m"}]}`, "interactions[0].to", []string{"svg", "text"}},
 	} {
-		for _, format := range []string{"svg", "text", "drawio"} {
-			t.Run(tt.name+" "+format, func(t *testing.T) {
-				code, _, stderr := runCLI(t, tt.spec, append([]string{"render", "-format", format}, tt.flags...)...)
-				require.Equal(t, 1, code, stderr)
-				assert.Contains(t, stderr, `"field": "nodes[0].shape"`)
-			})
+		themed := strings.Replace(sp.spec, `{"type":"`+sp.kind+`",`, `{"type":"`+sp.kind+`","theme":"nope",`, 1)
+		for _, tt := range []struct {
+			name, spec string
+			flags      []string
+		}{
+			{"the theme flag", sp.spec, []string{"-theme", "nope"}},
+			{"the spec's theme", themed, nil},
+		} {
+			for _, format := range sp.formats {
+				t.Run(sp.kind+" "+tt.name+" "+format, func(t *testing.T) {
+					code, _, stderr := runCLI(t, tt.spec, append([]string{"render", "-format", format}, tt.flags...)...)
+					require.Equal(t, 1, code, stderr)
+					assert.Contains(t, stderr, `"field": "`+sp.field+`"`)
+				})
+			}
 		}
 	}
 }
