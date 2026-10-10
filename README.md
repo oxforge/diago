@@ -31,8 +31,9 @@ binary downloaded with a browser is quarantined; clear it with
 go install github.com/oxforge/diago/cmd/diago@latest
 ```
 
-PNG output also needs [resvg](https://github.com/linebender/resvg)
-(`brew install resvg` or `cargo install resvg`); every other format is pure Go.
+PNG output also needs [resvg](https://github.com/linebender/resvg) 0.26 or
+newer (`brew install resvg` or `cargo install resvg`); every other format is
+pure Go.
 
 ## Usage
 
