@@ -6,17 +6,11 @@ import (
 	"github.com/oxforge/diago/internal/layout/layered/ports"
 )
 
-// settle makes consecutive stops either equal or more than Snap apart, the
-// last word before the jogs are collected: a jog within Snap earns no
-// lane. Ports and the stops already snapped onto them are locked; when two
-// locked stops meet, a side column moves only outward and only where it
-// keeps its row clear: when exactly one side may move, it gives way, and
-// otherwise the one that does not carry the arrowhead. An anchored port
-// never gives way (S9): the stop it meets moves onto it, except a side
-// column inward; there, and against another end that never moves, the
-// jog stays, beyond float noise, and takes a lane. Each wire settles on
-// its own (settleWire, meet); its ports and side columns then take its
-// end stops' x.
+// settle makes consecutive stops either equal or more than Snap apart
+// (S8, Stops), the last word before packLanes collects the jogs: a jog
+// within Snap stays only against an end that does not give way, and takes
+// a lane. Each wire settles on its own (settleWire, meet); its ports and
+// side columns then take its end stops' x.
 func (r *router) settle() {
 	for e, w := range r.wires {
 		stops := w.stops
