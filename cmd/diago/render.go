@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/oxforge/diago/internal/layoutdbg"
-	"github.com/oxforge/diago/internal/model"
 	"github.com/oxforge/diago/internal/pipeline"
 	pngrender "github.com/oxforge/diago/internal/render/png"
 	"github.com/oxforge/diago/internal/schema"
@@ -66,30 +65,14 @@ func runRender(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 		writeReports(stderr, prevReports, "previous")
 		previousData = data
+		if previousData == nil { // a file empty at a revision is a -previous all the same
+			previousData = []byte{}
+		}
 	}
 
 	// The deadline bounds the layout and drawing, never the reads above.
 	ctx, cancel := context.WithTimeout(baseCtx, renderTimeout)
 	defer cancel()
-
-	var previous *model.LayoutHints
-	if *previousPath != "" {
-		// The anchor must be of the same diagram type as the spec being
-		// rendered. A spec that is not valid JSON, or whose own type is
-		// missing or unknown, is left to the pipeline below so it is
-		// reported as the spec error it is rather than as a -previous type
-		// mismatch naming a type the spec never had.
-		if kind, err := schema.DiagramType(input); err == nil {
-			renderTheme, err := pipeline.RenderTheme(input, *format, *themeName)
-			if err != nil {
-				return reportError(stderr, err)
-			}
-			previous, err = pipeline.ParsePrevious(ctx, previousData, kind, *format, renderTheme)
-			if err != nil {
-				return reportError(stderr, err)
-			}
-		}
-	}
 
 	var warnings []string
 	var advisories []schema.Advisory
@@ -100,9 +83,9 @@ func runRender(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			Width: *width,
 			Scale: *scale,
 		},
-		Warnings:   &warnings,
-		Previous:   previous,
-		Advisories: &advisories,
+		Warnings:     &warnings,
+		PreviousData: previousData,
+		Advisories:   &advisories,
 	})
 	if renderErr != nil {
 		return reportError(stderr, renderErr)

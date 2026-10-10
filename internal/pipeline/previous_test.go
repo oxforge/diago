@@ -137,3 +137,33 @@ func TestParsePrevious_ASpecLaysOutAsTheRenderDoes(t *testing.T) {
 		})
 	}
 }
+
+// TestRenderWithOptions_PreviousData: a -previous file given as
+// PreviousData anchors the render as the carrier ParsePrevious makes of it
+// does, and is parsed only once the spec is checked: a spec with a field
+// error reports that error, whatever the file, and an empty file is a
+// -previous all the same.
+func TestRenderWithOptions_PreviousData(t *testing.T) {
+	ctx := context.Background()
+	spec := []byte(flatByProfileSpec)
+	previous, err := ParsePrevious(ctx, spec, "flow", "svg", "default")
+	require.NoError(t, err)
+	var wantAdvs, advs []schema.Advisory
+	want, err := RenderWithOptions(ctx, spec, Options{Previous: previous, Advisories: &wantAdvs})
+	require.NoError(t, err)
+	got, err := RenderWithOptions(ctx, spec, Options{PreviousData: spec, Advisories: &advs})
+	require.NoError(t, err)
+	assert.Equal(t, string(want), string(got))
+	assert.Equal(t, wantAdvs, advs, "anchored as with Previous, e6 kept")
+
+	badField := []byte(`{"type":"flow","nodes":[{"id":"a","label":"A","shape":"octagon"}],"edges":[]}`)
+	for _, data := range [][]byte{[]byte("nope"), {}} {
+		var ve schema.ValidationErrors
+		_, err = RenderWithOptions(ctx, badField, Options{PreviousData: data})
+		require.True(t, errors.As(err, &ve), "want ValidationErrors, got %v", err)
+		assert.Equal(t, "nodes[0].shape", ve[0].Field)
+		_, err = RenderWithOptions(ctx, spec, Options{PreviousData: data})
+		require.True(t, errors.As(err, &ve), "want ValidationErrors, got %v", err)
+		assert.Equal(t, "previous", ve[0].Field)
+	}
+}

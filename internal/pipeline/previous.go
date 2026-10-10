@@ -77,6 +77,21 @@ func ParsePrevious(ctx context.Context, data []byte, specType, format, themeName
 	}
 }
 
+// previousFor parses data, a -previous file, for a render of spec, a kind
+// diagram, in format with the theme override: once spec's fields and the
+// theme the render uses (RenderTheme) are checked, so that their errors
+// come first, it is ParsePrevious under that theme.
+func previousFor(ctx context.Context, spec []byte, kind, format, override string, data []byte) (*model.LayoutHints, error) {
+	if err := validateFields(spec, kind); err != nil {
+		return nil, err
+	}
+	themeName, err := RenderTheme(spec, format, override)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePrevious(ctx, data, kind, format, themeName)
+}
+
 // previousFromSpec lays a spec of specType out fresh as a render in
 // format with the theme themeName lays out its own spec, under the text
 // profile or under the theme's screen profile (S13), and returns its

@@ -287,13 +287,7 @@ func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 	if err := ctx.Err(); err != nil {
 		return nil, nil, nil, fmt.Errorf("diff: %w", err)
 	}
-	format := opts.Format
-	if format == "" {
-		format = "svg"
-	}
-	if format == "txt" {
-		format = "text"
-	}
+	format := normalizeFormat(opts.Format)
 	switch format {
 	case "svg", "png", "text":
 	case "drawio", "excalidraw":

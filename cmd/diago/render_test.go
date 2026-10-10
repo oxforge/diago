@@ -235,6 +235,39 @@ func TestRun_UnknownSpecTheme(t *testing.T) {
 	}
 }
 
+// TestRun_PreviousAfterTheSpec: the spec is checked before its -previous
+// file is read as one, so a wrong spec, its fields or its format, is
+// reported as a render without -previous reports it, whatever the file; the
+// file's own error comes only for a sound spec.
+func TestRun_PreviousAfterTheSpec(t *testing.T) {
+	badField := `{"type":"flow","nodes":[{"id":"a","label":"A","shape":"octagon"}],"edges":[]}`
+	bad := writeTemp(t, "bad.txt", "nope")
+	badSpec := writeTemp(t, "v1.json", `{"type":"flow","nodes":[{"id":"a","label":"A"}],"edges":[{"from":"a","to":"zz"}]}`)
+	for _, tt := range []struct {
+		name, spec string
+		flags      []string
+	}{
+		{"a field", badField, nil},
+		{"a field in text", badField, []string{"-format", "text"}},
+		{"a field and the theme flag", badField, []string{"-theme", "nope"}},
+		{"the format", twoNodeSpec, []string{"-format", "bogus"}},
+		{"an export of a class diagram", `{"type":"class","classes":[{"id":"a"}]}`, []string{"-format", "drawio"}},
+	} {
+		for _, prev := range []string{bad, badSpec} {
+			t.Run(tt.name+" "+filepath.Base(prev), func(t *testing.T) {
+				wantCode, _, wantErr := runCLI(t, tt.spec, append([]string{"render"}, tt.flags...)...)
+				require.NotEqual(t, 0, wantCode, "the spec alone is wrong")
+				code, _, stderr := runCLI(t, tt.spec, append([]string{"render", "-previous", prev}, tt.flags...)...)
+				assert.Equal(t, wantCode, code)
+				assert.Equal(t, wantErr, stderr)
+			})
+		}
+	}
+	code, _, stderr := runCLI(t, twoNodeSpec, "render", "-previous", bad)
+	require.Equal(t, 1, code, stderr)
+	assert.Contains(t, stderr, `"field": "previous"`)
+}
+
 // TestRun_RenderExitCodes: what each kind of input does to the exit code and
 // the stderr envelope of render: a spec that is valid draws and exits 0, a
 // validation error, a spec that is not JSON or is empty among them, exits 1

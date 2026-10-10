@@ -20,13 +20,14 @@ import (
 
 // Options holds optional overrides for rendering.
 type Options struct {
-	Theme       string             // theme name override (empty = use spec value)
-	Format      string             // output format: svg (default), png, text (alias txt), drawio, excalidraw
-	PNG         pngrender.Options  // PNG-specific options (ignored when Format != "png")
-	Warnings    *[]string          // optional: receives invocation notices (a discarded -previous)
-	Previous    *model.LayoutHints // optional anchoring carrier (C18); flow and class only (validated and discarded for sequence, with a warning)
-	LayoutHints *model.LayoutHints // optional sink: a flow or class layout copies its emitted carrier into it
-	Advisories  *[]schema.Advisory // optional sink: schema.Check findings plus text-label-dropped and flat-edge-ranked, sorted, after the spec's ignore list
+	Theme        string             // theme name override (empty = use spec value)
+	Format       string             // output format: svg (default), png, text (alias txt), drawio, excalidraw
+	PNG          pngrender.Options  // PNG-specific options (ignored when Format != "png")
+	Warnings     *[]string          // optional: receives invocation notices (a discarded -previous)
+	Previous     *model.LayoutHints // optional anchoring carrier (C18); flow and class only (validated and discarded for sequence, with a warning)
+	PreviousData []byte             // optional: a -previous file, parsed by ParsePrevious into Previous once the spec is checked, so the spec's own errors come first
+	LayoutHints  *model.LayoutHints // optional sink: a flow or class layout copies its emitted carrier into it
+	Advisories   *[]schema.Advisory // optional sink: schema.Check findings plus text-label-dropped and flat-edge-ranked, sorted, after the spec's ignore list
 }
 
 // PreviousIgnoredSequence is the warning appended to Options.Warnings when a
@@ -44,7 +45,7 @@ type graphParser = func([]byte) (*model.Graph, error)
 // dropped labels as text-label-dropped and the layout's ranked flat edges
 // as flat-edge-ranked; a failed render leaves the sink untouched.
 func RenderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte, error) {
-	data, dropped, flatRanked, err := renderWithOptions(ctx, input, opts)
+	data, dropped, flatRanked, err := renderWithOptions(ctx, input, &opts)
 	if err != nil {
 		return nil, err
 	}
@@ -60,14 +61,30 @@ func RenderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte,
 
 // renderWithOptions is RenderWithOptions before its advisories: the
 // rendered bytes, the text renderer's dropped labels and the layout's
-// ranked flat edges.
-func renderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte, []textrender.DroppedLabel, []flatRankedField, error) {
+// ranked flat edges. It parses opts.PreviousData into opts.Previous.
+func renderWithOptions(ctx context.Context, input []byte, opts *Options) ([]byte, []textrender.DroppedLabel, []flatRankedField, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, nil, nil, fmt.Errorf("render: %w", err)
 	}
 	kind, err := schema.DiagramType(input)
 	if err != nil {
 		return nil, nil, nil, err
+	}
+	// An unknown format is an error, never SVG.
+	format := normalizeFormat(opts.Format)
+	switch format {
+	case "svg", "png", "text":
+	case "drawio", "excalidraw":
+		if kind != "flow" {
+			return nil, nil, nil, fmt.Errorf("render: %s format is not supported for %s diagrams", format, kind)
+		}
+	default:
+		return nil, nil, nil, fmt.Errorf("render: unsupported format %q: want svg, png, text, drawio, or excalidraw", opts.Format)
+	}
+	if opts.PreviousData != nil {
+		if opts.Previous, err = previousFor(ctx, input, kind, format, opts.Theme, opts.PreviousData); err != nil {
+			return nil, nil, nil, err
+		}
 	}
 	// Validate a supplied Previous anchor once, up front, for every diagram
 	// type: a malformed carrier must be rejected before layout runs, not
@@ -77,28 +94,27 @@ func renderWithOptions(ctx context.Context, input []byte, opts Options) ([]byte,
 			return nil, nil, nil, fmt.Errorf("render: previous: %w", err)
 		}
 	}
-
-	// Normalize and validate the format: an unknown one is an error, never
-	// SVG. "txt" is accepted as an alias for "text".
-	format := opts.Format
-	if format == "" {
-		format = "svg"
-	}
-	if format == "txt" {
-		format = "text"
-	}
 	switch format {
-	case "svg", "png":
-		data, flatRanked, err := renderImage(ctx, input, kind, format, &opts)
-		return data, nil, flatRanked, err
 	case "text":
-		return renderTextArt(ctx, input, kind, &opts)
+		return renderTextArt(ctx, input, kind, opts)
 	case "drawio", "excalidraw":
-		data, flatRanked, err := renderExport(ctx, input, kind, format, opts.Theme, &opts)
+		data, flatRanked, err := renderExport(ctx, input, format, opts.Theme, opts)
 		return data, nil, flatRanked, err
-	default:
-		return nil, nil, nil, fmt.Errorf("render: unsupported format %q: want svg, png, text, drawio, or excalidraw", opts.Format)
 	}
+	data, flatRanked, err := renderImage(ctx, input, kind, format, opts)
+	return data, nil, flatRanked, err
+}
+
+// normalizeFormat is format with its defaults resolved: "" is "svg", and
+// "txt" is an alias for "text".
+func normalizeFormat(format string) string {
+	switch format {
+	case "":
+		return "svg"
+	case "txt":
+		return "text"
+	}
+	return format
 }
 
 // renderTextArt renders a spec of the given kind as text art. Text art
@@ -195,11 +211,8 @@ func discardPreviousForSequence(opts *Options) {
 // renderExport lays a flow spec out under the theme's screen profile and
 // converts the positioned graph to a draw.io or Excalidraw document. The
 // exporters work from the laid-out model, never from the SVG, and cover flow
-// diagrams only.
-func renderExport(ctx context.Context, input []byte, diagType, format, themeName string, opts *Options) ([]byte, []flatRankedField, error) {
-	if diagType != "flow" {
-		return nil, nil, fmt.Errorf("render: %s format is not supported for %s diagrams", format, diagType)
-	}
+// diagrams only (renderWithOptions).
+func renderExport(ctx context.Context, input []byte, format, themeName string, opts *Options) ([]byte, []flatRankedField, error) {
 	pg, th, err := layoutGraph(ctx, input, "flow", schema.ParseFlow, themeName, opts.Previous)
 	if err != nil {
 		return nil, nil, err

@@ -53,6 +53,16 @@ func TestRun_DiffCaptionNamesBaseNames(t *testing.T) {
 	assert.Contains(t, svg, ">old.json → new.json</text>")
 }
 
+// TestRun_AnEmptyPreviousAtARevision: a -previous file that was empty at a
+// revision is still a -previous, and not a sound one.
+func TestRun_AnEmptyPreviousAtARevision(t *testing.T) {
+	r := sourcetest.New(t)
+	r.Commit("v1", map[string]string{"prev.json": ""})
+	code, _, stderr := runCLI(t, twoNodeSpec, "render", "-previous", "HEAD:"+r.Path("prev.json"))
+	require.Equal(t, 1, code, stderr)
+	assert.Contains(t, stderr, `"field": "previous"`)
+}
+
 func TestRun_RenderCheckAndImportAtARevision(t *testing.T) {
 	r := sourcetest.New(t)
 	r.Commit("v1", map[string]string{"d.mmd": "graph TD\n  a[Start] --> b[Stop]\n"})

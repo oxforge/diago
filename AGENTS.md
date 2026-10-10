@@ -82,7 +82,7 @@ diago/
 │   ├── theme/            # Theme types (their JSON tags are the theme file's keys), loading, validation, accent colors; themetest/ gives tests the embedded default theme
 │   ├── model/            # Internal graph model (nodes, edges, groups, positioned variants) + enums_gen.go
 │   ├── font/             # Embedded Inter + Pangolin fonts and text measurement
-│   └── pipeline/         # Orchestration: pipeline.go (RenderWithOptions, every format), theme.go (`RenderTheme`: the render's theme), diff.go (RenderDiff), previous.go (-previous parsing), validate.go (`Validate`: what `check` runs), advisories.go, engine.go (`layoutWith`: the layered engine under the text Config or a theme's screen Config; `LayoutGraphForFormat` and the sequence layout)
+│   └── pipeline/         # Orchestration: pipeline.go (RenderWithOptions, every format), theme.go (`RenderTheme`: the render's theme), diff.go (RenderDiff), previous.go (-previous parsing: the CLI hands the file over as `Options.PreviousData`, read as a layout once the spec's type, format, fields and theme are checked), validate.go (`Validate`: what `check` runs), advisories.go, engine.go (`layoutWith`: the layered engine under the text Config or a theme's screen Config; `LayoutGraphForFormat` and the sequence layout)
 ├── schemas/              # Generated JSON schema files
 ├── themes/               # Built-in theme JSON files (default, dark, midnight, sketch)
 ├── .claude-plugin/       # plugin.json + marketplace.json (the plugin is the repo root)

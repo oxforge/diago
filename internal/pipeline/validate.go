@@ -9,6 +9,16 @@ func Validate(spec []byte) error {
 	if err != nil {
 		return err
 	}
+	if err := validateFields(spec, kind); err != nil {
+		return err
+	}
+	_, err = specTheme(spec, "")
+	return err
+}
+
+// validateFields parses spec as a kind diagram for its validation errors.
+func validateFields(spec []byte, kind string) error {
+	var err error
 	switch kind {
 	case "flow":
 		_, err = schema.ParseFlow(spec)
@@ -17,9 +27,5 @@ func Validate(spec []byte) error {
 	default:
 		_, err = schema.ParseSequence(spec)
 	}
-	if err != nil {
-		return err
-	}
-	_, err = specTheme(spec, "")
 	return err
 }
