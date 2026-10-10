@@ -26,6 +26,29 @@ func TestSpan_At(t *testing.T) {
 	assert.Equal(t, 0.0, Span{}.At(2, 5), "a zero span pins every port to the center")
 }
 
+// TestSpan_InnerAndInside pins where a port may lie on a span (S8, Ports
+// and Stops; S9, Flat edges, Positions): the middle nine tenths, and on a
+// text face also inside its two corner cells, the tighter of the two
+// winning on each side.
+func TestSpan_InnerAndInside(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		s             Span
+		inner, inside [2]float64
+	}{
+		{"a screen face", Span{Lo: -40, Hi: 40}, [2]float64{-36, 36}, [2]float64{-36, 36}},
+		{"a hexagon's flat face, off center", Span{Lo: -10, Hi: 30}, [2]float64{-8, 28}, [2]float64{-8, 28}},
+		{"a pinned node's zero span", Span{}, [2]float64{0, 0}, [2]float64{0, 0}},
+		{"a text face of 10 cells: the corners bind", Span{Lo: -5, Hi: 5, Cells: true}, [2]float64{-4.5, 4.5}, [2]float64{-4, 4}},
+		{"a text face of 40 cells: the nine tenths bind", Span{Lo: -20, Hi: 20, Cells: true}, [2]float64{-18, 18}, [2]float64{-18, 18}},
+	} {
+		lo, hi := tc.s.Inner()
+		assert.Equal(t, tc.inner, [2]float64{lo, hi}, "%s: Inner", tc.name)
+		lo, hi = tc.s.Inside()
+		assert.Equal(t, tc.inside, [2]float64{lo, hi}, "%s: Inside", tc.name)
+	}
+}
+
 func TestSpan_AtOnCells(t *testing.T) {
 	even := Span{Lo: -5, Hi: 5, Cells: true} // ten cells
 	assert.Equal(t, 0.5, even.At(0, 1), "a lone port takes the cell right of the center line")

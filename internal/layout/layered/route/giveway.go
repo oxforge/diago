@@ -220,23 +220,26 @@ func (r *router) nearLoop(l int, x float64) bool {
 	return false
 }
 
-// withinFace reports whether x lies over the middle nine tenths of node
-// v's face.
-func (r *router) withinFace(v int, x float64) bool {
-	return math.Abs(x-r.x[v]) <= 0.9*r.node(v).W/2
+// span returns the usable span (S8, Shape ports) of the face of node v
+// that a chain end takes: the out-face for its head, the in-face for its
+// tail.
+func (r *router) span(v, which int) ports.Span {
+	in, out := r.faces(v)
+	if which == ports.Head {
+		return out
+	}
+	return in
 }
 
 // onSpan reports whether x lies over the middle nine tenths of the usable
-// span (S8, Shape ports) of the face of node v that a chain end takes: the
-// out-face for its head, the in-face for its tail. Off the span a port
-// would sit on a cylinder's cap or a hexagon's or parallelogram's angled
-// side, where no stub along the flow axis leaves its side (C7).
+// span of the face of node v that a chain end takes (span, Span.Inner):
+// off the span a port would sit on a cylinder's cap or a hexagon's or
+// parallelogram's angled side, where no stub along the flow axis leaves
+// its side (C7). In the text profile the nine tenths may reach a corner
+// cell of the box: a port gives way (spot) or snaps (endMoves) there, but
+// never slides there (slides, Span.Inside).
 func (r *router) onSpan(v, which int, x float64) bool {
-	s, out := r.faces(v)
-	if which == ports.Head {
-		s = out
-	}
-	margin := (s.Hi - s.Lo) / 20 // a twentieth at each end
+	lo, hi := r.span(v, which).Inner()
 	off := x - r.x[v]
-	return off >= s.Lo+margin && off <= s.Hi-margin
+	return off >= lo && off <= hi
 }

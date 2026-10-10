@@ -82,8 +82,8 @@ func (r *router) unify(e int, w wire, target float64, far bool) bool {
 // however close the x, never inward of Reach nor into its row's
 // clearance; a port farther than Snap from target moves only where it
 // slides along its face; and a port within Snap snaps where target lies
-// over the middle nine tenths of its face, an anchored one only when it
-// lies on target already.
+// over the middle nine tenths of its face's usable span (onSpan), an
+// anchored one only when it lies on target already.
 func (r *router) endMoves(e int, w wire, which, i int, target float64) (moves, ok bool) {
 	stops := w.stops
 	switch {
@@ -94,7 +94,7 @@ func (r *router) endMoves(e int, w wire, which, i int, target float64) (moves, o
 		return true, r.shifts(w, e, i, which, target)
 	case math.Abs(stops[i]-target) > r.o.Snap:
 		return true, r.slides(w, e, i, which, target)
-	case !r.withinFace(r.end(e, which), target):
+	case !r.onSpan(r.end(e, which), which, target):
 		return false, false
 	case r.ranks[e][which].Anchored && stops[i] != target:
 		return false, false
@@ -158,19 +158,20 @@ func (r *router) shifts(w wire, e, i, which int, x float64) bool {
 // slides reports whether end stop i of edge e's wire w (which, its head or
 // its tail) is a port that may slide along its face to x (S8, Stops): x
 // lies over the middle nine tenths of the face's usable span, in the text
-// profile on a cell inside the box's corners; the port passes no other
-// end of its node and keeps InLaneGap / 2 from each; and no other node's
-// port or side column, nor a dummy column, holds an x within InLaneGap of
-// it in its channel. A pinned node's vertex, an anchored port and a
-// terminal's port (where the parent level anchors the wire, S9) never
-// slide, nor does a side column.
+// profile on a cell inside the box's corners (Span.Inside); the port
+// passes no other end of its node and keeps InLaneGap / 2 from each; and
+// no other node's port or side column, nor a dummy column, holds an x
+// within InLaneGap of it in its channel. A pinned node's vertex, an
+// anchored port and a terminal's port (where the parent level anchors the
+// wire, S9) never slide, nor does a side column.
 func (r *router) slides(w wire, e, i, which int, x float64) bool {
 	v := r.end(e, which)
-	if r.attach[e][which] != nil || r.pinned(v) || r.ranks[e][which].Anchored || r.node(v).Terminal || !r.onSpan(v, which, x) {
+	if r.attach[e][which] != nil || r.pinned(v) || r.ranks[e][which].Anchored || r.node(v).Terminal {
 		return false
 	}
-	if r.o.Text && math.Abs(x-r.x[v]) >= r.node(v).W/2-1 {
-		return false // on the box's border cell: its corner
+	lo, hi := r.span(v, which).Inside()
+	if off := x - r.x[v]; off < lo || off > hi {
+		return false
 	}
 	c := w.channels(i)[0]
 	return !r.passes(c, e, v, w.stops[i], x) && r.clear(c, x, e, v, r.o.InLaneGap/2)

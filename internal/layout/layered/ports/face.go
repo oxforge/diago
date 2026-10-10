@@ -55,6 +55,29 @@ func (s Span) At(k, n int) float64 {
 	return s.Lo + math.Floor(at) + 0.5
 }
 
+// Inner returns the middle nine tenths of span s, as offsets from the
+// node's center: where on its face a port may give way or snap to (S8,
+// Ports and Stops), clear of the span's ends, past which a stub would
+// leave a cylinder's cap or an angled side (C7). A pinned node's zero
+// span is its center.
+func (s Span) Inner() (lo, hi float64) {
+	m := (s.Hi - s.Lo) / 20 // a twentieth at each end
+	return s.Lo + m, s.Hi - m
+}
+
+// Inside returns the stretch of span s where a port may slide to (S8,
+// Stops) or a flat edge may end (S9, Flat edges, Positions), as offsets
+// from the node's center: Inner, and on a text-profile face only the
+// cells inside its two corner cells, where a wire end meets the box's
+// side rather than its corner.
+func (s Span) Inside() (lo, hi float64) {
+	lo, hi = s.Inner()
+	if s.Cells {
+		lo, hi = max(lo, s.Lo+1), min(hi, s.Hi-1)
+	}
+	return lo, hi
+}
+
 // Faces returns the usable spans of the in-face and the out-face of a
 // node of shape s with frame extents w (cross axis) and h (flow axis),
 // laid out in direction dir (S8, Shape ports). Pinned shapes have zero

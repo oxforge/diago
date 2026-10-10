@@ -534,3 +534,21 @@ func TestRoute_ABackEdgeRunsOnItsPinnedSideColumnPastOtherWires(t *testing.T) {
 	_, route := twice(t, g, screen, map[string]float64{"m": 200, "a->m#0@1": 230, "a->m#0@2": 230, "a": 240, "n": 245})
 	assertRoute(t, pts(260, 200, 260, 20, 240, 20), route("a->m#0"))
 }
+
+// TestRoute_APinnedVertexNeverSnapsOffItsVertex pins S8's stops: a port
+// within Snap of the x a wire runs straight on snaps onto it only over
+// the middle nine tenths of its face's usable span, and a diamond's zero
+// span is its vertex alone (C8). m->b leaves m's bottom vertex at 100,
+// runs through its dummy at 110 and enters b at 100.3, within Snap of the
+// vertex: the wire runs straight on the vertex, b's in-port snapping onto
+// it, never on b's port, which would take the vertex's stop off it.
+func TestRoute_APinnedVertexNeverSnapsOffItsVertex(t *testing.T) {
+	lv := lgraphtest.Level(t, "m:diamond->b")
+	g, err := lgraph.Build(lv, []int{0, 2}, nil, 8)
+	require.NoError(t, err)
+	_, route := routed(t, g, screen, map[string]float64{"m": 100, "b": 100.3, "m->b#0@1": 110})
+	wire := route("m->b#0")
+	for _, p := range wire {
+		assert.Equal(t, 100.0, p.X, "on m's bottom vertex: %v", wire)
+	}
+}

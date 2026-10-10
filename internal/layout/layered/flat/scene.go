@@ -177,16 +177,18 @@ func (s *scene) vertex(n int, p model.Point) ports.Face {
 }
 
 // sideRange is the stretch of node n's side face f, as ys, where a side
-// port may lie (S9, Flat edges): a pinned node's side vertex; else the
-// middle nine tenths of the face's usable span, in the text profile the
-// cells inside the box's corners.
+// port may lie (S9, Flat edges, Positions): a pinned node's side vertex;
+// else where a port may slide on the face's usable span (Span.Inside), its
+// middle nine tenths, in the text profile on the cells inside the box's
+// corners.
 func (s *scene) sideRange(n int, f ports.Face) (lo, hi float64) {
 	nd := s.pg.Nodes[n]
 	left, right := ports.Sides(nd.Shape, nd.Width, nd.Height, s.o.Dir, s.o.Text)
 	if f == ports.FaceRight {
 		left = right
 	}
-	return s.inside(nd.Y, left)
+	lo, hi = left.Inside()
+	return nd.Y + lo, nd.Y + hi
 }
 
 // faceRange is the stretch of node n's top (ports.FaceIn) or bottom
@@ -198,22 +200,8 @@ func (s *scene) faceRange(n int, f ports.Face) (lo, hi float64) {
 	if f == ports.FaceOut {
 		in = out
 	}
-	return s.inside(nd.X, in)
-}
-
-// inside is the stretch of span sp, centered at c, where a port may lie:
-// the span's middle nine tenths (as S8's ports slide, *Stops*), in the
-// text profile the whole cells inside its two corner cells; a pinned
-// node's zero span is its center.
-func (s *scene) inside(c float64, sp ports.Span) (lo, hi float64) {
-	switch {
-	case sp.Hi-sp.Lo <= noise:
-		return c, c
-	case s.o.Text:
-		return c + sp.Lo + 1, c + sp.Hi - 1
-	}
-	m := (sp.Hi - sp.Lo) / 20
-	return c + sp.Lo + m, c + sp.Hi - m
+	lo, hi = in.Inside()
+	return nd.X + lo, nd.X + hi
 }
 
 // sidePoint is the end at y on node n's side face f, on its drawn outline
