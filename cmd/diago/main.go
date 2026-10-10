@@ -1,64 +1,7 @@
-// Command diago reads a diagram spec and writes the rendered diagram to
-// stdout. The diagram type is read from the spec's "type" field: "flow",
-// "sequence" or "class".
-//
-// Usage:
-//
-//	diago render [flags] [SPEC]
-//	diago diff [flags] PATH
-//	diago diff [flags] OLD NEW
-//	diago check [-strict] [-json] [SPEC]
-//	diago import [SPEC]
-//	diago help [verb]
-//	diago --version
-//
-// Every call names its verb: "diago", "diago spec.json" and "diago -format
-// text spec.json" print the usage on stderr and exit 2. Help asked for goes
-// to stdout with exit 0: "diago -h", "diago --help" and "diago help" print
-// the usage, "diago help <verb>" and "-h" or "--help" on a verb print that
-// verb's usage and flags. "diago --version" and "diago version" print
-// "diago <version>", the version Go embeds in the binary (a release tag, or
-// a pseudo-version naming the commit). Every verb takes its flags before,
-// between or after its arguments, and "--" ends the flags.
-//
-// A SPEC is a path; "-" or nothing for stdin (render, check and import); or
-// REV:PATH, the file as it was at a git revision (internal/source): a name
-// that exists on disk is a file, and any other name with a colon is
-// REV:PATH, PATH relative to the current directory. Every SPEC may be JSON or
-// a Mermaid source: a path ending in .mmd or .mermaid, or a body whose first
-// meaningful line is a "graph"/"flowchart", "sequenceDiagram" or
-// "classDiagram" header, is translated by internal/mermaid before parsing.
-// This holds for render, check, import, both diff arguments and -previous.
-// Lossy translations print "warning: import line <n>: <message>" on stderr;
-// a rejected line prints "diago <verb>: line <n>: <message>" and exits 1.
-//
-//	go run ./cmd/diago render spec.json
-//	go run ./cmd/diago render diagram.mmd
-//	go run ./cmd/diago render -previous v1.svg v2.json
-//	go run ./cmd/diago diff arch.json
-//	go run ./cmd/diago diff HEAD~1:arch.json arch.json -format text
-//
-// "diff" renders the union of two specs of the same diagram type, each
-// element marked added, removed, changed or unchanged, with a change list
-// whose first line names both sides. With one PATH it diffs the file's
-// latest change in git: the newest committed version that differs from the
-// file on disk, against the file on disk. Neither argument accepts stdin.
-//
-// "check" parses the spec and prints one advisory per line, "<rule> <field>:
-// <message>" (no field for whole-diagram findings), exit 0; -strict exits 1
-// when any finding remains after the spec's "ignore" list; -json prints
-// {"warnings": [...]} instead. It never lays out, so text-label-dropped
-// surfaces on render only. Every render and diff prints the same lines on
-// stderr prefixed "warning: ".
-//
-// "import" prints the translated JSON spec on stdout and the importer's
-// warnings on stderr; a JSON or otherwise non-Mermaid input is refused
-// (exit 1).
-//
-// On validation error, a structured JSON error is printed to stderr and the
-// process exits with code 1. On a usage, read, git or internal error, or a
-// failed write to stdout, a plain message is printed to stderr and the
-// process exits with code 2.
+// Command diago renders diagrams from JSON or Mermaid specs to stdout. Its
+// verbs are render, diff, check and import: "diago help" prints the usage,
+// "diago help <verb>" a verb's usage and flags, and the CLI reference is at
+// https://diago.dev/docs/reference/cli/.
 package main
 
 import (
