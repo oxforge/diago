@@ -86,3 +86,16 @@ func TestEndLabelAndLegend_JSONRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(plain), `"legend"`)
 }
+
+func TestMember_Line(t *testing.T) {
+	for _, tc := range []struct {
+		m    Member
+		want string
+	}{
+		{Member{Text: "id: int"}, "id: int"},
+		{Member{Visibility: "+", Text: "run()"}, "+ run()"},
+		{Member{Visibility: "-", Text: "count: int", Static: true, Abstract: true, Mark: "+ "}, "- count: int"},
+	} {
+		assert.Equal(t, tc.want, tc.m.Line(), "%+v", tc.m)
+	}
+}

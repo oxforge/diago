@@ -182,7 +182,7 @@ func FlowChanges(u UnionGraph) []Change {
 		}
 		for _, id := range ids {
 			for _, r := range u.Members[id].Records {
-				add(Changed, false, kindNode, nodeLabel(id, false)+", "+string(r.Status)+" "+noun(r.Compartment)+" "+memberText(r.Member), "")
+				add(Changed, false, kindNode, nodeLabel(id, false)+", "+string(r.Status)+" "+noun(r.Compartment)+" "+r.Member.Line(), "")
 			}
 		}
 	}

@@ -3,19 +3,9 @@ package schema
 import (
 	"fmt"
 	"unicode/utf8"
-)
 
-// memberLine composes a member as the box shows it: visibility, a space,
-// then the text; just the text when the visibility is absent.
-// Member-line composition exists in three places that must agree: this
-// one, diff.memberText (internal/diff/members.go) and size.classLines
-// (internal/layout/layered/size/class.go). Change one, check the others.
-func memberLine(m MemberSpec) string {
-	if m.Visibility == "" {
-		return m.Text
-	}
-	return m.Visibility + " " + m.Text
-}
+	"github.com/oxforge/diago/internal/model"
+)
 
 // checkClass returns the content findings for a class spec, unsorted and
 // before the ignore list; Check sorts and filters. Only the class rules,
@@ -42,7 +32,7 @@ func checkClass(spec *ClassSpec, opts CheckOptions) []Advisory {
 			members []MemberSpec
 		}{{"attributes", c.Attributes}, {"methods", c.Methods}} {
 			for j, m := range comp.members {
-				line := memberLine(m)
+				line := model.Member{Visibility: m.Visibility, Text: m.Text}.Line()
 				if n := utf8.RuneCountInString(line); n > maxMemberRunes {
 					out = append(out, Advisory{Rule: RuleOverlongMember, Field: fmt.Sprintf("%s.%s[%d].text", field, comp.name, j),
 						Message: fmt.Sprintf("member %q is %d runes long (advice threshold: %d); it widens the box, shorten the signature or its types", line, n, maxMemberRunes)})

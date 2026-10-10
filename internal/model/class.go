@@ -23,6 +23,16 @@ type Member struct {
 	Mark string
 }
 
+// Line is the member as its record-box line reads: the visibility, a space
+// and the text, or the text alone without a visibility. The text profile
+// writes the diff mark before it and a static or abstract suffix after it.
+func (m Member) Line() string {
+	if m.Visibility == "" {
+		return m.Text
+	}
+	return m.Visibility + " " + m.Text
+}
+
 // Legend is the spec's legend request; nil on the Graph means no legend.
 // Labels overrides the row label per relation kind; an empty value hides
 // that row.

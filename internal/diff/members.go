@@ -122,16 +122,3 @@ func membersChanged(before, after *model.Members) bool {
 	}
 	return unionMembers(before, after).Changed
 }
-
-// memberText is the composed member line without mark or suffix: the
-// footer's wording.
-// Member-line composition exists in three places that must agree: this
-// one, schema.memberLine (internal/schema/check_class.go) and
-// size.classLines (internal/layout/layered/size/class.go). Change one,
-// check the others.
-func memberText(m model.Member) string {
-	if m.Visibility == "" {
-		return m.Text
-	}
-	return m.Visibility + " " + m.Text
-}

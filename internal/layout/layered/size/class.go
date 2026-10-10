@@ -7,11 +7,6 @@ import (
 	"github.com/oxforge/diago/internal/model"
 )
 
-// Member-line composition exists in three places that must agree:
-// classLines below, schema.memberLine (internal/schema/check_class.go)
-// and diff.memberText (internal/diff/members.go). Change one, check the
-// others.
-//
 // classLines composes a record box's lines (S1): the header («stereotype»,
 // then the name with its type parameters), then the attribute and method
 // lines (diff mark, visibility, text, and in cells the " *" or " $"
@@ -27,10 +22,7 @@ func classLines(n model.Node, cells bool) (header, attrs, methods []model.Positi
 	}
 	header = append(header, model.PositionedLine{Text: name, Italic: m.Stereotype == "abstract"})
 	compose := func(mem model.Member) model.PositionedLine {
-		text := mem.Text
-		if mem.Visibility != "" {
-			text = mem.Visibility + " " + text
-		}
+		text := mem.Line()
 		if cells {
 			switch {
 			case mem.Abstract:
