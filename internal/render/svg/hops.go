@@ -9,7 +9,10 @@ import (
 	"github.com/oxforge/diago/internal/model"
 )
 
-const hopRadius = model.HopRadius // a lone hop's radius, and how high every hop rises
+const (
+	hopRadius   = model.HopRadius // a lone hop's radius, and how high every hop rises
+	verticalTol = 1e-6            // px: how far across a hop's chord may run and still be vertical
+)
 
 // hop is where a wire's arc over its crossings starts and ends, and the
 // arc's radius along the wire: hopRadius over one crossing, wider over
@@ -72,12 +75,21 @@ func hopsBySegment(points []model.Point, crossings []model.Crossing) map[int][]h
 // writeHop draws h's arc, from its start, where the path stands, to its
 // end: a half circle over one crossing, a half ellipse along the wire over
 // several, rising no higher than hopRadius so it clears a parallel wire.
+// Every arc bulges to one side whichever way its wire runs: up off a wire
+// that is not vertical, left off one that is. The sweep flag 1 bulges an
+// arc to the left of its travel, up when the wire runs right and left
+// when it runs up.
 func writeHop(b *strings.Builder, h hop) {
+	dx, dy := h.post.X-h.pre.X, h.post.Y-h.pre.Y
 	rot := 0.0
 	if h.r != hopRadius {
-		rot = math.Atan2(h.post.Y-h.pre.Y, h.post.X-h.pre.X) * 180 / math.Pi
+		rot = math.Atan2(dy, dx) * 180 / math.Pi
 	}
-	fmt.Fprintf(b, " A%s,%s %s 0 1 %s,%s", ff(h.r), ff(hopRadius), ff(rot), ff(h.post.X), ff(h.post.Y))
+	sweep := 0
+	if dx > verticalTol || (math.Abs(dx) <= verticalTol && dy < 0) {
+		sweep = 1
+	}
+	fmt.Fprintf(b, " A%s,%s %s 0 %d %s,%s", ff(h.r), ff(hopRadius), ff(rot), sweep, ff(h.post.X), ff(h.post.Y))
 }
 
 // polylineWithHops converts a polyline to an SVG path string that hops

@@ -167,7 +167,35 @@ func TestPolylineWithHops_CloseCrossingsMergeIntoOneHop(t *testing.T) {
 		{"one point", []float64{0.5, 0.5}, "M0,0 L45,0 A5,5 0 0 1 55,0 L100,0", across},
 		{"three chained", []float64{0.3, 0.38, 0.46}, "M0,0 L25,0 A13,5 0 0 1 51,0 L100,0", across},
 		{"10 px apart", []float64{0.5, 0.6}, "M0,0 L45,0 A5,5 0 0 1 55,0 L55,0 A5,5 0 0 1 65,0 L100,0", across},
-		{"2 px apart, downward", []float64{0.5, 0.52}, "M0,0 L0,45 A6,5 90 0 1 0,57 L0,100", down},
+		{"2 px apart, downward", []float64{0.5, 0.52}, "M0,0 L0,45 A6,5 90 0 0 0,57 L0,100", down},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var cs []model.Crossing
+			for _, x := range tc.ts {
+				cs = append(cs, model.Crossing{SegmentIndex: 0, T: x})
+			}
+			assert.Equal(t, tc.want, polylineWithHops(tc.seg, cs))
+		})
+	}
+}
+
+// Every hop bulges to the same side whichever way its wire runs: up off a
+// horizontal wire, left off a vertical one. The sweep flag bulges an arc
+// to the left of its travel, so it is 1 for a wire running right or up and
+// 0 for one running left or down; a merged hop's half ellipse follows the
+// same rule.
+func TestPolylineWithHops_HopsBulgeUpOrLeftWhicheverWayTheWireRuns(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		seg  []model.Point
+		ts   []float64
+		want string
+	}{
+		{"right", []model.Point{{X: 0, Y: 0}, {X: 100, Y: 0}}, []float64{0.5}, "M0,0 L45,0 A5,5 0 0 1 55,0 L100,0"},
+		{"left", []model.Point{{X: 100, Y: 0}, {X: 0, Y: 0}}, []float64{0.5}, "M100,0 L55,0 A5,5 0 0 0 45,0 L0,0"},
+		{"down", []model.Point{{X: 0, Y: 0}, {X: 0, Y: 100}}, []float64{0.5}, "M0,0 L0,45 A5,5 0 0 0 0,55 L0,100"},
+		{"up", []model.Point{{X: 0, Y: 100}, {X: 0, Y: 0}}, []float64{0.5}, "M0,100 L0,55 A5,5 0 0 1 0,45 L0,0"},
+		{"merged, left", []model.Point{{X: 100, Y: 0}, {X: 0, Y: 0}}, []float64{0.5, 0.52}, "M100,0 L55,0 A6,5 180 0 0 43,0 L0,0"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var cs []model.Crossing

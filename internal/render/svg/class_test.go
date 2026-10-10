@@ -115,7 +115,7 @@ func TestRenderClass_ShorteningOnEveryPathKind(t *testing.T) {
 	// straddles y=178.5 by hopRadius on either side.
 	p0, p1 := hop.Edges[0].Points[0], hop.Edges[0].Points[1]
 	absY := p0.Y + (p1.Y-p0.Y)*0.5
-	assert.Contains(t, out, ` L100,`+ff(absY-hopRadius)+` A5,5 0 0 1 100,`+ff(absY+hopRadius)+` `,
+	assert.Contains(t, out, ` L100,`+ff(absY-hopRadius)+` A5,5 0 0 0 100,`+ff(absY+hopRadius)+` `,
 		"hop arc stays on the crossing's absolute position after start shortening")
 	// A crossing that the shortening swallowed is dropped, not re-projected.
 	swallowed := classGraph()
