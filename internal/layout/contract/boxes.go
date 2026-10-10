@@ -214,7 +214,8 @@ func (c *checker) checkMargins() {
 	if math.IsInf(ext.left, 1) {
 		return // an empty layout
 	}
-	if w, h := c.lim.CellW, c.lim.CellH; w > 0 && h > 0 {
+	if c.text() {
+		w, h := c.lim.CellW, c.lim.CellH
 		ext = box{math.Floor(ext.left/w) * w, math.Floor(ext.top/h) * h, math.Ceil(ext.right/w) * w, math.Ceil(ext.bottom/h) * h}
 	}
 	m := c.lim.Margin

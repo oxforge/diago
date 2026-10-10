@@ -198,6 +198,12 @@ func TestC16_TextMarginsCountWholeCells(t *testing.T) {
 	assert.Empty(t, filter(Check(pg, text), "C16.2"), "the column's cell starts 16 px in")
 	pg.Width = 128
 	assert.Equal(t, []Violation{{Rule: "C16.2", Detail: "the right margin is 24.00 px, not 16"}}, filter(Check(pg, text), "C16.2"))
+
+	// the cells are read only in a text-profile check, as C6.2, C14 and
+	// C17.1 read them: the text limits alone measure the column itself
+	pg.Width = 120
+	screen := Options{Limits: TextLimits(model.Down), Direction: model.Down}
+	assert.Equal(t, []Violation{{Rule: "C16.2", Detail: "the left margin is 20.00 px, not 16"}}, filter(Check(pg, screen), "C16.2"))
 }
 
 func TestC16_Margins(t *testing.T) {

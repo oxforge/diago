@@ -106,8 +106,8 @@ type Options struct {
 	// C6.2 measures a wire's distance from a group side in the cells both
 	// are drawn in, C14.2 tests a label against the cells another edge's
 	// segment is drawn in, C14.5 requires every label box to lie on whole
-	// cells, and C17.1 lets a copy's label lie up to half a cell off the
-	// translation.
+	// cells, C16 rounds the geometry's extent out to whole cells, and
+	// C17.1 lets a copy's label lie up to half a cell off the translation.
 	Text bool
 }
 

@@ -87,7 +87,7 @@ type placedLabel struct {
 const cellTol = 0.01
 
 // text reports whether the check reads the text profile's cells (C6.2,
-// C14.2, C14.5, C17.1).
+// C14.2, C14.5, C16, C17.1).
 func (c *checker) text() bool { return c.opts.Text && c.lim.CellW > 0 && c.lim.CellH > 0 }
 
 // cellsOf is the cells box b covers, in cells: the columns and rows it
