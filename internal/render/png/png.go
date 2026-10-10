@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/oxforge/diago/internal/font"
 )
@@ -108,7 +109,10 @@ func Render(ctx context.Context, svgBytes []byte, opts Options) ([]byte, error) 
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("png render: %w", ctx.Err())
 		}
-		return nil, fmt.Errorf("png render: %s: %w", stderr.String(), err)
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			return nil, fmt.Errorf("png render: %s: %w", msg, err)
+		}
+		return nil, fmt.Errorf("png render: %w", err)
 	}
 
 	return stdout.Bytes(), nil
@@ -137,6 +141,12 @@ func buildArgs(opts Options, fontDir string) []string {
 
 	// Load embedded fonts and skip system fonts for deterministic rendering.
 	args = append(args, "--use-fonts-dir", fontDir, "--skip-system-fonts")
+
+	// Without a resources directory, resvg warns that it reads stdin, and
+	// before 0.42 it warns on stdout, ahead of the PNG; the font directory
+	// holds no image a relative reference could load. --quiet keeps the
+	// other warnings off stderr, so a failure reports resvg's error alone.
+	args = append(args, "--resources-dir", fontDir, "--quiet")
 
 	// stdin input, stdout output
 	args = append(args, "-", "-c")

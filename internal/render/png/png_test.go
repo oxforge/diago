@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -121,6 +122,7 @@ func TestRenderInvalidSVG(t *testing.T) {
 	_, err := Render(context.Background(), []byte("not svg at all"), Options{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "png render")
+	assert.NotContains(t, err.Error(), "Warning", "resvg's warnings are not its error")
 }
 
 func TestRenderInvalidOptions(t *testing.T) {
@@ -139,6 +141,16 @@ func TestRenderInvalidOptions(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid scale")
 }
 
+// TestRender_AFailureWithoutAMessageNamesItsExit: a resvg that fails
+// with nothing on stderr reports how it ended, with no empty message
+// before it.
+func TestRender_AFailureWithoutAMessageNamesItsExit(t *testing.T) {
+	fakeResvg(t, 2, "exit 3")
+	_, err := Render(context.Background(), []byte("<svg></svg>"), Options{})
+	require.Error(t, err)
+	assert.Equal(t, "png render: exit status 3", err.Error())
+}
+
 // TestRender_ARunPastTheDeadlineReportsTheDeadline: a resvg run the
 // context's deadline kills reports the deadline, not the kill's signal,
 // so the CLI tells the user the render ran out of time. A stand-in resvg
@@ -155,4 +167,46 @@ func TestRender_ARunPastTheDeadlineReportsTheDeadline(t *testing.T) {
 	_, err := Render(ctx, []byte("<svg></svg>"), Options{})
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	assert.Equal(t, "png render: context deadline exceeded", err.Error())
+}
+
+// fakeResvg points DIAGO_RESVG_PATH at a stand-in resvg that warns as
+// resvg does: about a missing --resources-dir when it reads stdin, on file
+// descriptor warnFD (stdout before resvg 0.42, stderr since), and about the
+// SVG on stderr unless --quiet is set. It then runs tail.
+func fakeResvg(t *testing.T, warnFD int, tail string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the stand-in resvg is a shell script")
+	}
+	script := fmt.Sprintf(`#!/bin/sh
+dir= quiet=
+for a; do
+  case $a in --resources-dir) dir=1 ;; --quiet) quiet=1 ;; esac
+done
+[ -n "$dir" ] || echo 'Warning: Make sure to set --resources-dir when reading SVG from stdin.' >&%d
+[ -n "$quiet" ] || echo 'Warning (in simplecss:298): The @font-face rule is not supported. Skipped.' >&2
+cat >/dev/null
+%s
+`, warnFD, tail)
+	p := filepath.Join(t.TempDir(), "resvg")
+	require.NoError(t, os.WriteFile(p, []byte(script), 0o755))
+	t.Setenv("DIAGO_RESVG_PATH", p)
+}
+
+// TestRender_ResvgWarningsStayOutOfThePNG: a resvg that prints its stdin
+// warning on stdout (0.26 to 0.41) does not put it ahead of the PNG.
+func TestRender_ResvgWarningsStayOutOfThePNG(t *testing.T) {
+	fakeResvg(t, 1, `printf '\211PNG'`)
+	data, err := Render(context.Background(), []byte("<svg></svg>"), Options{})
+	require.NoError(t, err)
+	assert.Equal(t, "\x89PNG", string(data))
+}
+
+// TestRender_AFailureCarriesResvgsErrorAlone: the error of a failed run is
+// resvg's error message, without its warnings or a trailing newline.
+func TestRender_AFailureCarriesResvgsErrorAlone(t *testing.T) {
+	fakeResvg(t, 2, "echo 'Error: unknown token at 1:1.' >&2\nexit 1")
+	_, err := Render(context.Background(), []byte("<svg></svg>"), Options{})
+	require.Error(t, err)
+	assert.Equal(t, "png render: Error: unknown token at 1:1.: exit status 1", err.Error())
 }
