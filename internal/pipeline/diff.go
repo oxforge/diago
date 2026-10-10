@@ -23,7 +23,7 @@ type DiffOptions struct {
 	Theme      string // theme name override (empty = use the after spec's theme field)
 	PNG        pngrender.Options
 	Caption    string             // names the two sides, the change list's first line ("" for none); see DiffCaption
-	Advisories *[]schema.Advisory // optional sink: both specs checked as anchored, fields prefixed before./after., plus text-label-dropped
+	Advisories *[]schema.Advisory // optional sink: both specs checked as anchored, fields prefixed before./after., plus text-label-dropped and flat-edge-ranked
 }
 
 // DiffCaption is the first line of a diff's change list: the names of its
@@ -262,7 +262,8 @@ func sequenceStatusClass(u diff.UnionSequence) func(kind, id string) string {
 
 // RenderDiff renders the union of two specs with per-element status. When
 // opts.Advisories is set, both specs are checked as anchored and their
-// findings are merged with fields prefixed before./after.
+// findings are merged with fields prefixed before./after., with the union
+// render's dropped labels and ranked flat edges (diffAdvisories).
 func RenderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]byte, error) {
 	data, dropped, flatRanked, err := renderDiff(ctx, before, after, opts)
 	if err != nil {

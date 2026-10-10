@@ -25,8 +25,8 @@ type Options struct {
 	PNG         pngrender.Options  // PNG-specific options (ignored when Format != "png")
 	Warnings    *[]string          // optional: receives invocation notices (a discarded -previous)
 	Previous    *model.LayoutHints // optional anchoring carrier (C18); flow and class only (validated and discarded for sequence, with a warning)
-	LayoutHints *model.LayoutHints // optional sink: a flow layout copies its emitted carrier into it
-	Advisories  *[]schema.Advisory // optional sink: schema.Check findings plus text-label-dropped, sorted, after the spec's ignore list
+	LayoutHints *model.LayoutHints // optional sink: a flow or class layout copies its emitted carrier into it
+	Advisories  *[]schema.Advisory // optional sink: schema.Check findings plus text-label-dropped and flat-edge-ranked, sorted, after the spec's ignore list
 }
 
 // PreviousIgnoredSequence is the warning appended to Options.Warnings when a
