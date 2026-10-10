@@ -248,32 +248,17 @@ func spaceForFragmentHeaders(plans []fragmentPlan, interactions []model.Interact
 }
 
 // computeFragments positions the planned fragments and returns them in
-// declaration order.
+// declaration order (layout rule SQ1). A frame spans its plan's actors and
+// the self-message loops and labels in its range, runs from
+// SectionTopInset above its first message to FragmentPaddingY below its
+// last (or below that message's loop), and contains its inner frames,
+// which the plans list before it. On screen its header sits in the gutter
+// left of its leftmost lifeline, which spaceForFragmentHeaders made room
+// for; text art writes the header on the frame's rows and leaves the tab
+// and guard fields zero.
 //
-// A frame spans its plan's actors, FragmentPaddingX beyond the outermost
-// header boxes and at least FragmentLifelineInset left of its leftmost
-// lifeline, and reaches right past every self-message loop in its range
-// and that loop's label. Each section's line, the frame top for the first
-// section and a divider for every later one, sits SectionTopInset above the
-// section's first message; the bottom sits FragmentPaddingY below the last
-// message, or below its loop when that message is a self-message.
-//
-// A screen layout also places the frame's header: the operator tab at the
-// frame's top-left, the first guard right of the tab on the same row, and
-// each later guard just below its divider, all left of the leftmost spanned
-// lifeline, the frame's left side moving out to make room. Text art writes
-// its header on the frame's top row and dividers, over any lifeline they
-// cross, and leaves the tab and guard fields zero: a text frame is at least
-// as wide as its header rows, its right side moving right for them, and
-// both sides keep two blank columns from every lifeline, the right side
-// passing a lifeline in its way (layout rule SQ1).
-//
-// An outer frame contains each inner one: FragmentPaddingX left and right,
-// FragmentPaddingY below, and its own header room above, both at its top
-// and at a divider that opens on the inner frame's first message.
-//
-// Precondition: all fragment section Start/End indices must be valid indexes into
-// interactionY. This is guaranteed by schema validation (see schema.ParseSequence).
+// Precondition: every section's Start and End is a valid index into
+// interactionY, which schema validation guarantees (schema.ParseSequence).
 func computeFragments(
 	plans []fragmentPlan,
 	interactions []model.Interaction,
