@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"math"
+	"slices"
 
 	"github.com/oxforge/diago/internal/model"
 	"github.com/oxforge/diago/internal/theme"
@@ -115,49 +116,48 @@ func buildMembershipMaps(pg *model.PositionedGraph) (map[string]string, map[stri
 	return nodeMembership, groupMembership, groupByID
 }
 
+// buildGroupCells appends a swimlane cell per group, shallowest first so
+// that a parent precedes its children, each placed relative to its parent.
 func buildGroupCells(cells []mxCell, pg *model.PositionedGraph, th theme.Theme, groupMembership map[string]string, groupByID map[string]*model.PositionedGroup) []mxCell {
-	for depth := 1; depth <= 3; depth++ {
-		for _, g := range pg.Groups {
-			if g.Depth != depth {
-				continue
-			}
-			parentID := "" // the enclosing group's id, "" on the page
-			if pid, ok := groupMembership[g.ID]; ok {
-				parentID = pid
-			}
-
-			gx, gy := g.X, g.Y
-			if pg, ok := groupByID[parentID]; ok {
-				gx -= pg.X
-				gy -= pg.Y
-			}
-			parent := layerCell
-			if parentID != "" {
-				parent = groupCell(parentID)
-			}
-
-			// The title is its own cell, in front of the edges
-			// (buildTitleCells): the swimlane keeps only its box.
-			groupStyle := "swimlane;startSize=23;collapsible=0;rounded=1;"
-			if accent := th.Accent(g.Color); accent != "" {
-				dc := theme.DeriveColors(accent, th.Background, theme.ElementGroup)
-				groupStyle += fmt.Sprintf("fillColor=%s;strokeColor=%s;fontColor=%s;", dc.Fill, dc.Stroke, dc.Text)
-			}
-
-			cells = append(cells, mxCell{
-				ID:     groupCell(g.ID),
-				Style:  groupStyle,
-				Vertex: "1",
-				Parent: parent,
-				Geometry: &mxGeometry{
-					X:      round(gx),
-					Y:      round(gy),
-					Width:  round(g.Width),
-					Height: round(g.Height),
-					As:     "geometry",
-				},
-			})
+	byDepth := slices.Clone(pg.Groups)
+	slices.SortStableFunc(byDepth, func(a, b model.PositionedGroup) int { return a.Depth - b.Depth })
+	for _, g := range byDepth {
+		parentID := "" // the enclosing group's id, "" on the page
+		if pid, ok := groupMembership[g.ID]; ok {
+			parentID = pid
 		}
+
+		gx, gy := g.X, g.Y
+		if pg, ok := groupByID[parentID]; ok {
+			gx -= pg.X
+			gy -= pg.Y
+		}
+		parent := layerCell
+		if parentID != "" {
+			parent = groupCell(parentID)
+		}
+
+		// The title is its own cell, in front of the edges
+		// (buildTitleCells): the swimlane keeps only its box.
+		groupStyle := "swimlane;startSize=23;collapsible=0;rounded=1;"
+		if accent := th.Accent(g.Color); accent != "" {
+			dc := theme.DeriveColors(accent, th.Background, theme.ElementGroup)
+			groupStyle += fmt.Sprintf("fillColor=%s;strokeColor=%s;fontColor=%s;", dc.Fill, dc.Stroke, dc.Text)
+		}
+
+		cells = append(cells, mxCell{
+			ID:     groupCell(g.ID),
+			Style:  groupStyle,
+			Vertex: "1",
+			Parent: parent,
+			Geometry: &mxGeometry{
+				X:      round(gx),
+				Y:      round(gy),
+				Width:  round(g.Width),
+				Height: round(g.Height),
+				As:     "geometry",
+			},
+		})
 	}
 	return cells
 }

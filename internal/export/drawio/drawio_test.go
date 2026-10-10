@@ -170,6 +170,27 @@ func TestExport_GroupsWithChildren(t *testing.T) {
 	}
 }
 
+// TestExport_GroupsShallowestFirst: every group becomes a swimlane, however
+// deep, and a parent's cell precedes its children's whatever the order of
+// pg.Groups.
+func TestExport_GroupsShallowestFirst(t *testing.T) {
+	pg := &model.PositionedGraph{Groups: []model.PositionedGroup{
+		{ID: "d4", X: 40, Y: 40, Width: 20, Height: 20, Depth: 4},
+		{ID: "d3", X: 30, Y: 30, Width: 40, Height: 40, Children: []string{"d4"}, Depth: 3},
+		{ID: "d2", X: 20, Y: 20, Width: 60, Height: 60, Children: []string{"d3"}, Depth: 2},
+		{ID: "d1", X: 10, Y: 10, Width: 80, Height: 80, Children: []string{"d2"}, Depth: 1},
+	}}
+	var file mxFile
+	require.NoError(t, xml.Unmarshal(Export(pg, themetest.Default()), &file))
+	var order []string
+	for _, c := range file.Diagram.GraphModel.Root.Cells {
+		if strings.HasPrefix(c.ID, "g:") {
+			order = append(order, c.ID)
+		}
+	}
+	assert.Equal(t, []string{"g:d1", "g:d2", "g:d3", "g:d4"}, order)
+}
+
 func TestExport_NestedGroups(t *testing.T) {
 	pg := &model.PositionedGraph{
 		Nodes: []model.PositionedNode{
