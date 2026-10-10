@@ -118,10 +118,14 @@ func normalizeFormat(format string) string {
 }
 
 // renderTextArt renders a spec of the given kind as text art. Text art
-// takes no theme, but a theme the spec or -theme names must load. A flow
-// or class layout's carrier goes to opts.LayoutHints, and a class
-// diagram's legend, one row per relation kind, under the art.
+// takes no theme, but a theme the spec or -theme names must load, checked
+// after the spec's fields as in every format. A flow or class layout's
+// carrier goes to opts.LayoutHints, and a class diagram's legend, one row
+// per relation kind, under the art.
 func renderTextArt(ctx context.Context, input []byte, kind string, opts *Options) ([]byte, []textrender.DroppedLabel, []flatRankedField, error) {
+	if err := validateFields(input, kind); err != nil {
+		return nil, nil, nil, err
+	}
 	if _, err := specTheme(input, opts.Theme); err != nil {
 		return nil, nil, nil, err
 	}

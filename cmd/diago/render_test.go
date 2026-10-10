@@ -433,6 +433,29 @@ func TestRun_UnknownThemeFlagFailsInTextToo(t *testing.T) {
 	assert.Contains(t, stderr, "error:")
 }
 
+// TestRun_FieldsBeforeTheTheme: a spec with a field error, rendered with a
+// theme that does not load, the flag's or its own, reports the field error
+// in every format.
+func TestRun_FieldsBeforeTheTheme(t *testing.T) {
+	badField := `{"type":"flow","nodes":[{"id":"a","label":"A","shape":"octagon"}],"edges":[]}`
+	themed := strings.Replace(badField, `{"type":"flow",`, `{"type":"flow","theme":"nope",`, 1)
+	for _, tt := range []struct {
+		name, spec string
+		flags      []string
+	}{
+		{"the theme flag", badField, []string{"-theme", "nope"}},
+		{"the spec's theme", themed, nil},
+	} {
+		for _, format := range []string{"svg", "text", "drawio"} {
+			t.Run(tt.name+" "+format, func(t *testing.T) {
+				code, _, stderr := runCLI(t, tt.spec, append([]string{"render", "-format", format}, tt.flags...)...)
+				require.Equal(t, 1, code, stderr)
+				assert.Contains(t, stderr, `"field": "nodes[0].shape"`)
+			})
+		}
+	}
+}
+
 // A theme name with a path is rejected: the spec's on its theme field
 // (exit 1), the -theme flag's as a usage error (exit 2). A spec whose
 // theme is empty renders with the default.
