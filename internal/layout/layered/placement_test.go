@@ -341,6 +341,7 @@ func TestLayout_ARoomWaitsForItsPrimary(t *testing.T) {
 		// per pass (a placed record closes one): the diamonds whose primary's
 		// forcing dropped, and the diamonds that got room
 		dropped, roomed := map[string]bool{}, map[string]bool{}
+		passes := 0
 		for _, rec := range layoutdbgtest.Records(t, buf) {
 			switch rec["decision"] {
 			case "side_exit_dropped":
@@ -351,12 +352,14 @@ func TestLayout_ARoomWaitsForItsPrimary(t *testing.T) {
 			case "secondary_room":
 				roomed[rec["node"].(string)] = true
 			case "placed":
+				passes++
 				for d := range roomed {
 					assert.False(t, dropped[d], "%s: %s got room while its primary's forcing dropped", name, d)
 				}
 				dropped, roomed = map[string]bool{}, map[string]bool{}
 			}
 		}
+		require.Positive(t, passes, "%s: a placed record per pass", name)
 	}
 }
 

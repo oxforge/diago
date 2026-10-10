@@ -304,6 +304,7 @@ func TestAnchoring_ALeafKeepsTheSurvivorsLayersAndOrder(t *testing.T) {
 		h := after.LayoutHints
 		assert.Empty(t, metrics.Relayered(tc.before, h), tc.name)
 		assert.Nil(t, record(recs, "layer_rejected", ""), tc.name)
+		require.NotNil(t, record(recs, "previous_applied", ""), tc.name)
 		assert.Empty(t, strs(record(recs, "previous_applied", "")["missing"]), tc.name)
 		layers := tc.before.Scopes[""].Layers
 		for id, l := range layers {
