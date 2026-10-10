@@ -13,7 +13,7 @@ import (
 // plain and the status-aware render paths so they cannot silently diverge.
 func lifelineLine(a model.PositionedActor, th theme.Theme, ownColor bool) Line {
 	lifelineStroke := th.Actor.Stroke
-	if accent := resolveAccent(a.Color, th); accent != "" && ownColor {
+	if accent := th.Accent(a.Color); accent != "" && ownColor {
 		dc := theme.DeriveColors(accent, th.Background, theme.ElementNode)
 		lifelineStroke = dc.Stroke
 	}
@@ -180,7 +180,7 @@ func renderActors(actors []model.PositionedActor, th theme.Theme, opts *RenderOp
 	out := make([]Element, 0, len(actors))
 	for _, a := range actors {
 		style := th.Actor
-		if accent := resolveAccent(a.Color, th); accent != "" {
+		if accent := th.Accent(a.Color); accent != "" {
 			dc := theme.DeriveColors(accent, th.Background, theme.ElementNode)
 			style.Fill = dc.Fill
 			if opts.ownStrokes() {

@@ -38,7 +38,7 @@ func renderGroups(groups []model.PositionedGroup, th theme.Theme, opts *RenderOp
 // the theme's fill shaded for g's depth.
 func groupStyle(g model.PositionedGroup, th theme.Theme, opts *RenderOptions) theme.GroupStyle {
 	style := th.Group
-	accent := resolveAccent(g.Color, th)
+	accent := th.Accent(g.Color)
 	if accent == "" {
 		style.Fill = adjustGroupFill(th.Group.Fill, g.Depth)
 		return style

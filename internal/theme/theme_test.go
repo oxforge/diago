@@ -49,3 +49,15 @@ func TestDefaultThemeHasClassStyle(t *testing.T) {
 	assert.Equal(t, th.Node.Font.Color, th.Class.MemberFont.Color)
 	assert.Equal(t, 1.0, th.Class.SeparatorWidth)
 }
+
+func TestTheme_Accent(t *testing.T) {
+	th := Theme{Colors: map[string]string{"red": "#e03131"}}
+	for _, tc := range []struct{ color, want string }{
+		{"", ""},
+		{"red", "#e03131"},
+		{"#123456", "#123456"},
+		{"teal", ""},
+	} {
+		assert.Equal(t, tc.want, th.Accent(tc.color), "%q", tc.color)
+	}
+}

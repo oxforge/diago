@@ -10,20 +10,6 @@ import (
 	"github.com/oxforge/diago/internal/theme"
 )
 
-// resolveAccent resolves a named color or hex to an accent hex string.
-func resolveAccent(color string, th theme.Theme) string {
-	if color == "" {
-		return ""
-	}
-	if color[0] == '#' {
-		return color
-	}
-	if hex, ok := th.Colors[color]; ok {
-		return hex
-	}
-	return ""
-}
-
 // Render converts a PositionedGraph and a Theme into a complete SVG document string.
 // The output is fully deterministic: same inputs always produce the same bytes.
 // Render(graph, th) is exactly RenderWithOptions(graph, th, nil).
@@ -95,7 +81,7 @@ func ownAccent(color string, th theme.Theme, opts *RenderOptions) string {
 	if !opts.ownStrokes() {
 		return ""
 	}
-	return resolveAccent(color, th)
+	return th.Accent(color)
 }
 
 // accentEdge is the theme's edge appearance, with the stroke and label
@@ -145,7 +131,7 @@ func renderNodes(nodes []model.PositionedNode, th theme.Theme, opts *RenderOptio
 	out := make([]Element, 0, len(nodes))
 	for _, n := range nodes {
 		style := th.Node
-		if accent := resolveAccent(n.Color, th); accent != "" {
+		if accent := th.Accent(n.Color); accent != "" {
 			dc := theme.DeriveColors(accent, th.Background, theme.ElementNode)
 			style.Fill = dc.Fill
 			if opts.ownStrokes() {

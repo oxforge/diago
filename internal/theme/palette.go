@@ -22,6 +22,18 @@ type DerivedColors struct {
 	Text   string // hex color
 }
 
+// Accent resolves an element's color, a palette name or a hex value, to its
+// accent hex: "" for no color or a name the palette lacks.
+func (t Theme) Accent(color string) string {
+	if color == "" {
+		return ""
+	}
+	if color[0] == '#' {
+		return color
+	}
+	return t.Colors[color]
+}
+
 // DeriveColors computes fill, stroke, and text colors from an accent hex and background hex.
 // The background determines whether we're on a light or dark theme.
 func DeriveColors(accent, background string, kind ElementKind) DerivedColors {

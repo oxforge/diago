@@ -66,20 +66,6 @@ type mxPoint struct {
 	Y       float64  `xml:"y,attr"`
 }
 
-// resolveAccent resolves a color name or hex value to a hex accent string.
-func resolveAccent(color string, th theme.Theme) string {
-	if color == "" {
-		return ""
-	}
-	if color[0] == '#' {
-		return color
-	}
-	if hex, ok := th.Colors[color]; ok {
-		return hex
-	}
-	return ""
-}
-
 // Export converts a PositionedGraph to draw.io XML bytes.
 func Export(pg *model.PositionedGraph, th theme.Theme) []byte {
 	cells := []mxCell{
@@ -153,7 +139,7 @@ func buildGroupCells(cells []mxCell, pg *model.PositionedGraph, th theme.Theme, 
 			// The title is its own cell, in front of the edges
 			// (buildTitleCells): the swimlane keeps only its box.
 			groupStyle := "swimlane;startSize=23;collapsible=0;rounded=1;"
-			if accent := resolveAccent(g.Color, th); accent != "" {
+			if accent := th.Accent(g.Color); accent != "" {
 				dc := theme.DeriveColors(accent, th.Background, theme.ElementGroup)
 				groupStyle += fmt.Sprintf("fillColor=%s;strokeColor=%s;fontColor=%s;", dc.Fill, dc.Stroke, dc.Text)
 			}
@@ -198,7 +184,7 @@ func buildTitleCells(cells []mxCell, pg *model.PositionedGraph, th theme.Theme) 
 			style += "fontStyle=1;"
 		}
 		background := "default" // the swimlane header's own fill
-		if accent := resolveAccent(g.Color, th); accent != "" {
+		if accent := th.Accent(g.Color); accent != "" {
 			dc := theme.DeriveColors(accent, th.Background, theme.ElementGroup)
 			style += fmt.Sprintf("fontColor=%s;", dc.Text)
 			background = dc.Fill
@@ -240,7 +226,7 @@ func buildNodeCells(cells []mxCell, pg *model.PositionedGraph, th theme.Theme, n
 		}
 
 		nStyle := nodeStyle(n.Shape)
-		if accent := resolveAccent(n.Color, th); accent != "" {
+		if accent := th.Accent(n.Color); accent != "" {
 			dc := theme.DeriveColors(accent, th.Background, theme.ElementNode)
 			nStyle += fmt.Sprintf("fillColor=%s;strokeColor=%s;fontColor=%s;", dc.Fill, dc.Stroke, dc.Text)
 		}
@@ -272,7 +258,7 @@ func buildEdgeCells(cells []mxCell, pg *model.PositionedGraph, th theme.Theme) [
 	for i, e := range pg.Edges {
 		style := edgeStyle(e.Style, e.Direction)
 
-		if accent := resolveAccent(e.Color, th); accent != "" {
+		if accent := th.Accent(e.Color); accent != "" {
 			dc := theme.DeriveColors(accent, th.Background, theme.ElementEdge)
 			style += fmt.Sprintf("strokeColor=%s;fontColor=%s;", dc.Stroke, dc.Text)
 		}

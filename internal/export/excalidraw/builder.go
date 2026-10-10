@@ -11,20 +11,6 @@ type builder struct {
 	nodeGroupIDs map[string][]string
 }
 
-// resolveAccent resolves a color name or hex value to a hex accent string.
-func resolveAccent(color string, th theme.Theme) string {
-	if color == "" {
-		return ""
-	}
-	if color[0] == '#' {
-		return color
-	}
-	if hex, ok := th.Colors[color]; ok {
-		return hex
-	}
-	return ""
-}
-
 // canvasBackground is Excalidraw's default canvas color; the export sets
 // no other.
 const canvasBackground = "#ffffff"
@@ -39,7 +25,7 @@ const canvasBackground = "#ffffff"
 // A title without its measured extents gets no backing.
 func (b *builder) addGroupLabel(g model.PositionedGroup, gids []string) {
 	strokeColor := "#1e1e1e"
-	if accent := resolveAccent(g.Color, b.th); accent != "" {
+	if accent := b.th.Accent(g.Color); accent != "" {
 		dc := theme.DeriveColors(accent, b.th.Background, theme.ElementGroup)
 		strokeColor = dc.Text
 	}
@@ -114,7 +100,7 @@ func (b *builder) addNode(n model.PositionedNode, gids []string) {
 	shapeStroke := "#1e1e1e"
 	shapeBg := "transparent"
 	textColor := "#1e1e1e"
-	if accent := resolveAccent(n.Color, b.th); accent != "" {
+	if accent := b.th.Accent(n.Color); accent != "" {
 		dc := theme.DeriveColors(accent, b.th.Background, theme.ElementNode)
 		shapeStroke = dc.Stroke
 		shapeBg = dc.Fill
@@ -193,7 +179,7 @@ func (b *builder) addEdge(e model.PositionedEdge, arrowID, labelID string) {
 
 	edgeStroke := "#1e1e1e"
 	edgeTextColor := "#1e1e1e"
-	if accent := resolveAccent(e.Color, b.th); accent != "" {
+	if accent := b.th.Accent(e.Color); accent != "" {
 		dc := theme.DeriveColors(accent, b.th.Background, theme.ElementEdge)
 		edgeStroke = dc.Stroke
 		edgeTextColor = dc.Text
