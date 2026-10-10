@@ -17,8 +17,7 @@ import (
 
 var screen = Options{Clearance: 12, Span: 16, Reach: 20, BaseGap: 40, LaneGap: 8, InLaneGap: 8, Snap: 0.5, Dir: model.Down}
 
-// graph runs S2 and S3 over a fixture level and builds its layered graph
-// in the declaration seed; widths overrides node widths by id. Nodes are
+// graph is shaped with widths overriding node widths by id. Nodes are
 // 80 x 40 (lgraphtest).
 func graph(t *testing.T, widths map[string]float64, specs ...string) *lgraph.Graph {
 	t.Helper()
@@ -162,8 +161,9 @@ func beside(t *testing.T, dummy float64) func(id string) []model.Point {
 	return route
 }
 
-// shaped is graph with fix applied to the level before S2 and S3: the
-// groups, terminals and anchors S9 sets.
+// shaped runs S2 and S3 over the fixture level of specs, with fix applied
+// to the level first (the groups, terminals and anchors S9 sets), and
+// builds its layered graph in the declaration seed.
 func shaped(t *testing.T, fix func(lv *lgraph.Level), specs ...string) *lgraph.Graph {
 	t.Helper()
 	lv := lgraphtest.Level(t, specs...)
