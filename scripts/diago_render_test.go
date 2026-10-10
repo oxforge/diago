@@ -1,6 +1,8 @@
 package scripts_test
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -105,4 +107,143 @@ func TestDiagoRender_DiffWidthSkipsTheCaption(t *testing.T) {
 	w, err := strconv.Atoi(m[1])
 	require.NoError(t, err)
 	assert.Less(t, w, utf8.RuneCountInString(caption), "the caption is not measured as art")
+}
+
+// script runs diago-render with args under path and returns its combined
+// output and its exit code.
+func script(t *testing.T, path string, args ...string) (string, int) {
+	t.Helper()
+	cmd := exec.Command("bash", append([]string{"diago-render"}, args...)...)
+	cmd.Env = append(os.Environ(), "PATH="+path)
+	out, err := cmd.CombinedOutput()
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		return string(out), exit.ExitCode()
+	}
+	require.NoError(t, err, "%s", out)
+	return string(out), 0
+}
+
+// embedFixture writes doc as doc.md and a flow diagram's two versions into
+// the diagrams folder beside it, and returns both paths.
+func embedFixture(t *testing.T, doc string) (docPath, dir string) {
+	t.Helper()
+	root := t.TempDir()
+	dir = filepath.Join(root, "diagrams")
+	require.NoError(t, os.Mkdir(dir, 0o755))
+	specs := map[string]string{
+		"flow.v1.json": `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"id":"ab","from":"a","to":"b"}]}`,
+		"flow.v2.json": `{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"}],"edges":[{"id":"ab","from":"a","to":"b"},{"id":"bc","from":"b","to":"c"}]}`,
+	}
+	for name, spec := range specs {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(spec), 0o644))
+	}
+	docPath = filepath.Join(root, "doc.md")
+	require.NoError(t, os.WriteFile(docPath, []byte(doc), 0o644))
+	return docPath, dir
+}
+
+// assertNoScratch asserts that a run left none of its scratch files
+// behind, beside the document or in the diagrams folder.
+func assertNoScratch(t *testing.T, docPath, dir string) {
+	t.Helper()
+	for _, pattern := range []string{docPath + ".diago.tmp*", filepath.Join(dir, "*.tmp"), filepath.Join(dir, ".diago-body.tmp")} {
+		left, err := filepath.Glob(pattern)
+		require.NoError(t, err)
+		assert.Empty(t, left, "scratch files matching %s", pattern)
+	}
+}
+
+// TestDiagoRender_EmbedFillsEveryMarker: --embed replaces what lies between
+// each begin and end marker with the rendered text art in a fence and a
+// link to the image, the latest version for "slug" and the diff for
+// "slug.diff", and leaves every other line of the document as it was. A
+// second run changes nothing.
+func TestDiagoRender_EmbedFillsEveryMarker(t *testing.T) {
+	path, _ := setup(t)
+	docPath, dir := embedFixture(t, "# Design\n\nIntro.\n\n"+
+		"<!-- diago:begin flow -->\na stale body\nof two lines\n<!-- diago:end flow -->\n\n"+
+		"Between.\n\n"+
+		"<!-- diago:begin flow.diff -->\n<!-- diago:end flow.diff -->\n\nOutro.\n")
+	out, code := script(t, path, dir, "--embed", docPath)
+	require.Zero(t, code, "%s", out)
+
+	body := func(base string) string {
+		art, err := os.ReadFile(filepath.Join(dir, base+".txt"))
+		require.NoError(t, err)
+		require.True(t, strings.HasSuffix(string(art), "\n"), "the art ends its last line")
+		return "```text\n" + string(art) + "```\n[" + base + ".svg](diagrams/" + base + ".svg)\n"
+	}
+	want := "# Design\n\nIntro.\n\n" +
+		"<!-- diago:begin flow -->\n" + body("flow.v2") + "<!-- diago:end flow -->\n\n" +
+		"Between.\n\n" +
+		"<!-- diago:begin flow.diff -->\n" + body("flow.v1-v2.diff") + "<!-- diago:end flow.diff -->\n\nOutro.\n"
+	got, err := os.ReadFile(docPath)
+	require.NoError(t, err)
+	assert.Equal(t, want, string(got))
+	assertNoScratch(t, docPath, dir)
+
+	out, code = script(t, path, dir, "--embed", docPath)
+	require.Zero(t, code, "%s", out)
+	again, err := os.ReadFile(docPath)
+	require.NoError(t, err)
+	assert.Equal(t, string(got), string(again), "a second run changes nothing")
+}
+
+// TestDiagoRender_EmbedLeavesTheDocumentUntouchedOnARefusal: a begin
+// marker without its end marker, which would swallow the rest of the
+// document, or a marker with no rendered files fails the run with exit 1
+// and leaves the document byte for byte as it was, also when a marker
+// before it was filled already.
+func TestDiagoRender_EmbedLeavesTheDocumentUntouchedOnARefusal(t *testing.T) {
+	path, _ := setup(t)
+	for _, tc := range []struct {
+		name, doc, want string
+	}{
+		{"an unterminated marker",
+			"Intro.\n\n<!-- diago:begin flow -->\nthe rest of the document\n",
+			"marker 'flow' in %s has no matching <!-- diago:end flow --> line; document left untouched"},
+		{"a misspelled end marker",
+			"<!-- diago:begin flow -->\n<!-- diago:end flwo -->\nOutro.\n",
+			"marker 'flow' in %s has no matching <!-- diago:end flow --> line; document left untouched"},
+		{"an unterminated marker after a filled one",
+			"<!-- diago:begin flow -->\n<!-- diago:end flow -->\n\n<!-- diago:begin flow.diff -->\nOutro.\n",
+			"marker 'flow.diff' in %s has no matching <!-- diago:end flow.diff --> line; document left untouched"},
+		{"a marker without rendered files",
+			"<!-- diago:begin flow -->\n<!-- diago:end flow -->\n\n<!-- diago:begin ghost -->\n<!-- diago:end ghost -->\n",
+			"marker 'ghost' in %s has no rendered files in "},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			docPath, dir := embedFixture(t, tc.doc)
+			out, code := script(t, path, dir, "--embed", docPath)
+			assert.Equal(t, 1, code, "%s", out)
+			assert.Contains(t, out, "diago-render: "+fmt.Sprintf(tc.want, docPath))
+			got, err := os.ReadFile(docPath)
+			require.NoError(t, err)
+			assert.Equal(t, tc.doc, string(got), "the document is untouched")
+			assertNoScratch(t, docPath, dir)
+		})
+	}
+}
+
+// TestDiagoRender_StrictFailsOnALintWarning: diago's advisories on a
+// diagram are relayed as lint lines and the run succeeds; under --strict
+// the same run fails with exit 1.
+func TestDiagoRender_StrictFailsOnALintWarning(t *testing.T) {
+	path, _ := setup(t)
+	dir := t.TempDir()
+	spec := filepath.Join(dir, "lint.v1.json")
+	require.NoError(t, os.WriteFile(spec, []byte(`{"type":"flow","nodes":[{"id":"a","label":"A","colour":"red"}],"edges":[]}`), 0o644))
+	lint := "diago-render: lint lint.v1: unknown-field nodes[0].colour: "
+
+	out, code := script(t, path, dir)
+	assert.Zero(t, code, "%s", out)
+	assert.Contains(t, out, lint)
+	assert.Contains(t, out, "lint v1 width=")
+
+	out, code = script(t, path, dir, "--strict")
+	assert.Equal(t, 1, code, "%s", out)
+	assert.Contains(t, out, lint)
+	assert.Contains(t, out, "diago-render: lint warnings in "+spec+" (--strict)")
+	assert.NotContains(t, out, " ok\n", "no diagram reports ok")
 }
