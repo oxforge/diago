@@ -70,6 +70,7 @@ func node(t *testing.T, a *Arrangement, id string) int {
 }
 
 // The following tests rerun place's own symmetry properties on measured sizes carried through every stage.
+
 func TestArrange_AChainIsStraight(t *testing.T) {
 	_, x := arrange(t, graph(t, nil, "a->b", "b->c", "c->d"), screen())
 	for _, id := range []string{"b", "c", "d"} {

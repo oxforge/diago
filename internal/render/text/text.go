@@ -144,7 +144,8 @@ func drawGroup(g *charGrid, grp model.PositionedGroup) {
 	g.frame(left, top, right-left+1, bottom-top+1, grp.Label, at)
 }
 
-// Errors.
+// errNotAxisAligned is the error for segment seg of edge from->to when it
+// is neither horizontal nor vertical after cell mapping.
 func errNotAxisAligned(from, to string, seg int) error {
 	return fmt.Errorf("text: edge %s->%s segment %d is not axis-aligned after cell mapping", from, to, seg)
 }

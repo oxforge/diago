@@ -235,8 +235,6 @@ func edgeIndexByID(edges []model.Edge) map[string]int {
 	return idx
 }
 
-// prefixAdvisories copies advs with side prepended to every field
-// ("before.nodes[2]"); an empty field becomes the bare side.
 // unrepeated returns the before findings the after side does not repeat
 // alike, with the same rule, field and message: a finding both sides raise
 // is one finding, reported on the after side, the version drawn. The field
@@ -256,6 +254,8 @@ func unrepeated(before, after []schema.Advisory) []schema.Advisory {
 	return out
 }
 
+// prefixAdvisories copies advs with side prepended to every field
+// ("before.nodes[2]"); an empty field becomes the bare side.
 func prefixAdvisories(advs []schema.Advisory, side string) []schema.Advisory {
 	out := make([]schema.Advisory, len(advs))
 	for i, a := range advs {
