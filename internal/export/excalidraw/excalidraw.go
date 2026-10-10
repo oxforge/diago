@@ -8,7 +8,8 @@ import (
 	"github.com/oxforge/diago/internal/theme"
 )
 
-// Export converts a PositionedGraph to Excalidraw v2 JSON bytes.
+// Export converts a PositionedGraph to an Excalidraw v2 JSON file, ending in
+// a newline.
 func Export(pg *model.PositionedGraph, th theme.Theme) ([]byte, error) {
 	b := builder{
 		th:           th,
@@ -97,7 +98,11 @@ func Export(pg *model.PositionedGraph, th theme.Theme) ([]byte, error) {
 		Elements: b.elements,
 	}
 
-	return json.MarshalIndent(doc, "", "  ")
+	data, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(data, '\n'), nil
 }
 
 // --- Types ---

@@ -67,7 +67,8 @@ type mxPoint struct {
 	Y       float64  `xml:"y,attr"`
 }
 
-// Export converts a PositionedGraph to draw.io XML bytes.
+// Export converts a PositionedGraph to a draw.io XML file, ending in a
+// newline.
 func Export(pg *model.PositionedGraph, th theme.Theme) []byte {
 	cells := []mxCell{
 		{ID: rootCell},
@@ -94,7 +95,8 @@ func Export(pg *model.PositionedGraph, th theme.Theme) []byte {
 	if err != nil {
 		return nil
 	}
-	return append([]byte(xml.Header), out...)
+	out = append([]byte(xml.Header), out...)
+	return append(out, '\n')
 }
 
 func buildMembershipMaps(pg *model.PositionedGraph) (map[string]string, map[string]string, map[string]*model.PositionedGroup) {

@@ -376,6 +376,13 @@ func TestExport_OnePageOfCells(t *testing.T) {
 	}
 }
 
+// TestExport_EndsInOneNewline: the file ends in a newline, as a text file
+// does.
+func TestExport_EndsInOneNewline(t *testing.T) {
+	data := string(Export(&model.PositionedGraph{}, themetest.Default()))
+	assert.True(t, strings.HasSuffix(data, "</mxfile>\n"), "%q", data[max(0, len(data)-16):])
+}
+
 func TestExport_EmptyGraph(t *testing.T) {
 	pg := &model.PositionedGraph{}
 	data := Export(pg, themetest.Default())

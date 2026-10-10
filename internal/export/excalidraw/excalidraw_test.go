@@ -2,6 +2,7 @@ package excalidraw
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/oxforge/diago/internal/model"
@@ -9,6 +10,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// TestExport_EndsInOneNewline: the file ends in a newline, as a text file
+// does.
+func TestExport_EndsInOneNewline(t *testing.T) {
+	data, err := Export(&model.PositionedGraph{}, themetest.Default())
+	require.NoError(t, err)
+	assert.True(t, strings.HasSuffix(string(data), "]\n}\n"), "%q", data[max(0, len(data)-16):])
+}
 
 func TestSingleNode(t *testing.T) {
 	pg := &model.PositionedGraph{
