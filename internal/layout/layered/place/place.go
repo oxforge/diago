@@ -65,9 +65,11 @@ func Place(ctx context.Context, g *lgraph.Graph, o Options) []float64 {
 	restarts := 0
 	// every round keeps the vertices already forced and the rooms already
 	// kept and adds at least one of either, a diamond forces at most one
-	// exit per vertex, and a secondary gets its room at most once; a
-	// restart denies at least one diamond its primary or gives at least one
-	// back, each at most once per diamond; so the loop ends
+	// exit per vertex, a secondary gets its room at most once, and a
+	// diamond's bottom clause gives way at most once, taking back at most
+	// its two side forcings; a restart denies at least one diamond its
+	// primary or gives at least one back, each at most once per diamond;
+	// so the loop ends
 	for round := 0; ; round++ {
 		if ctx.Err() != nil {
 			break // out of time: the caller stops the layout
