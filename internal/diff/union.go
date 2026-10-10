@@ -21,11 +21,11 @@ type UnionGraph struct {
 }
 
 // BuildUnion merges before and after. Element order: after's, then removed
-// before-elements in before order. Presentation (direction, style,
-// alignment, hints) comes from after. Group membership is rebuilt over the
-// merged set: after's for survivors, before's for removed nodes and groups;
-// a removed group whose re-attached depth would exceed the nesting limit is
-// hoisted to the top level.
+// before-elements in before order. The direction comes from after; the
+// union carries no title and no legend. Group membership is rebuilt over
+// the merged set: after's for survivors, before's for removed nodes and
+// groups; a removed group whose re-attached depth would exceed the nesting
+// limit is hoisted to the top level.
 func BuildUnion(before, after *model.Graph) UnionGraph {
 	u := UnionGraph{
 		Nodes: map[string]Status{}, Edges: map[string]Status{}, Groups: map[string]Status{},
