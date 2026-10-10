@@ -31,8 +31,7 @@ func TestWithTitle(t *testing.T) {
 func TestRender_TitleLine(t *testing.T) {
 	// Node placed at cell (1,1), 7 cells wide by 3 tall, with a 1-cell
 	// margin on every side of the 9x5-cell canvas (cellNode is text_test.go's
-	// col/row/w/h-based builder, mirroring class_test.go's approach; the
-	// brief's literal X: cellW, Y: cellH left the box clipped off-canvas).
+	// col/row/w/h-based builder, mirroring class_test.go's approach).
 	n := cellNode("a", "A", model.ShapeRect, 1, 1, 7, 3)
 	pg := &model.PositionedGraph{Width: 9 * cellW, Height: 5 * cellH, Title: "Top", Nodes: []model.PositionedNode{n}}
 	res, err := Render(pg)

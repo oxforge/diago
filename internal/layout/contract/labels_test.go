@@ -156,9 +156,8 @@ func TestC14_4_Exemptions(t *testing.T) {
 	unresolved.Edges[0].LabelUnresolved = true
 	assert.Empty(t, filter(check(unresolved), "C14.1"), "the resolver's recorded fallback")
 
-	// A congruence-owned label is checked like any other (C17.4 dropped
-	// at the cutover): AppliedCongruences no longer buys an overlapping
-	// label an exemption.
+	// A congruence-owned label is checked like any other:
+	// AppliedCongruences buys an overlapping label no exemption.
 	owned := labeled(60, 40)
 	owned.AppliedCongruences = []model.AppliedCongruence{{FanOut: []int{0}}}
 	assert.True(t, has(check(owned), "C14.1", "a->b#0"), "a congruence-owned label overlapping a node is a violation")

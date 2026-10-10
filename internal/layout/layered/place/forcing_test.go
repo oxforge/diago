@@ -96,9 +96,9 @@ func TestPlace_ARailedSideExitIsForcedOntoItsColumn(t *testing.T) {
 // column, which lets b fall back toward z, 7.86 px inside the right
 // column. Decided again on the rerun's result, m->b is forced too, in round
 // 1, and b lands under the column: the router draws both exits as Ls.
-// (m was a circle, whose exits now merge instead, TestPlace_ACirclesExitsAreNotForced;
-// as a diamond it keeps the case, which placement sees only through m's
-// width.)
+// (m is a diamond: a circle's exits merge instead,
+// TestPlace_ACirclesExitsAreNotForced, and placement sees the shape only
+// through m's width.)
 func TestPlace_ForcingIsDecidedAgainAfterTheRerun(t *testing.T) {
 	widths := map[string]float64{"m": 160, "a": 60, "b": 160, "z": 80}
 	specs := []string{"m:diamond->b:diamond", "m->a:circle", "z:diamond->b"}
@@ -212,8 +212,8 @@ func TestPlace_ALoneExitKeepsTheBottom(t *testing.T) {
 // out-edge, end has none), so it is the main line: it is forced straight
 // under m's bottom vertex, and the other exit takes the side its next
 // vertex lies on, at least the minimum separation (80 + 40) out, beyond
-// m's side column (40 + 20). Symmetric, as before the clause, both
-// children sat 60 either side of m. The forcing is logged as a primary's.
+// m's side column (40 + 20). Without the clause both children would sit
+// symmetric, 60 either side of m. The forcing is logged as a primary's.
 func TestPlace_ADiamondsPrimaryExitRunsStraight(t *testing.T) {
 	for _, specs := range [][]string{
 		{"m:diamond->main", "m->end", "main->next"},
@@ -266,7 +266,7 @@ func TestPlace_ASecondaryIsJudgedAfterItsPrimary(t *testing.T) {
 // TestPlace_NoPrimaryWithoutOneMainLine pins the other half of S7's primary
 // clause: when both of m's exits lead on, or neither, no branch is the main
 // line, and the exit rule keeps them symmetric about m's axis, each under
-// its side column (40 + 20 out) as before the clause; so does a
+// its side column (40 + 20 out); so does a
 // diamond with three exits, and one with a counter-flow end, which is not
 // forced at all.
 func TestPlace_NoPrimaryWithoutOneMainLine(t *testing.T) {
@@ -458,8 +458,8 @@ func primaryChanges(t *testing.T, got []map[string]any) []string {
 // (40 + 20 out), where ea stands within the node clearance of the
 // column's way out. So eb gets room in the round after b's forcing: ea
 // keeps the node clearance (12) beyond eb's port, eb's center (its one
-// in-port), and b keeps its primary, ok under it. Denied it, as before
-// the room, b fanned out symmetrically and the main line bent.
+// in-port), and b keeps its primary, ok under it. Denied it, b would fan
+// out symmetrically and the main line bend.
 func TestPlace_ABlockedSecondaryGetsRoom(t *testing.T) {
 	_, x := placed1(t, screen, nil, cascade...)
 	assert.InDelta(t, x("a"), x("b"), 1e-9, "a's main line")

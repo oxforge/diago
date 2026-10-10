@@ -66,7 +66,7 @@ func TestFlowchart_Basics(t *testing.T) {
 	spec, _ = parseFlow(t, "graph TD\n  a[\"Quoted [label]\"] --> b\n")
 	assert.Equal(t, "Quoted [label]", spec.Nodes[0].Label)
 
-	// ids with inner dashes and no spaces around the arrow (plan ruling 1)
+	// ids with inner dashes and no spaces around the arrow
 	spec, _ = parseFlow(t, "graph TD\na-->b\nmy-node-->x.y\n")
 	assert.Equal(t, []schema.EdgeSpec{edge("a", "b"), edge("my-node", "x.y")}, spec.Edges)
 
@@ -233,7 +233,7 @@ func TestFlowchart_Frontmatter(t *testing.T) {
 func TestFlowchart_Errors(t *testing.T) {
 	// missing header (sniffed as not Mermaid at all)
 	assert.Equal(t, "not a Mermaid source", errOf(t, "a --> b").Message)
-	// unsupported direction reports the line (plan ruling 7: BT is accepted here)
+	// unsupported direction reports the line (BT is accepted)
 	pe := errOf(t, "graph XX\n a --> b")
 	assert.Equal(t, 1, pe.Line)
 	assert.Equal(t, `direction "XX" is not supported (supported: TD, TB, LR, BT, RL)`, pe.Message)

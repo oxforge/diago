@@ -153,7 +153,7 @@ func TestPolylineWithHops_MultipleSegmentsHopOnSecond(t *testing.T) {
 // Crossings whose hops would overlap on one segment merge into one wider
 // hop over all of them, no taller than a lone one: the path never steps
 // back and the bump never reaches a parallel wire. Hops that only touch
-// (10 px apart) stay two, drawn as before.
+// (10 px apart) stay two, a lone hop each.
 func TestPolylineWithHops_CloseCrossingsMergeIntoOneHop(t *testing.T) {
 	across := []model.Point{{X: 0, Y: 0}, {X: 100, Y: 0}}
 	down := []model.Point{{X: 0, Y: 0}, {X: 0, Y: 100}}

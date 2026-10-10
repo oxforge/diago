@@ -87,8 +87,7 @@ func TestLayout_FlowLoopTakesTwoAdjacentVertices(t *testing.T) {
 // and the replayed wires leave the left vertex and hook back to n0's
 // in-vertex (four bends). (A random graph, found by a search with the
 // replay prediction undone: the probe's seed 4048, flat, trimmed to what
-// the case needs. The graph before it, seed 2079's, made its case with a
-// circle's exits, which now merge on its bottom vertex.)
+// the case needs.)
 func TestLayout_AReplayedSideExitRoutesAsAnL(t *testing.T) {
 	g := graph(t, nil, "n0:diamond", "n1:diamond", "n2:circle", "n4:rounded", "n5",
 		"n1->n5", "n0->n2", "n1->n0", "n1->n0", "n1->n2", "n4->n2")
@@ -179,7 +178,7 @@ func mergedFanOut(t *testing.T, pg *model.PositionedGraph, dir model.Direction, 
 // the finished layout, in every direction: a circle's two or three forward
 // exits all leave its out-vertex and run on together, at least C7's stub,
 // before they split toward their children (a bracket, C8.5's merged
-// fan-out), where S7 used to force them out of its side vertices as Ls. A
+// fan-out), rather than leaving its side vertices as Ls. A
 // diamond with the same exits still spreads them over its vertices, which
 // C8.5 forbids it to share. The layouts meet the whole contract.
 func TestLayout_ACirclesExitsShareOneTrunk(t *testing.T) {
@@ -325,11 +324,9 @@ func TestLayout_InterleavedBackEdgesRunOnOppositeSides(t *testing.T) {
 // its left vertex, and placement leaves n6's in-port 2.67 px inside the
 // column Reach out: the wire runs as an L on the column, n6's port coming
 // onto it, and its stub out of the vertex keeps C7's floor, where the
-// column taking the port's x left 17.33 px. (The random-graph probe's
-// seed 76 of its decisions mode, found by a search with that check
-// undone. The graph before it lost the case when S7 forced the exits of a
-// diamond with a back edge in the second pass, and the one before that
-// when S7 stopped letting a back edge pull a node with faces.)
+// column taking the port's x would leave 17.33 px. (The random-graph
+// probe's seed 76 of its decisions mode, found by a search with that
+// check undone.)
 func TestLayout_ASideColumnKeepsReachWhileAWireStraightens(t *testing.T) {
 	specs := []string{"n0", "n1:diamond", "n2:diamond", "n3:diamond", "n4:diamond", "n5:diamond", "n6", "n7", "n8",
 		"n0->n7", "n1->n8", "n1->n2", "n2->n3", "n2->n7", "n3->n5", "n3->n8", "n4->n5", "n4->n6", "n5->n8", "n5->n6"}

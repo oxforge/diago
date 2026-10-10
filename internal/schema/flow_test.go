@@ -496,9 +496,9 @@ func TestParseFlow_EdgeDirectionNone(t *testing.T) {
 }
 
 func TestParseFlow_HintsIgnored(t *testing.T) {
-	// A contradictory hint pair used to be a validation error; the field
-	// is gone, so the spec parses without error and the removed-field
-	// advisory reports it (schema.Check, not exercised here).
+	// The spec has no hints field: a contradictory hint pair parses
+	// without error, and the removed-field advisory reports it
+	// (schema.Check, not exercised here).
 	_, err := schema.ParseFlow([]byte(`{"type":"flow",
 		"nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],
 		"edges":[{"from":"a","to":"b"}],

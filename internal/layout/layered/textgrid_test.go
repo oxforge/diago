@@ -141,8 +141,8 @@ func TestLayout_TextPortsMirrorAboutTheirFace(t *testing.T) {
 	// the decision is five rows tall, and its two exits leave its right
 	// face. The face's two thirds fall on the lines between rows; each port
 	// takes the row farther from the middle, one above it and one below,
-	// mirrored about the decision's center (S8 Shape ports). They once took
-	// the middle row and the row below it
+	// mirrored about the decision's center (S8 Shape ports), not the middle
+	// row and the row below it
 	g := model.Graph{Direction: model.Right,
 		Nodes: []model.Node{
 			{ID: "init", Label: "i = 0", Shape: model.ShapeRect},
@@ -187,9 +187,9 @@ func TestLayout_TextLanesNeverPutTwoWiresOnOneColumn(t *testing.T) {
 	// probe seed 388 in text: inside G1, n0->n5 leaves on the column of
 	// n7->n0's port on n0, and n7->n0's two wires and n1->n5 hold the other
 	// lanes of the channel above n0 in a cycle of constraints. The cycle
-	// once released n7->n0, putting its jog above n0->n5's: both ran down
-	// that column, a shared run (C9.1). It releases the crossing instead
-	// (S8 Lanes), and the layout meets the text contract
+	// releases the crossing (S8 Lanes): releasing n7->n0 would put its jog
+	// above n0->n5's, both running down that column, a shared run (C9.1).
+	// The layout meets the text contract
 	for _, dir := range []model.Direction{model.Down, model.Up} {
 		t.Run(dir.String(), func(t *testing.T) {
 			g := seed388(t)

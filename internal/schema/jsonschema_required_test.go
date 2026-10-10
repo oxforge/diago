@@ -224,7 +224,7 @@ func TestJSONSchema_RequiredMatchesValidation(t *testing.T) {
 }
 
 // TestJSONSchema_FilesAreCurrent: schemas/*.json is what `just schemas`
-// writes from the spec structs today.
+// writes from the spec structs.
 func TestJSONSchema_FilesAreCurrent(t *testing.T) {
 	for _, specType := range []string{"flow", "sequence", "class"} {
 		want, err := GenerateJSONSchema(specType)

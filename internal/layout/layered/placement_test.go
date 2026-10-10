@@ -191,11 +191,11 @@ func TestLayout_ThePrimaryClausesEdgeCases(t *testing.T) {
 // an L. Each decision's other branch lands in the row of the decision
 // below it, where it would keep that decision's side column from moving
 // out over its port; it keeps the node clearance beyond the port instead
-// (the room). Denied their primaries, as before the room, the lower
-// decisions fanned out symmetrically and their main lines bent: 3 and 5
-// bends in all, now 2 and 3. In the shape where z, the other source into
-// end, sits in m's row, m keeps its primary too (4 bends under RIGHT and
-// LEFT before, 3 now).
+// (the room): 2 and 3 bends in all, where denying the lower decisions
+// their primaries would fan them out symmetrically and bend their main
+// lines, 3 and 5. In the shape where z, the other source into end, sits
+// in m's row, m keeps its primary too (3 bends under RIGHT and LEFT, not
+// 4).
 func TestLayout_ACascadesSecondariesRouteAsLs(t *testing.T) {
 	for _, tc := range []struct {
 		specs    []string
@@ -241,8 +241,8 @@ func TestLayout_PackingKeepsARoom(t *testing.T) {
 // The forcing wins and the room gives way: n2's secondary stays blocked,
 // so n2 is denied its primary (and given it back, its denial clearing no
 // row), and no forcing drops, in every direction. Kept over the forcing,
-// the room dropped n1's primary and the layout took 12 bends; it takes 8,
-// where denying both diamonds, as before the room, took 7.
+// the room would drop n1's primary and the layout take 12 bends; it takes
+// 8, where denying both diamonds would take 7.
 func TestLayout_ARoomGivesWayToAForcing(t *testing.T) {
 	specs := []string{"n0->n4", "n1:diamond", "n2:diamond", "n1->n4", "n1->n3", "n2->n4", "n2->n6", "n3->n7", "n6->n8"}
 	for _, dir := range []model.Direction{model.Down, model.Up, model.Right, model.Left} {
@@ -290,7 +290,7 @@ func TestLayout_ADenialThatBuysNoLIsGivenBack(t *testing.T) {
 
 // decisionFixture builds a flow graph of decisions from node specs ("id" or
 // "id:diamond", labeled by id) and edges (from, to, label): a frozen copy of
-// a random graph the probe once generated, so the test needs no seed.
+// a random graph of the probe's, so the test needs no seed.
 func decisionFixture(nodes []string, edges [][3]string) model.Graph {
 	var g model.Graph
 	for _, spec := range nodes {
@@ -324,11 +324,11 @@ func decisionSeed27() model.Graph {
 // TestLayout_ARoomWaitsForItsPrimary pins S7's room on a diamond whose
 // primary's forcing alignment dropped: the room's premise, the secondary's
 // next vertex kept the node gap from the primary's under the diamond, does
-// not hold, so the diamond gets no room and is denied its primary as
-// before the room, which takes its primary out of the forced batch that
-// could not be met. Given rooms anyway, d1 (and on the probe's decision
-// seed 387 DOWN, n6 and n12) kept a batch no placement meets, every forcing
-// in it dropped, and seed 387 took 59 bends where the denials take 50.
+// not hold, so the diamond gets no room and is denied its primary, which
+// takes its primary out of the forced batch that could not be met. Given
+// rooms anyway, d1 (and on the probe's decision seed 387 DOWN, n6 and n12)
+// would keep a batch no placement meets, every forcing in it dropped, and
+// seed 387 would take 59 bends where the denials take 50.
 func TestLayout_ARoomWaitsForItsPrimary(t *testing.T) {
 	small := graph(t, nil, "d1:diamond->t", "d1->s1", "d2:diamond->t", "d2->s1", "t->u")
 	small.Direction = model.Down
@@ -402,11 +402,11 @@ func assertCascade(t *testing.T, pg *model.PositionedGraph, g model.Graph, dir m
 	}
 }
 
-// TestLayout_ACascadesMainLineHoldsWhateverItsLabels pins S7's room on the
-// shape that broke a room measured before it (plan 6a's review): z, the
-// other source into end, sits in m's row, and with every subset of the
-// five edges labelled, in every direction, m keeps its primary straight
-// on into main, s->m runs straight into m, and m->end is an L.
+// TestLayout_ACascadesMainLineHoldsWhateverItsLabels pins S7's room on a
+// cascade where z, the other source into end, sits in m's row: with every
+// subset of the five edges labelled, in every direction, m keeps its
+// primary straight on into main, s->m runs straight into m, and m->end is
+// an L.
 func TestLayout_ACascadesMainLineHoldsWhateverItsLabels(t *testing.T) {
 	specs := []string{"s->m:diamond", "m->main", "m->end", "z->end", "main->next"}
 	for mask := range 32 {

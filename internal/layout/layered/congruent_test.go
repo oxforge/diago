@@ -570,8 +570,7 @@ func seed101(t *testing.T) model.Graph {
 // TestLayout_ProbeSeed101SpreadsItsFanOutInText pins S12's Rule C on the
 // congruent probe graph of seed 101 under DOWN, in both profiles: the
 // congruence is applied and its fan-out from src is spread, with no
-// congruence_fanout_skipped record. The text layout once skipped it
-// (reason lanes), and before that for a crossing.
+// congruence_fanout_skipped record.
 func TestLayout_ProbeSeed101SpreadsItsFanOutInText(t *testing.T) {
 	g := seed101(t)
 	for _, text := range []bool{false, true} {

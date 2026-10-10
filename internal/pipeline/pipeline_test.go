@@ -322,8 +322,8 @@ func TestRenderWithOptionsExportAnchored(t *testing.T) {
 }
 
 // TestRenderWithOptionsFormat covers the accepted format names and, more
-// importantly, that an unrecognised one is rejected. Unknown values used to
-// fall through to the SVG return, so typos produced SVG and exited 0.
+// importantly, that an unrecognised one is rejected, never rendered as SVG
+// with exit 0.
 func TestRenderWithOptionsFormat(t *testing.T) {
 	input := []byte(`{"type":"flow","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b"}]}`)
 

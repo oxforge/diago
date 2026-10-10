@@ -71,8 +71,8 @@ func TestSketchCircleDeterministic(t *testing.T) {
 }
 
 func TestSketchWobbleIsHalf(t *testing.T) {
-	// sketchWobble should be 0.75 (halved from original 1.5)
-	// to produce subtler hand-drawn deviations.
+	// sketchWobble is 0.75, half of 1.5, for subtle hand-drawn
+	// deviations.
 	assert.Equal(t, 0.75, sketchWobble)
 }
 

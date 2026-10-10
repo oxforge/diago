@@ -39,8 +39,8 @@ func invertOutputBox(dir model.Direction, x, y, w, h float64) (ex, ey, ew, eh fl
 
 // TestPlaceTitles_EveryDirectionMapsTheBand pins placeTitles' band mapping
 // (S10) in every direction and both profiles. Nothing else in the suite
-// crosses a title band under RIGHT or LEFT, so today swapping RIGHT's and
-// LEFT's u, flipping their v, or dropping "width = gr.Height" for a
+// crosses a title band under RIGHT or LEFT, so without it swapping RIGHT's
+// and LEFT's u, flipping their v, or dropping "width = gr.Height" for a
 // sideways direction would still pass every other test.
 //
 // The scene is described in the OUTPUT frame: one titled group at the

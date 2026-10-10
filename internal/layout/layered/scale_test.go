@@ -35,7 +35,7 @@ func TestLayout_TextAdapterScalesCellsToPixels(t *testing.T) {
 		// Under DOWN "ok" has no other reason to be this tall (its label
 		// alone needs 3 cells); under RIGHT the flow axis is "ok"'s own
 		// label width, which already exceeds LoopMinH, so the rule does
-		// not bind there and is not asserted (see the task-8 fix report).
+		// not bind there and is not asserted.
 		if dir == model.Down {
 			var ok model.PositionedNode
 			for _, n := range pg.Nodes {

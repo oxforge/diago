@@ -104,8 +104,8 @@ func TestRun_GitErrors(t *testing.T) {
 	}
 }
 
-// TestRun_DiffPatchIsNotASpec: the unified-diff second argument is gone; a
-// patch file now fails as the non-spec it is.
+// TestRun_DiffPatchIsNotASpec: diff takes no unified-diff second argument;
+// a patch file fails as the non-spec it is.
 func TestRun_DiffPatchIsNotASpec(t *testing.T) {
 	old := writeTemp(t, "spec.json", diffOld)
 	patch := writeTemp(t, "change.patch", "--- a/spec.json\n+++ b/spec.json\n@@ -1,1 +1,1 @@\n-x\n+y\n")

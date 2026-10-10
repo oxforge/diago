@@ -49,7 +49,7 @@ func TestPack_SideBySideVerticalsTakeTheOtherOrder(t *testing.T) {
 // side by side (d above b, c above d, a above c) and one only avoids a
 // crossing (b above c). The cycle releases b, held by no side-by-side
 // constraint: b crosses c, and no two verticals share a column. Releasing
-// the unit with the fewest constraints, b first in edge order, once put b
+// the unit with the fewest constraints, b first in edge order, would put b
 // above d, d's terminal column on b's port column (C9.1).
 func TestPack_ACycleReleasesACrossingBeforeSideBySideVerticals(t *testing.T) {
 	r := &router{o: text, lanes: laneMap{}}

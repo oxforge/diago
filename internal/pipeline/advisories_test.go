@@ -53,8 +53,7 @@ func TestRenderWithOptions_TextLabelDropped(t *testing.T) {
 	// four labelled edges from a to b and two back, laid out DOWN, are
 	// known to drop the "four" label in text mode: S10 leaves it
 	// unresolved, and the text renderer finds no room for it on its own
-	// ladder. (cicd-pipeline DOWN dropped "on failure" until a text label
-	// could leave a group too narrow for it, S10.) This end-to-end check
+	// ladder. This end-to-end check
 	// rests on a layout that drops a label; the wiring itself is pinned on
 	// hand-built input by TestCheckAdvisories_DroppedLabels here and
 	// TestRender_LabelThatFitsNowhereIsReported in internal/render/text.
@@ -140,7 +139,7 @@ func TestRenderDiff_RepeatedAdvisoryOnce(t *testing.T) {
 	}, advs(vagueSpec, relabelled))
 }
 
-// blockedFlatSpec is P3's fallback fixture (flat_test.go's blocked graph):
+// blockedFlatSpec is the fallback fixture (flat_test.go's blocked graph):
 // m sits directly between a and b, so every candidate route for the flat
 // edge a->b (edges[2]) fails and the layout ranks it.
 const blockedFlatSpec = `{"type":"flow","direction":"DOWN","nodes":[{"id":"a","label":"A"},{"id":"m","label":"M"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"m"},{"from":"m","to":"b"},{"from":"a","to":"b","flat":true}]}`
@@ -196,13 +195,13 @@ func TestRenderWithOptions_FlatEdgeRanked(t *testing.T) {
 	require.Error(t, err)
 }
 
-// TestRenderWithOptions_FlatEdgeRankedAnchored: since P3b an anchored
-// render keeps the previous layout's fallbacks (the carrier's ranked, S13),
+// TestRenderWithOptions_FlatEdgeRankedAnchored: an anchored render keeps
+// the previous layout's fallbacks (the carrier's ranked, S13),
 // so the warning fires again on a render anchored on a carrier that ranked
 // the edge, even though nothing here would make a fresh layout re-decide.
 // The edge is kept without ever trying its side route again (keepRanked
 // runs before the router), so the message says "kept", not "no clear side
-// route" (finding 1, plan 6b's fix brief).
+// route".
 func TestRenderWithOptions_FlatEdgeRankedAnchored(t *testing.T) {
 	var carrier model.LayoutHints
 	_, err := RenderWithOptions(context.Background(), []byte(blockedFlatSpec), Options{LayoutHints: &carrier})
@@ -216,8 +215,8 @@ func TestRenderWithOptions_FlatEdgeRankedAnchored(t *testing.T) {
 	assert.Equal(t, "kept as an ordinary edge from the previous layout (-previous); a render without it tries a side route again", advs[0].Message)
 }
 
-// TestRenderWithOptions_FlatEdgeRankedKept: the reproduction from finding 1's
-// fix brief. blockedFlatSpec falls back fresh; cleanFlatSpec is the same
+// TestRenderWithOptions_FlatEdgeRankedKept: blockedFlatSpec falls back
+// fresh; cleanFlatSpec is the same
 // graph freed (no middle node): laid out alone it routes cleanly
 // (TestRenderWithOptions_FlatEdgeRanked), but anchored on a carrier that
 // ranked the edge (S13, keepRanked), the edge is kept ranked without its
@@ -288,7 +287,7 @@ func TestRenderDiff_FlatEdgeRanked(t *testing.T) {
 // already falls back on its own (blockedFlatSpec, unchanged into after),
 // the union's flat edge is kept ranked from that before layout without its
 // side route being tried in the union layout, so the message names the
-// before layout, not "no clear side route" (finding 1's diff wording).
+// before layout, not "no clear side route".
 func TestRenderDiff_FlatEdgeRankedKept(t *testing.T) {
 	var advs []schema.Advisory
 	_, err := RenderDiff(context.Background(), []byte(blockedFlatSpec), []byte(blockedFlatSpec), DiffOptions{Advisories: &advs})

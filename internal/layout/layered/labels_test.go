@@ -13,14 +13,13 @@ import (
 
 func TestLayout_TextLabelsAreDrawnOnTheirBoxes(t *testing.T) {
 	// web and cli, in a titled group, feed api above them under UP
-	// (the flow-client-server example, pared down). web's label once sat
-	// beside the middle of its wire's first run, a box straddling the
-	// group's top border row and the row above it: the text renderer
-	// started it on the border row, found the
-	// frame there and drew it a row up. In the text profile a label's box
-	// is whole cells, clear of every cell drawn there (S10), so the
-	// renderer draws the label on it (C14.5); it now takes the row next to
-	// its wire's lane, left of the wire's last run
+	// (the flow-client-server example, pared down). Beside the middle of
+	// its wire's first run, web's label would straddle the group's top
+	// border row and the row above it, and the text renderer, finding the
+	// frame on the border row, would draw it a row up. In the text profile
+	// a label's box is whole cells, clear of every cell drawn there (S10),
+	// so the renderer draws the label on it (C14.5): it takes the row next
+	// to its wire's lane, left of the wire's last run
 	g := model.Graph{Direction: model.Up,
 		Nodes: []model.Node{
 			{ID: "web", Label: "Web", Shape: model.ShapeRect}, {ID: "cli", Label: "CLI", Shape: model.ShapeRect},
@@ -39,12 +38,11 @@ func TestLayout_TextLabelsAreDrawnOnTheirBoxes(t *testing.T) {
 
 func TestLayout_ClientServerTextLabelsSitByTheirWires(t *testing.T) {
 	// under RIGHT and LEFT the gap between the two frames is narrower than
-	// "HTTPS" and its blanks: web's and cli's labels once climbed out of
-	// the frames, four rows from their wires, and "/assets/*" left
-	// Services below its bottom side. A text label now takes the row next
-	// to a wire along its row, covers a frame side that crosses its row
-	// when its ring holds no clear spot, and stays in its edge's group
-	// (S10)
+	// "HTTPS" and its blanks. A text label takes the row next to a wire
+	// along its row, covers a frame side that crosses its row when its
+	// ring holds no clear spot, and stays in its edge's group (S10): web's
+	// and cli's labels stay by their wires, not four rows away outside the
+	// frames, and "/assets/*" stays in Services
 	for _, dir := range []model.Direction{model.Right, model.Left} {
 		t.Run(dir.String(), func(t *testing.T) {
 			pg := layText(t, clientServer(dir))
@@ -155,12 +153,11 @@ func nearerOther(pg *model.PositionedGraph, i int, b [4]float64) float64 {
 func TestLayout_ASidewaysFanOutsLabelsSitBesideTheirWires(t *testing.T) {
 	// gw fans out to four services under RIGHT and LEFT, each wire
 	// labelled. A label's length lies along the flow there, longer than
-	// any run between the two layers, so every label once fell back to
-	// its least overlap. Each now slides beside its own wire, past a turn
-	// or beside a jog, clear, within the eight rings of the slide, where
-	// no other wire lies nearer: "/billing" once slid to 12 from its own
-	// wire and 4 from search's, and now sits under billing's last run
-	// (S10)
+	// any run between the two layers, so no run holds a label. Each
+	// slides beside its own wire, past a turn or beside a jog, clear,
+	// within the eight rings of the slide, where no other wire lies
+	// nearer: "/billing" sits under billing's last run, not 12 from its
+	// own wire and 4 from search's (S10)
 	for _, dir := range []model.Direction{model.Right, model.Left} {
 		t.Run(dir.String(), func(t *testing.T) {
 			g := graph(t, nil, "gw->users", "gw->orders", "gw->billing", "gw->search")
@@ -210,10 +207,10 @@ func clientServer(dir model.Direction) model.Graph {
 }
 
 func TestLayout_ClientServerSidewaysLabelsNameTheirOwnWires(t *testing.T) {
-	// flow-client-server under RIGHT and LEFT: "/auth/*" once slid 24 from
-	// its own wire and 3.6 from proxy->assets', reading as that edge's. A
-	// label resolved sits where no other wire lies nearer than its own,
-	// beyond the slack, or falls back, marked unresolved (S10); only
+	// flow-client-server under RIGHT and LEFT: "/auth/*" 24 from its own
+	// wire and 3.6 from proxy->assets' would read as that edge's. A label
+	// resolved sits where no other wire lies nearer than its own, beyond
+	// the slack, or falls back, marked unresolved (S10); only
 	// proxy->auth's falls back, so the check covers every other label
 	for _, dir := range []model.Direction{model.Right, model.Left} {
 		t.Run(dir.String(), func(t *testing.T) {
@@ -249,10 +246,10 @@ func layText(t *testing.T, g model.Graph) *model.PositionedGraph {
 
 func TestLayout_ClientServerTextQueryResultWiresMirror(t *testing.T) {
 	// server and auth sit either side of db, and under RIGHT and LEFT
-	// their wires into db jog exactly the in-lane gap apart in text: they
-	// once took two lanes, auth's turning two columns past server's. They
+	// their wires into db jog exactly the in-lane gap apart in text. They
 	// share one lane, so both turn at one flow coordinate and mirror each
-	// other about db's center across the flow (S8 Lanes). Under DOWN and
+	// other about db's center across the flow (S8 Lanes), rather than
+	// auth's turning two columns past server's. Under DOWN and
 	// UP db is an even number of columns wide: its two ports fall on the
 	// lines between cells and take the cells farther from its middle, so
 	// they still mirror about its center (S8 Shape ports), while server's
@@ -288,8 +285,8 @@ func TestLayout_ASidewaysCardinalityInACrowdFollowsItsRoute(t *testing.T) {
 	// depot's wire turns into truck on a last run 24 px long, 16 px below
 	// fleet's wire: every spot one to three steps from its end meets
 	// truck, a wire or fleet's cardinality, placed first, so depot's
-	// "0..*" once fell back to its least overlap. It follows its route
-	// around the turn, clear, within four rings of it (S10). Every
+	// "0..*" follows its route around the turn, clear, within four rings
+	// of it (S10), rather than falling back to its least overlap. Every
 	// cardinality resolved lies nearer its own wire than another's, beyond
 	// the slack; fleet's "1..*", between chargeable's wire and depot's 16
 	// px either side of its own, finds no such spot and falls back
@@ -330,11 +327,11 @@ func TestLayout_ASidewaysCardinalityInACrowdFollowsItsRoute(t *testing.T) {
 
 func TestLayout_ClientServerTextCrossesTheBorderStraight(t *testing.T) {
 	// under RIGHT and LEFT the proxy's three in-ports sit one row apart in
-	// text. The Services level's terminals once kept the lane gap, two
-	// rows, between them, three between their centers, so web's and
-	// cli's wires jogged again inside Services: four bends each. With the
-	// terminal gap, one row, each terminal sits on its port, and the
-	// wires jog only between the frames, as on screen (S7, S9, S14)
+	// text. The Services level's terminals keep the terminal gap, one
+	// row, so each terminal sits on its port, and the wires jog only
+	// between the frames, as on screen (S7, S9, S14); the lane gap, two
+	// rows, would make web's and cli's wires jog again inside Services,
+	// four bends each
 	for _, dir := range []model.Direction{model.Right, model.Left} {
 		t.Run(dir.String(), func(t *testing.T) {
 			pg := layText(t, clientServer(dir))
@@ -349,9 +346,9 @@ func TestLayout_ClientServerTextCrossesTheBorderStraight(t *testing.T) {
 func TestLayout_TextALabelLeavesAGroupTooNarrowForIt(t *testing.T) {
 	// api and db stacked in Backend, a group as narrow as its nodes, and
 	// a class package as narrow around order and item: no spot inside the
-	// frame fits the label. It once stayed unresolved and the text
-	// renderer dropped it; the ladder runs again without the group (S10
-	// Text cells), and the label is drawn
+	// frame fits the label. The ladder runs again without the group (S10
+	// Text cells), so the label is drawn rather than left unresolved for
+	// the text renderer to drop
 	flow := model.Graph{
 		Nodes: []model.Node{{ID: "c", Label: "Client", Shape: model.ShapeRect}, {ID: "a", Label: "API", Shape: model.ShapeRect},
 			{ID: "b", Label: "DB", Shape: model.ShapeCylinder}},

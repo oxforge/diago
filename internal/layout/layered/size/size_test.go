@@ -186,7 +186,7 @@ func TestMeasure_Shapes(t *testing.T) {
 // TestMeasure_CompactLabels pins S1's Compact labels: a diamond's,
 // circle's or hexagon's label without "\n" takes the balanced wrap of the
 // line count whose box is narrowest, which the shape rule makes its larger
-// extent. The sizes are golayout's for the same labels.
+// extent.
 func TestMeasure_CompactLabels(t *testing.T) {
 	h2 := 2*lineHeight(14) + 24
 	tests := []struct {

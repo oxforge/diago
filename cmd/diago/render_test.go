@@ -329,10 +329,10 @@ func TestRun_RemovedStyleFlag(t *testing.T) {
 	}
 }
 
-// TestRender_RemovedFieldsIgnored pins the layered-engine Phase 0 promise
-// end-to-end: a spec still carrying the removed style/alignment/hints keys
-// renders byte-identically to the same spec with those keys stripped, and
-// only differs in the removed-field advisories on stderr.
+// TestRender_RemovedFieldsIgnored pins end-to-end that a spec carrying the
+// retired style/alignment/hints keys renders byte-identically to the same
+// spec with those keys stripped, and only differs in the removed-field
+// advisories on stderr.
 func TestRender_RemovedFieldsIgnored(t *testing.T) {
 	tests := []struct {
 		name       string

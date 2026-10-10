@@ -198,9 +198,9 @@ func TestRoute_AStraightenedStopKeepsClearOfALoopLeg(t *testing.T) {
 }
 
 // TestRoute_AStraightenedStopKeepsClearOfALoopLegInText pins S8's stops
-// in the text profile, where the rule's first repro was (the probe's seed
-// 218 under RIGHT): a dummy stop moves only to an x that keeps InLaneGap,
-// two cells, from every self-loop leg of its row. l's loop leg runs Reach
+// in the text profile, on the probe's seed 218 under RIGHT: a dummy stop
+// moves only to an x that keeps InLaneGap, two cells, from every self-loop
+// leg of its row. l's loop leg runs Reach
 // out of its right face and half a cell farther, on a cell's middle, at
 // 16.5 (Self-loops); s->c's dummy sits beside l at 18.5, two cells from
 // it, and c's in-port at 17.5 lies within Span of it, but one cell from
@@ -393,7 +393,7 @@ func TestRoute_ABackEdgeRunsOnItsPinnedSideColumn(t *testing.T) {
 // wide boxes and their column at 267, 7 px from the column: the run
 // stays on 259. At 269 it moves onto the column. The check reads only the
 // run, the vertical a->m runs down at y = 100, between its dummies' rows:
-// where the held run meets the column, a->m takes a 1 px step today, a
+// where the held run meets the column, a->m takes a 1 px step, a
 // micro-jog this clause does not decide.
 func TestRoute_ADummyRunMovesOntoASideColumnOnlyWhereItIsFree(t *testing.T) {
 	for _, tc := range []struct {

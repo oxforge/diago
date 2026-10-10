@@ -63,8 +63,8 @@ func layoutJSON(t *testing.T, pg *model.PositionedGraph) string {
 	return string(b)
 }
 
-// base215 is golayout's anchoring fixture (C18): a fan, a join, and a
-// chain that spans three layers.
+// base215 is an anchoring fixture (C18): a fan, a join, and a chain that
+// spans three layers.
 func base215(t *testing.T) model.Graph {
 	return graph(t, map[string]string{"in": "Ingress", "a": "Auth", "b": "Billing", "c": "Catalog", "d": "DB", "q": "Queue", "w": "Worker"},
 		"in->a", "in->b", "in->c", "a->d", "b->d", "c->d", "b->q", "q->w", "w->d")
@@ -181,9 +181,9 @@ func TestCarrier_ACopyingLevelHasItsOwnScope(t *testing.T) {
 
 func TestAnchoring_ExactReproduction(t *testing.T) {
 	// C18.1: an unchanged spec anchored on its own carrier gives the same
-	// layout, carrier included. The cases: golayout's fixture; a K3,3,
-	// which ends with crossings; the layer-skipping back edge golayout
-	// does not reproduce; nested groups and a congruence.
+	// layout, carrier included. The cases: base215; a K3,3, which ends
+	// with crossings; a back edge that skips layers; nested groups and a
+	// congruence.
 	backEdge := graph(t, map[string]string{"client": "Web Client", "lb": "Load Balancer", "api": "API Gateway", "auth": "Auth Service",
 		"db": "Postgres", "cache": "Redis Cache", "queue": "Job Queue", "worker": "Email Worker", "smtp": "SMTP Relay"},
 		"client->lb", "lb->api", "api->auth", "api->db:cylinder", "auth->db", "api->cache:cylinder", "api->queue", "queue->worker", "worker->db", "smtp")
