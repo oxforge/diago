@@ -2,6 +2,7 @@ package schema
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"strings"
 	"testing"
@@ -126,5 +127,40 @@ func TestJSONSchema_EnumsAreTheModels(t *testing.T) {
 			got = append(got, v.(string))
 		}
 		assert.ElementsMatch(t, tc.want, got, "%s %s.%s", tc.spec, tc.def, tc.prop)
+	}
+}
+
+// TestSchema_HandWrittenListsAreTheModels pins what the schema package
+// still writes out by hand to the model: the invalid-direction message of
+// flow and class specs lists every direction (AUTO last, an order no
+// generated list has), and the group nesting descriptions name
+// model.MaxGroupDepth.
+func TestSchema_HandWrittenListsAreTheModels(t *testing.T) {
+	for _, tc := range []struct {
+		name, spec string
+		parse      func([]byte) error
+	}{
+		{"flow", `{"type":"flow","direction":"SIDEWAYS","nodes":[{"id":"a"}]}`,
+			func(b []byte) error { _, err := ParseFlow(b); return err }},
+		{"class", `{"type":"class","direction":"SIDEWAYS","classes":[{"id":"a"}]}`,
+			func(b []byte) error { _, err := ParseClass(b); return err }},
+	} {
+		msg := fields(t, tc.parse([]byte(tc.spec)))["direction"]
+		_, list, ok := strings.Cut(msg, "must be one of: ")
+		require.True(t, ok, "%s: %q", tc.name, msg)
+		assert.ElementsMatch(t, model.DirectionValues(), strings.Split(list, ", "), tc.name)
+	}
+	depth := fmt.Sprintf("max %d levels deep", model.MaxGroupDepth)
+	for _, tc := range []struct{ spec, def, prop string }{
+		{"flow", "GroupSpec", "contains"},
+		{"class", "ClassSpec", "packages"},
+	} {
+		data, err := GenerateJSONSchema(tc.spec)
+		require.NoError(t, err)
+		var raw map[string]any
+		require.NoError(t, json.Unmarshal(data, &raw))
+		prop, ok := getDefProperties(t, raw, tc.def)[tc.prop].(map[string]any)
+		require.True(t, ok, "%s.%s", tc.def, tc.prop)
+		assert.Contains(t, prop["description"], depth, "%s %s.%s", tc.spec, tc.def, tc.prop)
 	}
 }
