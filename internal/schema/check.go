@@ -12,8 +12,8 @@ import (
 // generic tree. Callers run it after a successful parse; on a spec that
 // fails validation Check makes no promise beyond not panicking.
 //
-// The error is non-nil only for JSON that does not decode or a type that
-// is not flow or sequence.
+// The error is non-nil only for JSON that does not decode into the spec
+// type's struct, or a type that is not flow, sequence or class.
 func Check(data []byte, opts CheckOptions) ([]Advisory, error) {
 	var probe struct {
 		Type string `json:"type"`
