@@ -60,7 +60,7 @@ The repository has three parts:
 diago/
 ├── cmd/
 │   ├── diago/            # CLI entrypoint (verbs: render, diff, check, import, plus help and --version; a verb is required; every spec argument is a path, stdin or REV:PATH, and may be Mermaid by .mmd extension or header; output on stdout; advisories and import reports on stderr)
-│   └── generate-enums/   # Codegen for internal/model/enums_gen.go ("DO NOT EDIT": change the generator, not the output; `go generate ./internal/model` reruns it; `TestJSONSchema_EnumsAreTheModels` pins the `jsonschema` enum tags in `internal/schema/` to its `XxxValues`, so a changed value changes those tags too, then `just schemas`)
+│   └── generate-enums/   # Codegen for internal/model/enums_gen.go ("DO NOT EDIT": change the generator, not the output; `go generate ./internal/model` reruns it, and `TestGenerate_MatchesTheCheckedInFile` fails while the checked-in file differs from what it writes; `TestJSONSchema_EnumsAreTheModels` pins the `jsonschema` enum tags in `internal/schema/` to its `XxxValues`, so a changed value changes those tags too, then `just schemas`)
 ├── internal/
 │   ├── schema/           # JSON schema definitions and validation per diagram type (flow, sequence, class), plus the advisory checker (schema.Check, the ignore list, rule constants)
 │   ├── layout/
