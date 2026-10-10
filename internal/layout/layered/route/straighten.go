@@ -134,10 +134,10 @@ func (r *router) backColumn(e int) (float64, bool) {
 
 // dummyRoom reports whether dummy d's column may move to x beyond Span
 // (S8, Stops): at x it keeps the node clearance from every node box of its
-// row and InLaneGap from every other dummy of the row (blocked), a side
-// column's room beside a pinned node and a loop's beside a node with faces
-// included, and InLaneGap from the side columns and stubs of the row's
-// nodes (crowded). What lies between its column and x does not matter.
+// row and InLaneGap from every other dummy of the row (blocked), a pinned
+// node's loop column and the loop legs of a node with faces included, and
+// InLaneGap from the side columns and stubs of the row's nodes (crowded).
+// What lies between its column and x does not matter.
 func (r *router) dummyRoom(d int, x float64) bool {
 	return !r.blocked(d, x, x, 0) && !r.crowded(d, x, x)
 }
