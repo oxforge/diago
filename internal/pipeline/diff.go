@@ -308,7 +308,7 @@ func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 	// Text art ignores the theme, but one that does not load is still an error.
 	th, err := specTheme(after, opts.Theme)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("diff: theme: %w", prefixFields(err, "after"))
+		return nil, nil, nil, fmt.Errorf("diff: %w", prefixFields(err, "after"))
 	}
 
 	if in.kind == "sequence" {

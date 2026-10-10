@@ -90,14 +90,17 @@ func TestRun_DiffWithAnUnsupportedFormatIsAUsageError(t *testing.T) {
 }
 
 // A text-art diff draws no theme, but the theme the new spec names must load
-// (exit 1, on after.theme), and an unknown -theme is a usage error (exit 2).
+// (exit 1, on after.theme), and an unknown -theme is a usage error (exit 2)
+// that names the theme once, in every format.
 func TestRun_DiffTextChecksTheTheme(t *testing.T) {
 	old, neu := writeTemp(t, "old.json", diffOld), writeTemp(t, "new.json", diffNew)
 	themed := writeTemp(t, "themed.json", strings.Replace(diffNew, "{", `{"theme":"nope",`, 1))
 	code, _, stderr := runCLI(t, "", "diff", "-format", "text", old, themed)
 	assert.Equal(t, 1, code)
 	assert.Contains(t, stderr, `"field": "after.theme"`)
-	code, _, stderr = runCLI(t, "", "diff", "-format", "text", "-theme", "nope", old, neu)
-	assert.Equal(t, 2, code)
-	assert.True(t, strings.HasPrefix(stderr, "error: "), stderr)
+	for _, format := range []string{"text", "svg"} {
+		code, _, stderr = runCLI(t, "", "diff", "-format", format, "-theme", "nope", old, neu)
+		assert.Equal(t, 2, code, format)
+		assert.Equal(t, "error: diff: theme \"nope\" not found\n", stderr, format)
+	}
 }
