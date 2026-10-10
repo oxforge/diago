@@ -3,6 +3,7 @@ package layered
 import (
 	"context"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -150,6 +151,34 @@ func TestLayout_ALongTitleWidensTheGroup(t *testing.T) {
 		a, gr := positioned(t, pg, "a"), group(t, pg, "g")
 		assert.InDelta(t, 16+w, gr.Width, 1e-9, "%s", dir)
 		assert.InDelta(t, gr.X+gr.Width/2, a.X, 1e-9, "%s: centered", dir)
+	}
+}
+
+// TestLayout_ATextLongTitleCentersTheContentRoundedDown pins S9's box in
+// the text profile: a title wider than the content widens the box to
+// 2 × TitleInset + its width, in cells, and the content centers with the
+// slack rounded down to whole cells, the odd cell on the far side of the
+// engine's frame: the right under DOWN and RIGHT. Node a is 8 cells wide;
+// a title of n cells makes the box 6 + n wide.
+func TestLayout_ATextLongTitleCentersTheContentRoundedDown(t *testing.T) {
+	for _, dir := range []model.Direction{model.Down, model.Right} {
+		for _, tc := range []struct {
+			n           int
+			left, right float64 // cells between the group's sides and a's box
+		}{
+			{19, 8, 9},
+			{20, 9, 9},
+		} {
+			g := grouped(graph(t, nil, "a"), model.Group{ID: "g", Label: strings.Repeat("T", tc.n), Contains: []string{"a"}})
+			g.Direction = dir
+			pg, err := Layout(context.Background(), g, TextConfig(dir), nil)
+			require.NoError(t, err)
+			assert.Empty(t, contract.Check(pg, contract.Options{Limits: contract.TextLimits(dir), Direction: dir, EdgeIDs: ids(g), Text: true}), "%s", dir)
+			a, gr := box(positioned(t, pg, "a")), group(t, pg, "g")
+			assert.Equal(t, float64(6+tc.n)*cellW, gr.Width, "%s, %d cells of title", dir, tc.n)
+			assert.Equal(t, tc.left*cellW, a[0]-gr.X, "%s, %d cells of title: left", dir, tc.n)
+			assert.Equal(t, tc.right*cellW, gr.X+gr.Width-a[2], "%s, %d cells of title: right", dir, tc.n)
+		}
 	}
 }
 
