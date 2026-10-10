@@ -319,6 +319,46 @@ func TestLayoutEmptyInteractions(t *testing.T) {
 	assert.Greater(t, result.Height, 0.0)
 }
 
+// TestLayout_LifelinesEndBelowTheLastRow: every lifeline ends BottomMargin
+// below the lowest of the last message (its loop's bottom for a
+// self-message; the first message row when there is none) and every
+// fragment's frame, under both profiles.
+func TestLayout_LifelinesEndBelowTheLastRow(t *testing.T) {
+	opt := []model.Fragment{{
+		Type:     model.FragmentOpt,
+		Over:     []string{"a", "b"},
+		Sections: []model.FragmentSection{{Label: "ready", Start: 0, End: 0}},
+	}}
+	for _, np := range screenAndText() {
+		p := np.p
+		for _, tt := range []struct {
+			name         string
+			interactions []model.Interaction
+			fragments    []model.Fragment
+			lowest       func(ps *model.PositionedSequence) float64
+		}{
+			{"no message", nil, nil, func(ps *model.PositionedSequence) float64 {
+				return ps.Actors[0].LineTop + p.InteractionSpacingY
+			}},
+			{"a message", []model.Interaction{{From: "a", To: "b", Label: "go"}, {From: "b", To: "a", Label: "back"}}, nil,
+				func(ps *model.PositionedSequence) float64 { return ps.Interactions[1].Y }},
+			{"a self-message", []model.Interaction{{From: "a", To: "b", Label: "go"}, {From: "b", To: "b", Label: "work"}}, nil,
+				func(ps *model.PositionedSequence) float64 { return ps.Interactions[1].Y + p.SelfLoopHeight }},
+			{"a frame", []model.Interaction{{From: "a", To: "b", Label: "go"}}, opt,
+				func(ps *model.PositionedSequence) float64 { return ps.Fragments[0].Y + ps.Fragments[0].Height }},
+		} {
+			t.Run(np.name+" "+tt.name, func(t *testing.T) {
+				diag := twoActorDiagram(tt.interactions)
+				diag.Fragments = tt.fragments
+				ps := seqlayout.LayoutWithProfile(diag, p)
+				for _, a := range ps.Actors {
+					assert.Equal(t, tt.lowest(ps)+p.BottomMargin, a.LineBottom, a.ID)
+				}
+			})
+		}
+	}
+}
+
 // --- Fragment frames: header band, coverage, self-messages, nesting, gutter ---
 
 var fragFonts = seqlayout.LayoutFonts{Family: "Inter", HeaderSize: 14, LabelSize: 12, FragLabelSize: 11}
