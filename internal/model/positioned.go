@@ -1,5 +1,13 @@
 package model
 
+// TextCellW and TextCellH are the text profile's character cell, in px
+// (C0): a text layout lies on this grid, and the text renderer draws one
+// rune per cell.
+const (
+	TextCellW = 8.0
+	TextCellH = 16.0
+)
+
 // PositionedGraph is the output of the layout engine, ready for rendering.
 type PositionedGraph struct {
 	Nodes  []PositionedNode  `json:"nodes"`

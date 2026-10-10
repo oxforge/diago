@@ -13,10 +13,10 @@ import (
 	"github.com/oxforge/diago/internal/model"
 )
 
-// Character cell dimensions in pixels, the text profile's 8 × 16 (C0).
+// The character cell, in px: the text profile's (C0).
 const (
-	cellW = 8.0
-	cellH = 16.0
+	cellW = model.TextCellW
+	cellH = model.TextCellH
 )
 
 // px2col/px2row map a pixel coordinate to the cell containing it.

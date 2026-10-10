@@ -82,8 +82,8 @@ func TextLimits(dir model.Direction) Limits {
 		TitleInsetX:   24,
 		TitleCenterY:  8,
 		TitlePad:      8,
-		CellW:         8,
-		CellH:         16,
+		CellW:         model.TextCellW,
+		CellH:         model.TextCellH,
 	}
 	if dir == model.Right || dir == model.Left {
 		l.PortGap, l.NodeGap = 16, 32

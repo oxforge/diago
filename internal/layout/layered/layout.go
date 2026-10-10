@@ -14,10 +14,10 @@ import (
 	"github.com/oxforge/diago/internal/model"
 )
 
-// The text adapter's cell, in px (S14): the text renderer's grid.
+// The text adapter's cell, in px (S14): the text profile's cell.
 const (
-	cellW = 8.0
-	cellH = 16.0
+	cellW = model.TextCellW
+	cellH = model.TextCellH
 )
 
 // hopRadius is how far from a segment's end a crossing must lie to be

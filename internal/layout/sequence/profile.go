@@ -3,6 +3,7 @@ package sequence
 import (
 	"github.com/oxforge/diago/internal/font"
 	"github.com/oxforge/diago/internal/layout"
+	"github.com/oxforge/diago/internal/model"
 )
 
 // Profile holds the measurer and every spacing constant the timeline engine
@@ -112,7 +113,7 @@ func TextProfile() Profile {
 		RightMargin:           16,
 		BottomMargin:          32, // one lifeline row past the last message, then the footer
 		NormalizeMargin:       16,
-		CellW:                 8,
-		CellH:                 16,
+		CellW:                 model.TextCellW,
+		CellH:                 model.TextCellH,
 	}
 }
