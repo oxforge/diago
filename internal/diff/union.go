@@ -12,12 +12,16 @@ import (
 type UnionGraph struct {
 	Graph        model.Graph
 	Nodes        map[string]Status
-	Edges        map[string]Status // keyed by the union edge id, which is <id>__removed (repeated until free) for a removed before-edge whose id after reused; Diff.RemovedEdges keeps the original before ids, and removedUnionID (text.go) bridges the two.
+	Edges        map[string]Status // keyed by the union edge id, which is <id>__removed (repeated until free) for a removed before-edge whose id is taken; RemovedEdgeIDs maps the before ids to them
 	Groups       map[string]Status
 	Diff         GraphDiff
 	BeforeLabels map[string]string      // every before node's and group's label, by id
 	Class        bool                   // either side is a class graph (some node carries Members)
 	Members      map[string]MemberUnion // per changed node with members on both sides
+
+	// RemovedEdgeIDs maps every removed before-edge id (Diff.RemovedEdges)
+	// to its union edge id.
+	RemovedEdgeIDs map[string]string
 }
 
 // BuildUnion merges before and after. Element order: after's, then removed
@@ -29,7 +33,8 @@ type UnionGraph struct {
 func BuildUnion(before, after *model.Graph) UnionGraph {
 	u := UnionGraph{
 		Nodes: map[string]Status{}, Edges: map[string]Status{}, Groups: map[string]Status{},
-		Diff: DiffGraphs(before, after), BeforeLabels: map[string]string{}, Members: map[string]MemberUnion{},
+		Diff: DiffGraphs(before, after), RemovedEdgeIDs: map[string]string{},
+		BeforeLabels: map[string]string{}, Members: map[string]MemberUnion{},
 		Class: hasMembers(before) || hasMembers(after),
 	}
 	for _, n := range before.Nodes {
@@ -94,8 +99,9 @@ func (u *UnionGraph) unionNodes(before, after *model.Graph) []model.Node {
 }
 
 // unionEdges returns after's edges, then before's removed ones, and records
-// each one's status. A removed edge whose id after reuses takes "__removed"
-// suffixes until its id is free.
+// each one's status. A removed edge whose id after reuses, or an earlier
+// removed edge's union id holds, takes "__removed" suffixes until its id
+// is free; RemovedEdgeIDs records the id it ends with.
 func (u *UnionGraph) unionEdges(before, after *model.Graph) []model.Edge {
 	d := u.Diff
 	be := edgeByID(before)
@@ -116,6 +122,7 @@ func (u *UnionGraph) unionEdges(before, after *model.Graph) []model.Edge {
 		taken[e.ID] = true
 		edges = append(edges, e)
 		u.Edges[e.ID] = Removed
+		u.RemovedEdgeIDs[id] = e.ID
 	}
 	return edges
 }

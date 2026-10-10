@@ -92,3 +92,20 @@ func TestFlowLegend_LabelsWithNewlineAndQuote(t *testing.T) {
 		assert.NotContains(t, l, "\n", "one change, one line")
 	}
 }
+
+// TestFlowLegend_RemovedEdgeIDsThatCollideWithTheSuffix: a before spec
+// whose edges are x and x__removed, after which x moves to other ends,
+// removes both; the union names before's x x__removed and before's
+// x__removed x__removed__removed, so the legend names each removed edge
+// by its own ends, once.
+func TestFlowLegend_RemovedEdgeIDsThatCollideWithTheSuffix(t *testing.T) {
+	nodes := `"nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"},{"id":"c","label":"C"},{"id":"d","label":"D"}]`
+	before := parse(t, `{"type":"flow",`+nodes+`,
+	 "edges":[{"id":"x","from":"a","to":"b"},{"id":"x__removed","from":"c","to":"d"}]}`)
+	after := parse(t, `{"type":"flow",`+nodes+`,"edges":[{"id":"x","from":"a","to":"c"}]}`)
+	assert.Equal(t, []string{
+		"added: edge A -> C",
+		"removed: edge A -> B",
+		"removed: edge C -> D",
+	}, FlowLegend(BuildUnion(before, after)))
+}

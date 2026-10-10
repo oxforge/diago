@@ -145,3 +145,18 @@ func TestFlowChanges_AnIDThatChangesKindNamesEachSideByItsOwnLabel(t *testing.T)
 	assert.Contains(t, backward, "added: node Node X")
 	assert.Contains(t, backward, "removed: group Group X")
 }
+
+// TestFlowLegend_RemovedRelationIDsThatCollideWithTheSuffix: a class diff
+// builds the same union and change list, so relations x and x__removed,
+// both removed, are each named once, by their own ends.
+func TestFlowLegend_RemovedRelationIDsThatCollideWithTheSuffix(t *testing.T) {
+	classes := `"classes":[{"id":"a"},{"id":"b"},{"id":"c"},{"id":"d"}]`
+	before := parseClass(t, `{"type":"class",`+classes+`,
+	 "relations":[{"id":"x","from":"a","to":"b"},{"id":"x__removed","from":"c","to":"d"}]}`)
+	after := parseClass(t, `{"type":"class",`+classes+`,"relations":[{"id":"x","from":"a","to":"c"}]}`)
+	assert.Equal(t, []string{
+		"added: relation a -> c",
+		"removed: relation a -> b",
+		"removed: relation c -> d",
+	}, FlowLegend(BuildUnion(before, after)))
+}

@@ -150,7 +150,7 @@ func FlowChanges(u UnionGraph) []Change {
 		add(Removed, false, kindNode, nodeLabel(id, true), "")
 	}
 	for _, id := range d.RemovedEdges {
-		add(Removed, true, kindEdge, edgeName(removedUnionID(u, id), true), "")
+		add(Removed, true, kindEdge, edgeName(u.RemovedEdgeIDs[id], true), "")
 	}
 	for _, id := range d.RemovedGroups {
 		add(Removed, false, kindGroup, groupLabel(id, true), "")
@@ -191,19 +191,3 @@ func FlowChanges(u UnionGraph) []Change {
 
 // FlowLegend is the text diff's footer: FlowChanges' lines.
 func FlowLegend(u UnionGraph) []string { return Texts(FlowChanges(u)) }
-
-// removedUnionID maps a removed before-edge id to the id it holds in the
-// union (suffixed when after reused the id).
-func removedUnionID(u UnionGraph, id string) string {
-	if s, ok := u.Edges[id]; ok && s == Removed {
-		return id
-	}
-	for candidate := id + "__removed"; ; candidate += "__removed" {
-		if s, ok := u.Edges[candidate]; ok && s == Removed {
-			return candidate
-		}
-		if _, ok := u.Edges[candidate]; !ok {
-			return id
-		}
-	}
-}
