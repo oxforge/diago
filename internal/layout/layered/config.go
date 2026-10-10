@@ -1,6 +1,8 @@
 // Package layered is the layered layout engine (Part 2 of the layout rules
-// spec), a Sugiyama pipeline in pure Go. Each stage lives in its
-// own package; this one holds the Config and assembles the stages.
+// spec), a Sugiyama pipeline in pure Go. Most stages live in a package of
+// their own; this one holds the Config (S14) and runs the stages (Layout),
+// lays the group levels out and composes them (S9), copies congruent
+// sibling groups (S12) and anchors on a previous layout (S13).
 package layered
 
 import (

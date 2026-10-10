@@ -1,7 +1,8 @@
-// Package nest builds a graph's containment tree and composes its levels
-// (S9): the root and one level per group, each laid out over its direct
-// children, where an edge that crosses a container's border meets it at a
-// terminal.
+// Package nest builds a graph's containment tree (S9): the root and one
+// container per group, each over its direct children; each edge's home,
+// the nearest container that holds both of its ends; and the containers an
+// edge crosses on its way down to an end, whose levels hold a terminal for
+// it. The layered package lays the levels out and composes them.
 package nest
 
 import (
