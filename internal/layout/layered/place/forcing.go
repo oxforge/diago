@@ -62,7 +62,7 @@ type clauseChange struct {
 // node the router draws from a side vertex, and returns kept, the
 // forcings of earlier rounds, with the exits of this round added, and
 // keptRooms with the rooms this round gives added (S7). It reads every
-// pinned node's exits off the chains (exitFacts) and what the kept
+// pinned node's exits off the chains (readExits) and what the kept
 // forcings hold (heldBy), and judges each diamond with two or more exits
 // (judgeDiamond). The round returns every denial it finds, or, settled
 // with no new forcing and no new room, every give-back, as its changes. A
@@ -74,7 +74,7 @@ type clauseChange struct {
 func (p *placer) sideExits(base []float64, kept []forcedExit, keptRooms []room, round int) exitRound {
 	g := p.g
 	j := &exitJudge{
-		p: p, base: base, round: round, band: max(p.o.Clearance, p.o.Span), exitFacts: p.exitFacts(base),
+		p: p, base: base, round: round, band: max(p.o.Clearance, p.o.Span), exitFacts: p.readExits(base),
 		roomed: map[int]bool{}, forced: slices.Clone(kept), rooms: slices.Clone(keptRooms),
 	}
 	j.held, j.straight = p.heldBy(kept)
@@ -111,8 +111,8 @@ type exitFacts struct {
 	exits    [][]ports.Exit
 }
 
-// exitFacts reads the exit facts of every vertex against the layout base.
-func (p *placer) exitFacts(base []float64) exitFacts {
+// readExits reads the exit facts of every vertex against the layout base.
+func (p *placer) readExits(base []float64) exitFacts {
 	g := p.g
 	f := exitFacts{
 		counter:  make([]bool, len(g.Vertices)),
