@@ -230,6 +230,62 @@ func TestC7_Stubs(t *testing.T) {
 	}
 }
 
+// TestC7_EachShapesSides pins C7's side of an endpoint per shape: the
+// first segment leaves s, 120 x 60 at (200,200), from the endpoint 30 px
+// along a direction, and must leave that side perpendicularly outward. A
+// hexagon has flat top and bottom faces (|dx| <= 30) and angled sides
+// facing left and right; a parallelogram (slant 18) slanted left and right
+// sides; a cylinder (cap 10.8) side lines facing left and right and top
+// and bottom arcs; a diamond and a circle (60 x 60) the side of the
+// vertex.
+func TestC7_EachShapesSides(t *testing.T) {
+	up, down, left, right := [2]float64{0, -1}, [2]float64{0, 1}, [2]float64{-1, 0}, [2]float64{1, 0}
+	for _, tc := range []struct {
+		name  string
+		shape model.Shape
+		at    [2]float64
+		dir   [2]float64
+		want  bool
+	}{
+		{"hexagon: up from its top face", model.ShapeHexagon, [2]float64{200, 170}, up, false},
+		{"hexagon: right along its top face", model.ShapeHexagon, [2]float64{200, 170}, right, true},
+		{"hexagon: right from its angled side", model.ShapeHexagon, [2]float64{245, 185}, right, false},
+		{"hexagon: up from its angled side", model.ShapeHexagon, [2]float64{245, 185}, up, true},
+		{"hexagon: left from its left vertex", model.ShapeHexagon, [2]float64{140, 200}, left, false},
+		{"hexagon: down from its left vertex", model.ShapeHexagon, [2]float64{140, 200}, down, true},
+		{"parallelogram: up from its top side", model.ShapeParallelogram, [2]float64{200, 170}, up, false},
+		{"parallelogram: left along its top side", model.ShapeParallelogram, [2]float64{200, 170}, left, true},
+		{"parallelogram: right from its slanted right side", model.ShapeParallelogram, [2]float64{251, 200}, right, false},
+		{"parallelogram: down from its slanted right side", model.ShapeParallelogram, [2]float64{251, 200}, down, true},
+		{"parallelogram: left from its slanted left side", model.ShapeParallelogram, [2]float64{149, 200}, left, false},
+		{"parallelogram: up from its slanted left side", model.ShapeParallelogram, [2]float64{149, 200}, up, true},
+		{"cylinder: right from its right side line", model.ShapeCylinder, [2]float64{260, 200}, right, false},
+		{"cylinder: up along its right side line", model.ShapeCylinder, [2]float64{260, 200}, up, true},
+		{"cylinder: up from its top arc", model.ShapeCylinder, [2]float64{200, 170}, up, false},
+		{"cylinder: right along its top arc", model.ShapeCylinder, [2]float64{200, 170}, right, true},
+		{"cylinder: down from its bottom arc", model.ShapeCylinder, [2]float64{200, 230}, down, false},
+		{"cylinder: left along its bottom arc", model.ShapeCylinder, [2]float64{200, 230}, left, true},
+		{"diamond: left from its left vertex", model.ShapeDiamond, [2]float64{140, 200}, left, false},
+		{"diamond: up from its left vertex", model.ShapeDiamond, [2]float64{140, 200}, up, true},
+		{"diamond: down from its bottom vertex", model.ShapeDiamond, [2]float64{200, 230}, down, false},
+		{"diamond: right from its bottom vertex", model.ShapeDiamond, [2]float64{200, 230}, right, true},
+		{"circle: right from its right vertex", model.ShapeCircle, [2]float64{230, 200}, right, false},
+		{"circle: down from its right vertex", model.ShapeCircle, [2]float64{230, 200}, down, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := 120.0
+			if tc.shape == model.ShapeCircle {
+				w = 60
+			}
+			x, y := tc.at[0]+30*tc.dir[0], tc.at[1]+30*tc.dir[1]
+			// on to b's top side, which the last segment leaves upward
+			pg := layout(600, 600, []model.PositionedNode{shaped("s", tc.shape, 200, 200, w, 60), rect("b", 500, 500)},
+				wire("s", "b", tc.at[0], tc.at[1], x, y, 500, y, 500, 480))
+			assert.Equal(t, tc.want, has(check(pg), "C7", "s->b#0"), "%v", filter(check(pg), "C7"))
+		})
+	}
+}
+
 func TestC10_SelfRetrace(t *testing.T) {
 	for _, tt := range []struct {
 		name  string

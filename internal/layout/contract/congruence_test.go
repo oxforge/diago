@@ -151,3 +151,41 @@ func TestC17_3_FanOut(t *testing.T) {
 	vs := c17(crossed)
 	assert.Contains(t, vs, "C17.3", "the fan crosses itself")
 }
+
+// transposed is pg mirrored across its diagonal, every x a y and every
+// width a height: a DOWN layout turned into a RIGHT one.
+func transposed(pg *model.PositionedGraph) *model.PositionedGraph {
+	out := *pg
+	out.Width, out.Height = pg.Height, pg.Width
+	out.Nodes = slices.Clone(pg.Nodes)
+	for i, n := range out.Nodes {
+		out.Nodes[i].X, out.Nodes[i].Y, out.Nodes[i].Width, out.Nodes[i].Height = n.Y, n.X, n.Height, n.Width
+	}
+	out.Edges = slices.Clone(pg.Edges)
+	for i, e := range out.Edges {
+		pts := make([]model.Point, len(e.Points))
+		for k, p := range e.Points {
+			pts[k] = model.Point{X: p.Y, Y: p.X}
+		}
+		out.Edges[i].Points = pts
+		if e.LabelPos != nil {
+			out.Edges[i].LabelPos = &model.Point{X: e.LabelPos.Y, Y: e.LabelPos.X}
+		}
+	}
+	return &out
+}
+
+// TestC17_3_FanOutUnderRight pins C17.3 under RIGHT, siblings transposed:
+// s's fan-out runs right out of s, then down or up its spread run, a
+// vertical beyond s's box on the flow axis, x = 100 for both edges, then
+// right into m1 and m2. A pair on two tracks breaks it.
+func TestC17_3_FanOutUnderRight(t *testing.T) {
+	right := func(pg *model.PositionedGraph) []string {
+		return congruenceRules(Check(transposed(pg), Options{Limits: ScreenLimits(), Direction: model.Right}))
+	}
+	assert.Empty(t, right(siblings()), "the pair on one track")
+
+	levels := siblings()
+	levels.Edges[1].Points[1].Y, levels.Edges[1].Points[2].Y = 108, 108
+	assert.Equal(t, []string{"C17.3"}, right(levels), "a pair on different tracks")
+}

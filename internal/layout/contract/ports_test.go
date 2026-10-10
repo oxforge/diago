@@ -63,6 +63,29 @@ func TestC8_4_BackEdgesUseCrossAxisVertices(t *testing.T) {
 	assert.False(t, has(check(fan(model.ShapeDiamond, intoRight)), "C8.4", "b->d#0"))
 }
 
+// TestC8_4_BackEdgesUnderRight pins C8.4's cross axis under RIGHT: a back
+// edge from b, downstream on the right, attaches to diamond d (80 x 46 at
+// (143,100): left (103,100), right (183,100), top (143,77), bottom
+// (143,123)) at its top or bottom vertex, never at its left or right one.
+func TestC8_4_BackEdgesUnderRight(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		e    model.PositionedEdge
+		want bool
+	}{
+		{"into the top vertex", wire("b", "d", 260, 80, 260, 50, 143, 50, 143, 77), false},
+		{"into the bottom vertex", wire("b", "d", 260, 120, 260, 150, 143, 150, 143, 123), false},
+		{"into the right vertex", wire("b", "d", 220, 100, 183, 100), true},
+		{"into the left vertex", wire("b", "d", 260, 80, 260, 40, 80, 40, 80, 100, 103, 100), true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pg := layout(340, 200, []model.PositionedNode{shaped("d", model.ShapeDiamond, 143, 100, 80, 46), rect("b", 260, 100)}, tc.e)
+			vs := Check(pg, Options{Limits: ScreenLimits(), Direction: model.Right})
+			assert.Equal(t, tc.want, has(vs, "C8.4", "b->d#0"), "%v", filter(vs, "C8.4"))
+		})
+	}
+}
+
 func TestC8_5_OwnVertices(t *testing.T) {
 	t.Run("diamond: two edges share the bottom vertex", func(t *testing.T) {
 		assert.True(t, has(check(fan(model.ShapeDiamond, dBottomToB, dBottomToC)), "C8.5", "d->c#0"))
