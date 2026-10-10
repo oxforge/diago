@@ -6,12 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/oxforge/diago/internal/model"
 	"github.com/oxforge/diago/internal/theme"
 	"github.com/oxforge/diago/internal/theme/themetest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func renderElement(e Element) string {
@@ -246,4 +245,33 @@ func TestRenderClass_SketchLegend(t *testing.T) {
 	assert.InDelta(t, 0.75, minX, 1e-9, "the mirrored tip, inset by half the outline")
 
 	assert.Equal(t, out, Render(g, sketchTheme()), "deterministic")
+}
+
+// TestMarkerSet_EmissionOrder pins the order of the markers a render adds
+// beyond its base ones, which keeps the output deterministic: the accents'
+// in the order the elements first use them, each pair at its first use and
+// each UML trio at its first adorned one, never twice; then the status
+// classes', in sorted order. A class without a marker fill adds none.
+func TestMarkerSet_EmissionOrder(t *testing.T) {
+	th := themetest.Default()
+	opts := &RenderOptions{MarkerFills: map[string]string{"added": "#00aa00", "removed": "#aa0000"}}
+	var set markerSet
+	set.add("#00ff00", "removed", false, th, opts)
+	set.add("#ff0000", "added", true, th, opts)
+	set.add("#00ff00", "", true, th, opts)
+	set.add("", "dimmed", false, th, opts)
+	set.add("#ff0000", "removed", true, th, opts)
+	name := func(kind string) func(suffix, fill string) []Element {
+		return func(suffix, fill string) []Element { return []Element{Text{Content: kind + " " + suffix + " " + fill}} }
+	}
+	var got []string
+	for _, el := range set.defs(name("pair"), name("trio")) {
+		got = append(got, el.(Text).Content)
+	}
+	red := theme.DeriveColors("#ff0000", th.Background, theme.ElementEdge).Stroke
+	green := theme.DeriveColors("#00ff00", th.Background, theme.ElementEdge).Stroke
+	assert.Equal(t, []string{
+		"pair 00ff00 " + green, "pair ff0000 " + red, "trio ff0000 " + red, "trio 00ff00 " + green,
+		"pair added #00aa00", "trio added #00aa00", "pair removed #aa0000", "trio removed #aa0000",
+	}, got)
 }
