@@ -131,7 +131,7 @@ between themes. Each theme is a complete standalone definition.
 ## Code Conventions
 
 - **Go**: stdlib first; add a dependency only with a reason. Use `slog` for structured logging. Use `encoding/json` for schema handling. Wrap errors with `fmt.Errorf("operation: %w", err)`. Table-driven tests. Never use `panic`; the sole exception is a package-init assertion that an embedded asset is intact (`font/metrics.go`, `theme/themetest`), where a failure means a corrupt binary and there is no caller to return an error to.
-- **SVG**: Generate SVG as structured Go types, then serialize to XML. Do not use string concatenation to build SVG. Each visual primitive (rect, text, path, line, group) should be a Go struct with a `Render() string` method. Status-aware renders pass `svg.RenderOptions`; nil is the plain render and must stay byte-identical.
+- **SVG**: Generate SVG as structured Go types, then serialize to XML. Do not use string concatenation to build SVG. Each visual primitive (rect, text, path, line, group) is a Go struct implementing `svg.Element`, whose `Render(w io.Writer)` writes its XML; `SVGDoc.Render()` returns the whole document as a string. Status-aware renders pass `svg.RenderOptions`; nil is the plain render and must stay byte-identical.
 - **Naming**: Packages are short, lowercase, single-word where possible (`layout`, `render`, `theme`, `model`, `schema`).
 - **Config**: Env vars with `DIAGO_` prefix. Only two exist: `DIAGO_RESVG_PATH` (override the `PATH` lookup for the resvg binary) and `DIAGO_THEME_DIR` (fallback directory for theme names not in the embedded set; a name is a plain file name, never a path; built-ins always win).
 - **CLI exit codes**: 0 ok, 1 an invalid spec in any verb: not JSON, a missing or unknown `type`, a field of the wrong JSON type, or a validation error (structured JSON on stderr with a `field`; every verb validates through `schema.DiagramType` and the per-type parsers), 2 usage or internal error, a failed write to stdout (`stickyWriter`), or a `render` or `diff` stopped by its 10-second deadline (`renderTimeout`). Advisories go to stderr as `warning: <rule> <field>: <message>`; findings are returned, never logged.
@@ -183,7 +183,7 @@ the rejected alternative without new information that invalidates the reason.
   comparison and kept the stack from being pure Go.
 - **Font metrics are embedded, never system-derived and never hardcoded width
   tables**: the same spec must produce byte-identical SVG on every machine.
-- **SVG is built from structured Go types with `Render() string`**, never string
+- **SVG is built from structured Go types with a `Render` method**, never string
   concatenation: it is what makes the output verifiable and diffable.
 - **Debug decision records go to the local CLI's stderr only** (`-debug`), never to a file or a network sink by default.
 
