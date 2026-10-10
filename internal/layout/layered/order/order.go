@@ -32,25 +32,17 @@ const maxReplacements = 100
 // Minimize returns an ordering of g's layers that reduces the hops that
 // cross (S6); g and its Layers are left untouched (S0: every stage is a
 // pure function of its inputs). The order of g.Layers on entry is the
-// seed, and anchored tells that a previous layout seeded it (S13). Up to
-// defaultSweeps median sweeps, anchoredSweeps when anchored, alternate downward
-// and upward, each followed by a transposition. The ordering with the
-// fewest crossings wins, ties going to the one nearest the seed and then
-// to the earliest; the seed competes, and the sweeps stop once the best
-// ordering has no crossing. When crossings remain, the sweeps run again
-// from the seed, the first one upward, and that run's best replaces the
-// first's only with fewer crossings. The best ordering then seeds a run
-// of anchoredSweeps, and each run's best the next; when a run finds no
-// ordering with fewer crossings, the counter-flow side moves (sides) try
-// to, and when neither does, the loop transposition (keepLoops) tries to
-// enclose fewer vertices, unless anchored, where the previous order wins
-// that tie. Minimize stops when none of them moves anything, so the
-// ordering is its own anchored ordering's (S13), or, as a safeguard,
-// after maxReplacements orderings replaced the best. A vertex in a band
-// (lgraph.Graph.Bands) stays in it: bands keep their order, and only
-// vertices of one band change places (S9). A done ctx stops it at the next
-// sweep, transposition round, side move or loop transposition pass, with
-// the best ordering so far: every vertex once, on its own layer.
+// seed, and anchored tells that a previous layout seeded it (S13), which
+// takes anchoredSweeps sweeps instead of defaultSweeps and no loop
+// transposition. A first run from the seed (run) finds the best
+// ordering; a run of anchoredSweeps seeded from it, then a counter-flow
+// side move (sides), then the loop transposition (keepLoops) may replace
+// it, each replacement seeding the next round, until none replaces it,
+// so the ordering is its own anchored ordering (S13), or until
+// maxReplacements did. A vertex in a band (lgraph.Graph.Bands) stays in
+// it (S6, Bands). A done ctx stops it at the next sweep, transposition
+// round, side move or loop transposition pass, with the best ordering so
+// far: every vertex once, on its own layer.
 func Minimize(ctx context.Context, g *lgraph.Graph, anchored bool) [][]int {
 	return settle(ctx, g, anchored, maxReplacements)
 }
