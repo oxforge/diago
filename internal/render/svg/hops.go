@@ -9,7 +9,7 @@ import (
 	"github.com/oxforge/diago/internal/model"
 )
 
-const hopRadius = 5.0 // radius of the semicircular hop arc
+const hopRadius = 5.0 // a lone hop's radius, and how high every hop rises
 
 // hop is where a wire's arc over its crossings starts and ends, and the
 // arc's radius along the wire: hopRadius over one crossing, wider over
@@ -80,9 +80,9 @@ func writeHop(b *strings.Builder, h hop) {
 	fmt.Fprintf(b, " A%s,%s %s 0 1 %s,%s", ff(h.r), ff(hopRadius), ff(rot), ff(h.post.X), ff(h.post.Y))
 }
 
-// polylineWithHops converts a polyline to an SVG path string that includes
-// semicircular hop arcs at crossing points. The hop arc goes over the
-// crossing edge, perpendicular to the segment direction.
+// polylineWithHops converts a polyline to an SVG path string that hops
+// over its crossings (hopsBySegment): an arc over each crossing, or one
+// over crossings whose hops would overlap (writeHop).
 func polylineWithHops(points []model.Point, crossings []model.Crossing) string {
 	if len(points) < 2 {
 		return ""
