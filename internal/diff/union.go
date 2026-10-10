@@ -7,9 +7,6 @@ import (
 	"github.com/oxforge/diago/internal/model"
 )
 
-// maxGroupDepth mirrors schema's nesting limit.
-const maxGroupDepth = 3
-
 // UnionGraph is after ∪ removed-from-before with a status per element,
 // laid out once by the pipeline so removed elements keep real space.
 type UnionGraph struct {
@@ -190,7 +187,7 @@ func (u *UnionGraph) nestGroups(groups []model.Group, nodes []model.Node, before
 }
 
 // hoistOverflowing deletes the parent link of every removed group whose
-// chain, its own subtree included, would nest deeper than maxGroupDepth.
+// chain, its own subtree included, would nest deeper than model.MaxGroupDepth.
 // It goes shallowest would-be depth first, union order breaking ties, so
 // an overflowing ancestor is hoisted together with its whole subtree
 // instead of a deeper descendant being torn out from under it first.
@@ -207,7 +204,7 @@ func hoistOverflowing(groups []model.Group, parent map[string]string, status map
 		return initialDepth[removed[i]] < initialDepth[removed[j]]
 	})
 	for _, id := range removed {
-		if parent[id] != "" && chainDepth(id, parent)+subtreeHeight(id, groups, parent)-1 > maxGroupDepth {
+		if parent[id] != "" && chainDepth(id, parent)+subtreeHeight(id, groups, parent)-1 > model.MaxGroupDepth {
 			delete(parent, id)
 		}
 	}

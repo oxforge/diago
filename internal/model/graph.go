@@ -47,12 +47,16 @@ type Edge struct {
 	Directed bool // meaningful only when Relation != RelationNone
 }
 
+// MaxGroupDepth is the deepest a group nests, the top level being 1: a
+// spec that nests deeper fails validation.
+const MaxGroupDepth = 3
+
 // Group is a named collection of nodes rendered as a labeled bounding box.
 type Group struct {
 	ID       string
 	Label    string
 	Contains []string // node IDs
 	Children []string // child group IDs
-	Depth    int      // 1 = top-level, 2 = nested, 3 = deeply nested
+	Depth    int      // 1 = top-level, at most MaxGroupDepth
 	Color    string
 }

@@ -65,10 +65,6 @@ var flowArrows = map[string]struct{ style, dir string }{
 	"==>": {"thick", ""}, "===": {"thick", "none"}, "<-->": {"", "both"},
 }
 
-// maxSubgraphDepth mirrors schema's group nesting limit; deeper subgraphs
-// are flattened into the depth-3 ancestor.
-const maxSubgraphDepth = 3
-
 type flowNode struct {
 	id, label, shape, parent string
 	order                    int // first-mention order, shared with groups
@@ -154,12 +150,13 @@ func parseFlowchart(title string, body []line) (any, []Report, error) {
 	return p.assemble(title, direction)
 }
 
-// openSubgraph declares a group under the current one, or flattens it
-// into the depth-3 ancestor with a report.
+// openSubgraph declares a group under the current one or, past
+// schema.MaxGroupDepth, flattens it into its ancestor at that depth with a
+// report.
 func (p *flowParser) openSubgraph(id, bracketTitle string, n int) {
 	parent := p.top()
-	if len(p.stack) >= maxSubgraphDepth {
-		p.reports = append(p.reports, Report{Line: n, Message: fmt.Sprintf("subgraph %q flattened into %q, depth limit %d", id, parent, maxSubgraphDepth)})
+	if len(p.stack) >= schema.MaxGroupDepth {
+		p.reports = append(p.reports, Report{Line: n, Message: fmt.Sprintf("subgraph %q flattened into %q, depth limit %d", id, parent, schema.MaxGroupDepth)})
 		p.stack = append(p.stack, parent)
 		return
 	}

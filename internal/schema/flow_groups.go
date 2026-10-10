@@ -6,8 +6,9 @@ import (
 	"github.com/oxforge/diago/internal/model"
 )
 
-// maxGroupNestingDepth is the maximum allowed depth of nested groups.
-const maxGroupNestingDepth = 3
+// MaxGroupDepth is model.MaxGroupDepth, for the packages that read the
+// spec structs only: the Mermaid importer flattens deeper subgraphs.
+const MaxGroupDepth = model.MaxGroupDepth
 
 // groupMaps holds the maps built during group validation, used across its
 // three internal phases (containment resolution, cycle detection, depth).
@@ -146,13 +147,13 @@ func validateGroupsPrefixed(specs []GroupSpec, nodeIDs map[string]bool, prefix s
 		errs = append(errs, ValidationError{Field: field(g.ID), Message: fmt.Sprintf("group containment cycle detected involving %q", g.ID)})
 	}
 
-	// Enforce max depth of 3, in spec order.
+	// Enforce the depth limit, in spec order.
 	for i, g := range specs {
 		if j, ok := index[g.ID]; !ok || j != i {
 			continue
 		}
-		if groupDepth[g.ID] > maxGroupNestingDepth {
-			errs = append(errs, ValidationError{Field: field(g.ID), Message: fmt.Sprintf("group %q exceeds maximum nesting depth of %d", g.ID, maxGroupNestingDepth)})
+		if groupDepth[g.ID] > MaxGroupDepth {
+			errs = append(errs, ValidationError{Field: field(g.ID), Message: fmt.Sprintf("group %q exceeds maximum nesting depth of %d", g.ID, MaxGroupDepth)})
 		}
 	}
 
