@@ -386,7 +386,7 @@ func TestKindOf(t *testing.T) {
 	for _, tt := range []struct {
 		name string
 		t    bounds
-		want kind
+		want edgeKind
 	}{
 		{"downstream, touching", bounds{160, 80, 240, 120}, forward},
 		{"downstream, overlapping by 0.03", bounds{160, 79.97, 240, 119.97}, forward},

@@ -130,9 +130,9 @@ func buildGroupCells(cells []mxCell, pg *model.PositionedGraph, th theme.Theme, 
 		}
 
 		gx, gy := g.X, g.Y
-		if pg, ok := groupByID[parentID]; ok {
-			gx -= pg.X
-			gy -= pg.Y
+		if outer, ok := groupByID[parentID]; ok {
+			gx -= outer.X
+			gy -= outer.Y
 		}
 		parent := layerCell
 		if parentID != "" {

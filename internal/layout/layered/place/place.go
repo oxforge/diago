@@ -117,7 +117,7 @@ func Place(ctx context.Context, g *lgraph.Graph, o Options) []float64 {
 		}
 		kept := forced[:0:0]
 		for _, f := range forced {
-			if r, ok := since[g.Chains[f.edge][0]]; !ok || (!f.bottom && f.round < r) {
+			if gave, ok := since[g.Chains[f.edge][0]]; !ok || (!f.bottom && f.round < gave) {
 				kept = append(kept, f)
 			}
 		}

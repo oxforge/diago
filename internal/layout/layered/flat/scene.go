@@ -16,19 +16,19 @@ type scene struct {
 	id    string         // the flat edge's id
 	a, b  int            // A and B, indices into pg.Nodes
 	index map[string]int // node id to index, for lookups only
-	kind  kind           // the edge's kind by C0, from A's and B's boxes
+	kind  edgeKind       // the edge's kind by C0, from A's and B's boxes
 	free  []bool         // per group: whether it holds neither end, so that C6.1 binds it
 	wires []int          // the other edges drawn so far, in edge order
 	exits []exit         // A's forward exits drawn so far, when A is a diamond or a circle (C8.5)
 }
 
-// kind is an edge's kind by C0 in the engine's frame, downstream +y.
-type kind int
+// edgeKind is an edge's kind by C0 in the engine's frame, downstream +y.
+type edgeKind int
 
 const (
-	lateral kind = iota // the two boxes overlap on the flow axis, by more than kindSlack
-	forward             // the target's box lies wholly downstream of the source's
-	back                // wholly upstream
+	lateral edgeKind = iota // the two boxes overlap on the flow axis, by more than kindSlack
+	forward                 // the target's box lies wholly downstream of the source's
+	back                    // wholly upstream
 )
 
 // exit is a forward edge leaving a diamond or a circle, and the vertex it
@@ -97,7 +97,7 @@ const kindSlack = 0.05
 
 // kindOf is the kind (C0) of an edge from a node with box f to one with
 // box t.
-func kindOf(f, t bounds) kind {
+func kindOf(f, t bounds) edgeKind {
 	switch {
 	case t.t >= f.b-kindSlack:
 		return forward
