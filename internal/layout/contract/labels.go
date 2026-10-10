@@ -33,16 +33,18 @@ type labelBox struct {
 }
 
 // labelBoxes returns e's positioned label and cardinality boxes, label first.
+// A box of no width is no box; one whose width is not a number stays, so
+// that C16.1 reports it.
 func labelBoxes(e model.PositionedEdge) []labelBox {
 	var out []labelBox
-	if e.LabelPos != nil && e.LabelWidth > 0 {
+	if e.LabelPos != nil && (e.LabelWidth > 0 || math.IsNaN(e.LabelWidth)) {
 		out = append(out, labelBox{fmt.Sprintf("label %q", e.Label), boxAround(*e.LabelPos, e.LabelWidth, e.LabelHeight), e.LabelUnresolved})
 	}
 	for _, card := range []struct {
 		l   *model.EndLabel
 		end string
 	}{{e.FromCard, "from"}, {e.ToCard, "to"}} {
-		if card.l != nil && card.l.Pos != nil && card.l.Width > 0 {
+		if card.l != nil && card.l.Pos != nil && (card.l.Width > 0 || math.IsNaN(card.l.Width)) {
 			out = append(out, labelBox{fmt.Sprintf("cardinality %q (%s)", card.l.Text, card.end),
 				boxAround(*card.l.Pos, card.l.Width, card.l.Height), card.l.Unresolved})
 		}

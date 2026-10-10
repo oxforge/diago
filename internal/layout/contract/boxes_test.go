@@ -244,4 +244,14 @@ func TestC16_1_ANonFiniteCoordinateLiesNowhere(t *testing.T) {
 	canvas := chain()
 	canvas.Width = math.NaN()
 	assert.Len(t, filter(check(canvas), "C16.1"), 3, "every node and route")
+
+	label := chain()
+	label.Edges[0].Label = "go"
+	label.Edges[0].LabelPos = &model.Point{X: 60, Y: 90}
+	label.Edges[0].LabelWidth, label.Edges[0].LabelHeight = math.NaN(), 16
+	assert.True(t, has(check(label), "C16.1", "a->b#0"), "a label whose width is NaN")
+
+	card := chain()
+	card.Edges[0].ToCard = &model.EndLabel{Text: "1", Pos: &model.Point{X: 70, Y: 110}, Width: math.NaN(), Height: 16}
+	assert.True(t, has(check(card), "C16.1", "a->b#0"), "a cardinality whose width is NaN")
 }
