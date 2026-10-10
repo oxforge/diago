@@ -395,3 +395,33 @@ func TestParseSequence_SectionBoundsReadLikeOtherKeys(t *testing.T) {
 	assert.Equal(t, "fragments[0].sections[0].start", ve[0].Field)
 	assert.Equal(t, "must be given", ve[0].Message)
 }
+
+// TestParseSequence_ActorAndColorErrors pins the actors' and the
+// interactions' validation errors, each on its field: an empty or
+// repeated actor id, an empty label, and a color neither named nor
+// #rrggbb hex.
+func TestParseSequence_ActorAndColorErrors(t *testing.T) {
+	for _, tc := range []struct {
+		name, spec, field, msg string
+	}{
+		{"empty actor id", `{"type":"sequence","actors":[{"id":"","label":"A"}],"interactions":[]}`,
+			"actors[0].id", "must not be empty"},
+		{"duplicate actor id", `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"a","label":"B"}],"interactions":[]}`,
+			"actors[1].id", `duplicate actor id "a"`},
+		{"empty actor label", `{"type":"sequence","actors":[{"id":"a","label":""}],"interactions":[]}`,
+			"actors[0].label", "must not be empty"},
+		{"unknown actor color", `{"type":"sequence","actors":[{"id":"a","label":"A","color":"mauve"}],"interactions":[]}`,
+			"actors[0].color", `unknown color "mauve"`},
+		{"unknown interaction color", `{"type":"sequence","actors":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"interactions":[{"from":"a","to":"b","color":"#abc"}]}`,
+			"interactions[0].color", `unknown color "#abc"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := schema.ParseSequence([]byte(tc.spec))
+			var ve schema.ValidationErrors
+			require.ErrorAs(t, err, &ve)
+			require.Len(t, ve, 1, "%v", ve)
+			assert.Equal(t, tc.field, ve[0].Field)
+			assert.Contains(t, ve[0].Message, tc.msg)
+		})
+	}
+}

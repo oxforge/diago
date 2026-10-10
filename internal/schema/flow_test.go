@@ -188,6 +188,18 @@ func TestParseFlowValidationErrors(t *testing.T) {
 			fieldPath:  "groups[1].contains[0]",
 			msgContain: "already belongs",
 		},
+		{
+			name:       "unknown edge color",
+			spec:       `{"type": "flow", "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "edges": [{"from": "a", "to": "b", "color": "mauve"}]}`,
+			fieldPath:  "edges[0].color",
+			msgContain: `unknown color "mauve"`,
+		},
+		{
+			name:       "unknown group color",
+			spec:       `{"type": "flow", "nodes": [{"id": "a", "label": "A"}], "edges": [], "groups": [{"id": "g1", "label": "G", "contains": ["a"], "color": "#12345"}]}`,
+			fieldPath:  "groups[0].color",
+			msgContain: `unknown color "#12345"`,
+		},
 	}
 
 	for _, tt := range tests {
