@@ -55,6 +55,22 @@ func TestRun_PreviousMermaid(t *testing.T) {
 	assert.Contains(t, stderr, "warning: import (previous) line 3: stadium \"c\" rendered as rounded\n")
 }
 
+// TestRun_APreviousThatCannotBeReadComesFirst: the -previous file is read,
+// and a Mermaid one translated, before the render checks the spec, so a
+// file that is missing or does not translate is reported even beside a
+// wrong spec.
+func TestRun_APreviousThatCannotBeReadComesFirst(t *testing.T) {
+	badField := `{"type":"flow","nodes":[{"id":"a","label":"A","shape":"octagon"}],"edges":[]}`
+	missing := filepath.Join(t.TempDir(), "missing.json")
+	code, _, stderr := runCLI(t, badField, "render", "-previous", missing)
+	assert.Equal(t, 2, code, stderr)
+	assert.True(t, strings.HasPrefix(stderr, "error: read -previous: "), stderr)
+	broken := writeTemp(t, "prev.mmd", "graph TD\n  a -->\n")
+	code, _, stderr = runCLI(t, badField, "render", "-previous", broken)
+	assert.Equal(t, 1, code, stderr)
+	assert.True(t, strings.HasPrefix(stderr, "diago render: line 2: "), stderr)
+}
+
 func TestRun_RenderPrintsAdvisories(t *testing.T) {
 	for _, args := range [][]string{{"render"}, {"render", "-format", "text"}} {
 		code, out, stderr := runCLI(t, vagueSpec, args...)
