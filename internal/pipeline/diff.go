@@ -343,7 +343,7 @@ func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		flatRanked := flatRankedDiffFields(pg, bg, ag, basePrev)
+		flatRanked := flatRankedDiffFields(pg, bg, ag, u.RemovedEdgeIDs, basePrev)
 		res, err := textrender.Render(pg)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("diff: render text: %w", err)
@@ -355,7 +355,7 @@ func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	flatRanked := flatRankedDiffFields(pg, bg, ag, basePrev)
+	flatRanked := flatRankedDiffFields(pg, bg, ag, u.RemovedEdgeIDs, basePrev)
 	pg.LayoutHints = nil // a diff picture is not a render to anchor on
 	styles := svgrender.DiffStyles(th)
 	if in.kind == "class" {

@@ -342,7 +342,7 @@ func TestCheckAdvisories_DroppedLabels(t *testing.T) {
 // edge the after spec has names after.edges[i]; one only the before spec
 // has, a removed edge, names before.edges[i], under its own id or under
 // the __removed suffixes the union gave it to dodge a reused id
-// (diff.BuildUnion), stripped to find it; an edge neither spec has names
+// (diff.UnionGraph.RemovedEdgeIDs); an edge neither spec has names
 // nothing; and an edge the layout did not rank names nothing either. Kept
 // is the union edge's own id in the previous carrier's ranked list.
 func TestFlatRankedDiffFields(t *testing.T) {
@@ -356,18 +356,35 @@ func TestFlatRankedDiffFields(t *testing.T) {
 		{ID: "e__removed", FlatRanked: true},
 		{ID: "stray", FlatRanked: true},
 	}}
+	removed := map[string]string{"gone": "gone", "e": "e__removed"}
 	prev := &model.LayoutHints{Ranked: []string{"e__removed", "gone"}}
 	assert.Equal(t, []flatRankedField{
 		{Field: "after.edges[0]"},
 		{Field: "before.edges[0]", Kept: true},
 		{Field: "before.edges[1]", Kept: true},
-	}, flatRankedDiffFields(pg, before, after, prev))
+	}, flatRankedDiffFields(pg, before, after, removed, prev))
 	assert.Equal(t, []flatRankedField{
 		{Field: "after.edges[0]"},
 		{Field: "before.edges[0]"},
 		{Field: "before.edges[1]"},
-	}, flatRankedDiffFields(pg, before, after, nil), "no previous carrier keeps nothing")
-	assert.Nil(t, flatRankedDiffFields(nil, before, after, prev))
+	}, flatRankedDiffFields(pg, before, after, removed, nil), "no previous carrier keeps nothing")
+	assert.Nil(t, flatRankedDiffFields(nil, before, after, removed, prev))
+}
+
+// TestRenderDiff_FlatRankedRemovedEdgeIDsThatCollideWithTheSuffix: before's
+// blocked flat edge x (blockedFlatSpec's a->b, edges[2]) and its clean flat
+// edge x__removed are both removed, x by moving to other ends; the union
+// names before's x x__removed, so the text layout's fallback of it names
+// before.edges[2], not before's own x__removed at edges[3].
+func TestRenderDiff_FlatRankedRemovedEdgeIDsThatCollideWithTheSuffix(t *testing.T) {
+	nodes := `"direction":"DOWN","nodes":[{"id":"a","label":"A"},{"id":"m","label":"M"},{"id":"b","label":"B"},{"id":"c","label":"C"},{"id":"d","label":"D"}]`
+	before := `{"type":"flow",` + nodes + `,"edges":[{"id":"am","from":"a","to":"m"},{"id":"mb","from":"m","to":"b"},
+	 {"id":"x","from":"a","to":"b","flat":true},{"id":"x__removed","from":"c","to":"d","flat":true}]}`
+	after := `{"type":"flow",` + nodes + `,"edges":[{"id":"am","from":"a","to":"m"},{"id":"mb","from":"m","to":"b"},{"id":"x","from":"a","to":"c"}]}`
+	var advs []schema.Advisory
+	_, err := RenderDiff(context.Background(), []byte(before), []byte(after), DiffOptions{Format: "text", Advisories: &advs})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"flat-edge-ranked before.edges[2]", "isolated-node after.nodes[4]"}, advKeys(advs))
 }
 
 func TestTextLabelDropped_Message(t *testing.T) {

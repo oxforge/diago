@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/oxforge/diago/internal/model"
 	textrender "github.com/oxforge/diago/internal/render/text"
@@ -186,20 +185,23 @@ func diffAdvisories(before, after []byte, dropped []textrender.DroppedLabel, fla
 // (model.PositionedEdge.FlatRanked). The union's edges are after.Edges
 // followed by the removed before-edges (diff.BuildUnion), so an edge
 // present in after (added, changed or same) keeps its after id and names
-// the after side; an edge present only in before (removed) may carry a
-// "__removed" suffix the union gave it to dodge an id collision
-// (diff.UnionGraph.Edges), stripped here to recover the before spec's id
-// and name the before side. prev is the before spec's own fresh layout
-// carrier, the anchor the union was laid out on (layoutFlowDiff's basePG);
-// kept mirrors flatRankedFields, checked on the union edge's own id, the
-// same id keepRanked checked at layout time.
-func flatRankedDiffFields(pg *model.PositionedGraph, before, after *model.Graph, prev *model.LayoutHints) []flatRankedField {
+// the after side; a removed edge names the before side, found through
+// removed (diff.UnionGraph.RemovedEdgeIDs), since the union may have given
+// it "__removed" suffixes to dodge an id collision. prev is the before
+// spec's own fresh layout carrier, the anchor the union was laid out on
+// (layoutFlowDiff's basePG); kept mirrors flatRankedFields, checked on the
+// union edge's own id, the same id keepRanked checked at layout time.
+func flatRankedDiffFields(pg *model.PositionedGraph, before, after *model.Graph, removed map[string]string, prev *model.LayoutHints) []flatRankedField {
 	if pg == nil {
 		return nil
 	}
 	kept := previousRanked(prev)
 	afterIdx := edgeIndexByID(after.Edges)
 	beforeIdx := edgeIndexByID(before.Edges)
+	beforeID := make(map[string]string, len(removed))
+	for id, unionID := range removed {
+		beforeID[unionID] = id
+	}
 	var fields []flatRankedField
 	for _, e := range pg.Edges {
 		if !e.FlatRanked {
@@ -210,17 +212,8 @@ func flatRankedDiffFields(pg *model.PositionedGraph, before, after *model.Graph,
 			fields = append(fields, flatRankedField{Field: fmt.Sprintf("after.edges[%d]", i), Kept: k})
 			continue
 		}
-		id := e.ID
-		for {
-			if i, ok := beforeIdx[id]; ok {
-				fields = append(fields, flatRankedField{Field: fmt.Sprintf("before.edges[%d]", i), Kept: k})
-				break
-			}
-			trimmed := strings.TrimSuffix(id, "__removed")
-			if trimmed == id {
-				break // the union edge id is unknown to either spec; should not happen
-			}
-			id = trimmed
+		if id, ok := beforeID[e.ID]; ok {
+			fields = append(fields, flatRankedField{Field: fmt.Sprintf("before.edges[%d]", beforeIdx[id]), Kept: k})
 		}
 	}
 	return fields
