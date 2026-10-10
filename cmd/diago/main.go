@@ -152,17 +152,17 @@ func runHelp(args []string, stdout, stderr io.Writer) int {
 	return 2
 }
 
-// isHelpFlag reports whether arg asks for help: -h, -help or --help, the
-// spellings the flag package reads among a verb's flags.
+// isHelpFlag reports whether arg asks for help: -h, --h, -help or --help,
+// the spellings the flag package reads among a verb's flags.
 func isHelpFlag(arg string) bool {
-	return arg == "-h" || arg == "-help" || arg == "--help"
+	return arg == "-h" || arg == "--h" || arg == "-help" || arg == "--help"
 }
 
 // parseVerb parses a verb's flags wherever they stand (parseArgs). Help
-// asked for with -h, -help or --help prints the verb's usage and flags on
-// stdout, exit code 0; a bad flag prints the flag package's message, then
-// the usage and flags, on stderr, exit code 2. done reports that the verb
-// must return code.
+// asked for with -h, --h, -help or --help prints the verb's usage and
+// flags on stdout, exit code 0; a bad flag prints the flag package's
+// message, then the usage and flags, on stderr, exit code 2. done reports
+// that the verb must return code.
 func parseVerb(fs *flag.FlagSet, verbUsage string, args []string, stdout, stderr io.Writer) (paths []string, code int, done bool) {
 	fs.SetOutput(stderr)
 	fs.Usage = func() {} // printed below, where the outcome decides

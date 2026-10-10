@@ -62,11 +62,11 @@ func TestRun_HelpGoesToStdout(t *testing.T) {
 	assert.Contains(t, out, "diago --version")
 }
 
-// TestRun_EveryHelpSpellingExitsZero: -h, -help and --help print a usage
-// on stdout with exit code 0 wherever they stand: alone, after help and
-// after any spelling of version, as they do after a verb.
+// TestRun_EveryHelpSpellingExitsZero: -h, --h, -help and --help print a
+// usage on stdout with exit code 0 wherever they stand: alone, after help
+// and after any spelling of version, as they do after a verb.
 func TestRun_EveryHelpSpellingExitsZero(t *testing.T) {
-	for _, h := range []string{"-h", "-help", "--help"} {
+	for _, h := range []string{"-h", "--h", "-help", "--help"} {
 		for _, tc := range []struct {
 			args []string
 			want string
