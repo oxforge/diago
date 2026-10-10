@@ -65,6 +65,7 @@ func TestLayoutBasicTwoActors(t *testing.T) {
 	assert.Greater(t, it.Y, actorA.LineTop, "interaction should be below header")
 
 	// Dimension sanity.
+	seqlayout.NormalizeSequenceWithProfile(result, fixedProfile())
 	assert.Greater(t, result.Width, 0.0)
 	assert.Greater(t, result.Height, 0.0)
 }
@@ -315,6 +316,7 @@ func TestLayoutEmptyInteractions(t *testing.T) {
 	assert.Len(t, result.Actors, 2)
 	assert.Empty(t, result.Interactions)
 	assert.Empty(t, result.Activations)
+	seqlayout.NormalizeSequenceWithProfile(result, fixedProfile())
 	assert.Greater(t, result.Width, 0.0)
 	assert.Greater(t, result.Height, 0.0)
 }

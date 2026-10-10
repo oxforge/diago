@@ -27,7 +27,8 @@ type LayoutOptions struct {
 
 // LayoutWithProfile computes the positions for all actors, interactions,
 // activation boxes, and fragments in a sequence diagram under the given
-// Profile. It is LayoutWithOptions with no options.
+// Profile. It is LayoutWithOptions with no options. The diagram's Width and
+// Height are NormalizeSequenceWithProfile's, which callers run next.
 func LayoutWithProfile(diagram model.SequenceDiagram, p Profile) *model.PositionedSequence {
 	return LayoutWithOptions(diagram, p, LayoutOptions{})
 }
@@ -45,7 +46,7 @@ func LayoutWithOptions(diagram model.SequenceDiagram, p Profile, opts LayoutOpti
 	plans := planFragments(diagram.Fragments, diagram.Interactions, actorIndex, p)
 
 	// 1. Position actors.
-	posActors, centerX, actorBoxWidths, maxHeaderH := layoutActors(diagram, actorIndex, plans, p)
+	posActors, centerX, maxHeaderH := layoutActors(diagram, actorIndex, plans, p)
 
 	// 2. Position interactions vertically and route them.
 	posInteractions, interactionY := layoutInteractions(diagram, actorIndex, centerX, maxHeaderH, p)
@@ -59,12 +60,8 @@ func LayoutWithOptions(diagram model.SequenceDiagram, p Profile, opts LayoutOpti
 	// 4. Compute fragment bounds.
 	posFragments := computeFragments(plans, diagram.Interactions, interactionY, actorIndex, centerX, posActors, p)
 
-	// 5. Finalize dimensions and lifelines.
-	width, height := calculateDimensions(
-		diagram, posActors, posFragments,
-		actorIndex, centerX, actorBoxWidths, interactionY, maxHeaderH,
-		p,
-	)
+	// 5. End the lifelines.
+	setLineBottoms(diagram, posActors, posFragments, interactionY, maxHeaderH, p)
 
 	return &model.PositionedSequence{
 		Title:        diagram.Title,
@@ -72,8 +69,6 @@ func LayoutWithOptions(diagram model.SequenceDiagram, p Profile, opts LayoutOpti
 		Interactions: posInteractions,
 		Fragments:    posFragments,
 		Activations:  posActivations,
-		Width:        width,
-		Height:       height,
 	}
 }
 
@@ -89,7 +84,7 @@ func layoutActors(
 	actorIndex map[string]int,
 	plans []fragmentPlan,
 	p Profile,
-) ([]model.PositionedActor, []float64, []float64, float64) {
+) ([]model.PositionedActor, []float64, float64) {
 	sizes := make([]actorSize, len(diagram.Actors))
 	maxHeaderH := 0.0
 	for i, a := range diagram.Actors {
@@ -179,7 +174,6 @@ func layoutActors(
 
 	actorBoxY := p.TopMargin
 	posActors := make([]model.PositionedActor, len(diagram.Actors))
-	actorBoxWidths := make([]float64, len(diagram.Actors))
 	for i, a := range diagram.Actors {
 		bw := sizes[i].w
 		bh := maxHeaderH
@@ -195,10 +189,9 @@ func layoutActors(
 			LineTop: actorBoxY + bh,
 			Color:   a.Color,
 		}
-		actorBoxWidths[i] = bw
 	}
 
-	return posActors, centerX, actorBoxWidths, maxHeaderH
+	return posActors, centerX, maxHeaderH
 }
 
 // layoutInteractions computes the vertical positions and point coordinates for interactions.
@@ -281,18 +274,17 @@ func layoutInteractions(
 	return posInteractions, interactionY
 }
 
-// calculateDimensions determines the total diagram size and updates lifeline bottoms.
-func calculateDimensions(
+// setLineBottoms ends every lifeline BottomMargin below the lowest of the
+// last message (its loop's bottom for a self-message; the first message
+// row when there is none) and every fragment's frame.
+func setLineBottoms(
 	diagram model.SequenceDiagram,
 	posActors []model.PositionedActor,
 	posFragments []model.PositionedFragment,
-	actorIndex map[string]int,
-	centerX []float64,
-	actorBoxWidths []float64,
 	interactionY []float64,
 	maxHeaderH float64,
 	p Profile,
-) (float64, float64) {
+) {
 	firstInteractionY := p.TopMargin + maxHeaderH + p.InteractionSpacingY
 	maxY := firstInteractionY
 	if len(interactionY) > 0 {
@@ -316,23 +308,4 @@ func calculateDimensions(
 	for i := range posActors {
 		posActors[i].LineBottom = lineBottom
 	}
-
-	rightmostX := centerX[len(centerX)-1] + actorBoxWidths[len(actorBoxWidths)-1]/2
-	for _, it := range diagram.Interactions {
-		if it.From == it.To {
-			rightmostX = max(rightmostX, selfMessageRight(it, centerX[actorIndex[it.From]], p))
-		}
-	}
-
-	for _, pf := range posFragments {
-		fragRight := pf.X + pf.Width
-		if fragRight > rightmostX {
-			rightmostX = fragRight
-		}
-	}
-
-	totalWidth := rightmostX + p.RightMargin
-	totalHeight := lineBottom + p.BottomMargin/2
-
-	return totalWidth, totalHeight
 }

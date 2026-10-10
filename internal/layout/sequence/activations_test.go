@@ -31,6 +31,8 @@ func TestLayoutWithOptions_MaskSkipsActivations(t *testing.T) {
 	require.Len(t, masked.Activations, 1)
 	assert.Equal(t, "w", masked.Activations[0].ActorID)
 	assert.Equal(t, plain.Interactions[1].Y, masked.Interactions[1].Y, "the masked row keeps its place")
+	NormalizeSequenceWithProfile(plain, p)
+	NormalizeSequenceWithProfile(masked, p)
 	assert.Equal(t, plain.Width, masked.Width)
 	assert.Equal(t, plain.Height, masked.Height)
 }

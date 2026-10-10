@@ -38,10 +38,10 @@ type Profile struct {
 	// FragmentGuardGap is the gap from the tab to the first guard, from
 	// the frame's left side to a later guard, and from a header row to a
 	// nested frame below it. Zero in text art.
-	FragmentGuardGap                                 float64
-	ActivationWidth                                  float64
-	TopMargin, LeftMargin, RightMargin, BottomMargin float64
-	NormalizeMargin                                  float64
+	FragmentGuardGap                    float64
+	ActivationWidth                     float64
+	TopMargin, LeftMargin, BottomMargin float64
+	NormalizeMargin                     float64
 
 	CellW, CellH float64 // > 0 = text mode
 }
@@ -76,7 +76,6 @@ func ScreenProfile(fonts LayoutFonts) Profile {
 		ActivationWidth:      10,
 		TopMargin:            20,
 		LeftMargin:           40,
-		RightMargin:          40,
 		BottomMargin:         40,
 		NormalizeMargin:      40,
 	}
@@ -109,7 +108,6 @@ func TextProfile() Profile {
 		ActivationWidth:       8,
 		TopMargin:             16,
 		LeftMargin:            16,
-		RightMargin:           16,
 		BottomMargin:          32, // one lifeline row past the last message, then the footer
 		NormalizeMargin:       16,
 		CellW:                 model.TextCellW,
