@@ -44,24 +44,14 @@ const (
 // (blocking).
 const realizedTolerance = 1e-6
 
-// Place returns every vertex's cross-axis center (S7). Act 1 builds a
-// balanced reference by weighted barycenter sweeps, each layer projected
-// exactly onto its minimum separations. Act 2 aligns near-straight hops
-// into rigid blocks and compacts them: once as the baseline, and again
-// with the side-exit columns of diamonds forced where the port an exit
-// ends on has not reached its column (short of a lone column, off a side
-// rail), and a diamond's primary exit forced straight under it, or,
-// without one, its lone one-hop bottom exit (the bottom clause, which
-// gives way to the diamond's sides where they cannot stand together), the
-// forcing decided again on each rerun's result until a round forces no
-// new vertex and adds no room. A diamond with a back edge is forced in
-// the second pass only, from the router's replay. A diamond whose row
-// blocks its secondary's column gives the secondary room: every node of
-// the row that blocks it keeps the node clearance beyond its port. A
-// diamond whose room does not hold is denied its primary, and given it
-// back when the denial does not clear the row, each restarting the rounds
-// from the baseline, every diamond one round finds so in one restart.
-// Then the level's parts close up toward its weighted center.
+// Place returns every vertex's cross-axis center (S7): act 1's reference
+// (reference), act 2's alignment once as the baseline (align), then the
+// rounds of side-exit forcing (sideExits), each rerunning act 2 on the
+// same reference, until a round forces no new vertex and adds no room. A
+// round that denies a diamond its primary or gives one back restarts the
+// rounds from the baseline. Last, the level's parts close up toward its
+// weighted center (pack), and in the text profile every box moves onto
+// the cell grid (cells).
 func Place(ctx context.Context, g *lgraph.Graph, o Options) []float64 {
 	if len(g.Vertices) == 0 {
 		return nil
