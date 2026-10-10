@@ -139,26 +139,11 @@ func layoutFlowDiff(ctx context.Context, u diff.UnionGraph, before *model.Graph,
 	if text {
 		union = diff.StampLabels(u)
 	}
-
-	if text {
-		b := *before
-		basePG, err := layoutWith(ctx, b, th, true, nil)
-		if err != nil {
-			return nil, nil, fmt.Errorf("diff: layout before: %w", err)
-		}
-		pg, err := layoutWith(ctx, union, th, true, basePG.LayoutHints)
-		if err != nil {
-			return nil, nil, fmt.Errorf("diff: layout union: %w", err)
-		}
-		reportContract(ctx, pg, union, text)
-		return pg, basePG.LayoutHints, nil
-	}
-
-	basePG, err := graphLayout(ctx, *before, th, nil)
+	basePG, err := layoutWith(ctx, *before, th, text, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("diff: layout before: %w", err)
 	}
-	pg, err := graphLayout(ctx, union, th, basePG.LayoutHints)
+	pg, err := layoutWith(ctx, union, th, text, basePG.LayoutHints)
 	if err != nil {
 		return nil, nil, fmt.Errorf("diff: layout union: %w", err)
 	}

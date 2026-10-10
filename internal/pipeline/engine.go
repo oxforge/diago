@@ -38,12 +38,6 @@ func screenConfig(th theme.Theme) layered.Config {
 	return cfg
 }
 
-// graphLayout lays out a flow-shaped graph (flow or class) under the screen
-// profile of th.
-func graphLayout(ctx context.Context, g model.Graph, th theme.Theme, previous *model.LayoutHints) (*model.PositionedGraph, error) {
-	return layoutWith(ctx, g, th, false, previous)
-}
-
 // LayoutGraphForFormat parses a flow-shaped spec with parse and lays it out
 // with the output format known: text art lays out under the text profile
 // (S14); every other format uses the screen profile of the default theme.
@@ -54,16 +48,13 @@ func LayoutGraphForFormat(ctx context.Context, input []byte, parse graphParser, 
 		return nil, fmt.Errorf("parse: %w", err)
 	}
 	text := isTextFormat(format)
-	var pg *model.PositionedGraph
-	if text {
-		pg, err = layoutWith(ctx, *graph, theme.Theme{}, true, previous)
-	} else {
-		th, tErr := resolveTheme("default")
-		if tErr != nil {
-			return nil, fmt.Errorf("theme: %w", tErr)
+	var th theme.Theme
+	if !text {
+		if th, err = resolveTheme("default"); err != nil {
+			return nil, fmt.Errorf("theme: %w", err)
 		}
-		pg, err = graphLayout(ctx, *graph, th, previous)
 	}
+	pg, err := layoutWith(ctx, *graph, th, text, previous)
 	if err != nil {
 		return nil, fmt.Errorf("layout: %w", err)
 	}
@@ -158,7 +149,7 @@ func layoutGraph(ctx context.Context, input []byte, kind string, parse graphPars
 		return nil, theme.Theme{}, fmt.Errorf("render %s: %w", kind, err)
 	}
 
-	positioned, err := graphLayout(ctx, *graph, th, previous)
+	positioned, err := layoutWith(ctx, *graph, th, false, previous)
 	if err != nil {
 		return nil, theme.Theme{}, fmt.Errorf("render %s: %w", kind, err)
 	}
