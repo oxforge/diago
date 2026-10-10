@@ -167,9 +167,9 @@ func layoutFlowDiff(ctx context.Context, u diff.UnionGraph, before *model.Graph,
 }
 
 // statusClass maps union statuses to CSS classes for the SVG renderer. A
-// member line of a class node without a member union follows its box
-// (ruling 2); with one it carries its own per-member status, or no class at
-// all when that member is unchanged.
+// member line of a class node without a member union follows its box; with
+// one it carries its own per-member status, or no class at all when that
+// member is unchanged.
 func statusClass(u diff.UnionGraph) func(kind, id string) string {
 	return func(kind, id string) string {
 		var s diff.Status
@@ -184,7 +184,7 @@ func statusClass(u diff.UnionGraph) func(kind, id string) string {
 			node, rest, _ := strings.Cut(id, "/")
 			mu, ok := u.Members[node]
 			if !ok {
-				s = u.Nodes[node] // ruling 2: no union, follow the box
+				s = u.Nodes[node] // no member union: follow the box
 				break
 			}
 			comp, idx, _ := strings.Cut(rest, "/")

@@ -52,8 +52,8 @@ func renderActorBox(a model.PositionedActor, style theme.ActorStyle, sketch bool
 
 // renderFragment renders a fragment's frame, its operator tab, its section
 // dividers and its guards, at the positions the layout gave them.
-// sectionClass returns the CSS class for section k; nil keeps
-// today's output unchanged (no per-section wrapper groups).
+// sectionClass returns the CSS class for section k; nil draws no
+// per-section wrapper groups, the plain render.
 func renderFragment(idx int, f model.PositionedFragment, style theme.FragmentStyle, sectionClass func(k int) string) SVGGroup {
 	children := []Element{
 		// Background fill rect.

@@ -28,8 +28,8 @@ type PositionedGraph struct {
 	// contract checker read, never rendered directly.
 	AppliedCongruences []AppliedCongruence `json:"appliedCongruences,omitempty"`
 
-	// Legend is the resolved legend rows (Phase 4), populated when the
-	// spec requested one. Nil when no legend is requested.
+	// Legend is the resolved legend rows, populated when the spec
+	// requested one. Nil when no legend is requested.
 	Legend []LegendEntry `json:"legend,omitempty"`
 }
 
@@ -68,8 +68,8 @@ type PositionedNode struct {
 	Height float64  `json:"height"`
 	Color  string   `json:"color,omitempty"`
 
-	// Members is the laid-out record box (Phase 4), populated when this
-	// node is a UML class. Nil for a plain flow node.
+	// Members is the laid-out record box, populated when this node is a
+	// UML class. Nil for a plain flow node.
 	Members *PositionedMembers `json:"members,omitempty"`
 }
 

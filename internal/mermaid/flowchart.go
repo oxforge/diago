@@ -13,7 +13,7 @@ func init() { dialects[KindFlowchart] = parseFlowchart }
 
 // flowID is a node or subgraph id: letters, digits, "_" and ".", with "-"
 // allowed only between two such runs, so "a-->b" splits as id "a" plus
-// the arrow "-->" (plan ruling 1).
+// the arrow "-->".
 const flowID = `[A-Za-z0-9_.]+(?:-[A-Za-z0-9_.]+)*`
 
 const quotedLabel = `"[^"]*"`
@@ -310,7 +310,7 @@ func (p *flowParser) assemble(title, direction string) (any, []Report, error) {
 			label = n.id
 		}
 		if shape == "rect" {
-			shape = "" // the default (plan ruling 6)
+			shape = "" // rect is the default: the spec leaves it out
 		}
 		spec.Nodes = append(spec.Nodes, schema.NodeSpec{ID: n.id, Label: label, Shape: shape})
 	}

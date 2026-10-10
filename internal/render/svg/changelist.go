@@ -38,8 +38,7 @@ func changeText(text string, th theme.Theme) string {
 
 // changeListSize returns the change list's required width and height, with
 // the class legend's metrics: a row for the caption when there is one, then
-// one per line. Without a caption the width is the widest line's, exactly as
-// before captions existed.
+// one per line. Without a caption the width is the widest line's.
 func changeListSize(caption string, lines []ChangeLine, th theme.Theme) (w, h float64) {
 	rows := len(lines)
 	if caption != "" {

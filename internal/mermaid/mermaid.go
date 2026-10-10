@@ -1,13 +1,12 @@
 // Package mermaid translates a Mermaid flowchart, sequenceDiagram or
-// classDiagram source into a diago JSON spec (Phase 5 of the review-loop
-// parity program). It is a migration door for the CLI only: every
-// construct with a nearest diago form is translated and reported, every
-// statement with no meaning in diago is a line-numbered ParseError. The
-// package depends on schema only; it emits schema.FlowSpec, SequenceSpec
-// and ClassSpec, so the CLI validates the translation like any JSON. An
-// unclosed block reports the line after the last statement in the
-// flowchart and class dialects and the block's opening line in the
-// sequence dialect.
+// classDiagram source into a diago JSON spec. It is a migration door for
+// the CLI only: every construct with a nearest diago form is translated
+// and reported, every statement with no meaning in diago is a
+// line-numbered ParseError. The package depends on schema only; it emits
+// schema.FlowSpec, SequenceSpec and ClassSpec, so the CLI validates the
+// translation like any JSON. An unclosed block reports the line after the
+// last statement in the flowchart and class dialects and the block's
+// opening line in the sequence dialect.
 package mermaid
 
 import (

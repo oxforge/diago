@@ -1,7 +1,6 @@
 // Package diff computes structural diffs of diagram specs and the union
-// graphs a diff render lays out once (Phase 2b design). It depends on model
-// only (schema appears in its tests): layout and rendering happen in the
-// pipeline.
+// graphs a diff render lays out once. It depends on model only (schema
+// appears in its tests): layout and rendering happen in the pipeline.
 package diff
 
 import "github.com/oxforge/diago/internal/model"

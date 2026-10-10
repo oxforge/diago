@@ -284,11 +284,11 @@ func (p *placer) slack(v int) bool {
 func (p *placer) exempt() {
 	for i := range p.links {
 		l := &p.links[i]
-		// The Reversed check matters now: a reversed edge's node ends are
-		// counter-flow and get no link (the continue above), but its
-		// terminal ends (S9) stay on their face and do get one, so
-		// without this skip a reversed edge's terminal-to-real hop would
-		// fall into the same exemption as a forward edge's.
+		// A reversed edge's node ends are counter-flow and get no link
+		// (newPlacer), but its terminal ends (S9) stay on their face and
+		// do get one, so without this skip a reversed edge's
+		// terminal-to-real hop would fall into the same exemption as a
+		// forward edge's.
 		if l.exempt || (p.g.Reversed != nil && p.g.Reversed[l.edge]) {
 			continue
 		}

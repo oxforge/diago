@@ -77,7 +77,7 @@ func inClass(el Element, id, cls string, ids idSet) Element {
 }
 
 // edgeElementID maps an edge's logical id to its SVG element id. Derived ids
-// keep today's edge-<from>-<to> form (with -<n> for the second and later
+// take the edge-<from>-<to> form (with -<n> for the second and later
 // parallel edges); explicit ids render as edge-<id>. An empty id (a
 // hand-built graph) falls back to the endpoint form.
 func edgeElementID(e model.PositionedEdge) string {

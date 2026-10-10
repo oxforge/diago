@@ -9,8 +9,8 @@ import (
 // ClassDimmed is the class of an unchanged element in a diff render.
 const ClassDimmed = "dimmed"
 
-// RenderOptions parameterizes a status-aware render (Phase 2b). A nil
-// *RenderOptions is exactly today's output.
+// RenderOptions parameterizes a status-aware render, a diff's. A nil
+// *RenderOptions is the plain render, byte for byte.
 type RenderOptions struct {
 	// Class returns the CSS class for an element: kind is "node", "edge",
 	// "group" or "member" for a flow or class render, or "actor", "lifeline",

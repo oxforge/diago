@@ -102,7 +102,7 @@ var ruleSet = func() map[string]bool {
 // An ignore list may still name them: they validate and match nothing, so
 // a spec written for an older diago keeps rendering.
 var retiredRules = map[string]bool{
-	"duplicate-hint": true, // hints removed in Phase 0 of the layered engine
+	"duplicate-hint": true, // the flow spec's retired hints field
 	"hint-no-effect": true,
 }
 

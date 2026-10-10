@@ -32,7 +32,7 @@ type cellEdge struct {
 	crossings     []model.Crossing
 	srcPts        []model.Point // original pixel points, for crossing interpolation
 
-	// Class relations (Phase 4). relation is RelationNone on a flow edge.
+	// Class relations. relation is RelationNone on a flow edge.
 	relation         model.Relation
 	directed         bool
 	fromCard, toCard *cellCard

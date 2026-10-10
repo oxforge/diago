@@ -114,8 +114,8 @@ func flatRankedFields(pg *model.PositionedGraph, prev *model.LayoutHints) []flat
 }
 
 // flatEdgeRankedMessage is the flat-edge-ranked finding's message: a fresh
-// fallback (the router tried this render and kept no route) keeps the
-// original wording; a kept one (S13, keepRanked: the previous carrier
+// fallback (the router tried this render and kept no route) says it found
+// no clear side route; a kept one (S13, keepRanked: the previous carrier
 // listed it, so the router never tried) says so, worded for a render
 // anchored with -previous or for a diff's union, anchored on the before
 // layout.

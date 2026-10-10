@@ -13,9 +13,9 @@ import (
 )
 
 // ParsePrevious turns a -previous file into a carrier. It accepts, sniffed
-// by content: an SVG diago rendered (its metadata is the exact anchor; one
-// golayout rendered before the cutover to the layered engine anchors as a
-// best effort), a carrier JSON, or a spec of the same type as the diagram
+// by content: an SVG diago rendered (the carrier in its metadata is the
+// anchor, exact when the same diago drew it and a best effort otherwise),
+// a carrier JSON, or a spec of the same type as the diagram
 // being rendered (specType). A flow or class spec is laid out fresh
 // as the render anchored on it lays out its own spec (S13): under the text
 // profile when format is text ("text" or "txt"), else under the screen

@@ -40,7 +40,7 @@ type Edge struct {
 	// it (PositionedEdge.FlatRanked). Always false on a class relation.
 	Flat bool
 
-	// Class relations (Phase 4). Relation is RelationNone on a flow edge.
+	// Class relations. Relation is RelationNone on a flow edge.
 	Relation Relation
 	FromCard string
 	ToCard   string
