@@ -2,7 +2,9 @@ package sourcetest
 
 import (
 	"path/filepath"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -27,4 +29,15 @@ func TestRepo_IgnoresInheritedGitEnv(t *testing.T) {
 	r.Commit("one", map[string]string{"b.json": "b"})
 	assert.Equal(t, "b", r.Git("show", "HEAD:b.json"))
 	assert.Equal(t, head, dev.Git("rev-parse", "HEAD"), "the developer's repository is untouched")
+}
+
+// TestRepo_DatesPastTheHour: the sixtieth commit is dated an hour past
+// the first, not back at midnight: commit dates keep increasing however
+// many commits a test makes.
+func TestRepo_DatesPastTheHour(t *testing.T) {
+	r := New(t)
+	r.n = 59
+	r.Commit("sixtieth", nil)
+	hour := time.Date(2026, 1, 1, 1, 0, 0, 0, time.UTC).Unix()
+	assert.Equal(t, strconv.FormatInt(hour, 10), r.Git("log", "-1", "--format=%ct"))
 }

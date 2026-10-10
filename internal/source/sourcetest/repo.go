@@ -4,12 +4,12 @@
 package sourcetest
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Repo is a git repository in a test's temporary directory.
@@ -35,7 +35,7 @@ func New(t testing.TB) *Repo {
 // fails the test.
 func (r *Repo) Git(args ...string) string {
 	r.t.Helper()
-	date := fmt.Sprintf("2026-01-01T00:%02d:00Z", r.n)
+	date := time.Date(2026, 1, 1, 0, r.n, 0, 0, time.UTC).Format(time.RFC3339)
 	cmd := exec.Command("git", append([]string{"-C", r.Dir}, args...)...)
 	cmd.Env = append(withoutGitEnv(),
 		"GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1",
