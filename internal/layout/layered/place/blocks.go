@@ -296,9 +296,7 @@ func feasible(in alignInput, prefix [][]float64, b blocks, rooms []room) bool {
 			last[r] = i
 		}
 	}
-	n := len(g.Vertices)
-	succ := make([][]int, n)
-	indeg := make([]int, n)
+	succ := make([][]int, len(g.Vertices)) // per block root, the blocks right of it; a vertex that is no root has none
 	joined := map[[2]int]bool{}
 	for _, layer := range g.Layers {
 		for i := 1; i < len(layer); i++ {
@@ -308,7 +306,6 @@ func feasible(in alignInput, prefix [][]float64, b blocks, rooms []room) bool {
 			}
 			joined[[2]int{a, c}] = true
 			succ[a] = append(succ[a], c)
-			indeg[c]++
 		}
 	}
 	for _, r := range rooms {
@@ -319,27 +316,8 @@ func feasible(in alignInput, prefix [][]float64, b blocks, rooms []room) bool {
 		}
 		joined[[2]int{a, c}] = true
 		succ[a] = append(succ[a], c)
-		indeg[c]++
 	}
-	roots := 0
-	var queue []int
-	for v := range n {
-		if b.root[v] != v {
-			continue
-		}
-		roots++
-		if indeg[v] == 0 {
-			queue = append(queue, v)
-		}
-	}
-	for h := 0; h < len(queue); h++ {
-		for _, c := range succ[queue[h]] {
-			if indeg[c]--; indeg[c] == 0 {
-				queue = append(queue, c)
-			}
-		}
-	}
-	return len(queue) == roots
+	return acyclic(succ)
 }
 
 // compact places the blocks: each pulls toward its members' weighted mean
