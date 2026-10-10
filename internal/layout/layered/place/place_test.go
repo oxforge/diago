@@ -26,28 +26,33 @@ var screen = Options{Gap: 40, Span: 16, Reach: 20, Clearance: 12, Dir: model.Dow
 // and an id-keyed accessor.
 func placed(t *testing.T, o Options, widths map[string]float64, specs ...string) (*lgraph.Graph, []float64, func(id string) float64) {
 	t.Helper()
+	g := ordered(t, context.Background(), level(t, widths, specs...))
+	x := Place(context.Background(), g, o)
+	require.Len(t, x, len(g.Vertices))
+	return g, x, func(id string) float64 { return x[vertexOf(t, g, id)] }
+}
+
+// level is the fixture level of specs, widths overriding node widths by id.
+func level(t *testing.T, widths map[string]float64, specs ...string) *lgraph.Level {
+	t.Helper()
 	lv := lgraphtest.Level(t, specs...)
 	for i := range lv.Nodes {
 		if w, ok := widths[lv.Nodes[i].ID]; ok {
 			lv.Nodes[i].W = w
 		}
 	}
-	ctx := context.Background()
+	return lv
+}
+
+// ordered runs S2 to S6 over lv under ctx, S4's equalizing aside: the
+// layered graph, ordered, that Place takes.
+func ordered(t *testing.T, ctx context.Context, lv *lgraph.Level) *lgraph.Graph {
+	t.Helper()
 	reversed := cycle.Break(ctx, lv, nil)
 	g, err := lgraph.Build(lv, rank.Assign(ctx, lv, reversed, nil), reversed, 8)
 	require.NoError(t, err)
 	g.Layers = order.Minimize(ctx, g, false)
-	x := Place(ctx, g, o)
-	require.Len(t, x, len(g.Vertices))
-	return g, x, func(id string) float64 {
-		for i, n := range lv.Nodes {
-			if n.ID == id {
-				return x[i]
-			}
-		}
-		require.Failf(t, "no node", "%s", id)
-		return math.NaN()
-	}
+	return g
 }
 
 func TestPlace_AChainIsStraight(t *testing.T) {
@@ -229,17 +234,8 @@ func TestPlace_KeepsTheMinimumSeparation(t *testing.T) {
 // place-phase decision records as JSON objects, in emission order.
 func decisions(t *testing.T, o Options, widths map[string]float64, specs ...string) (*lgraph.Graph, []map[string]any) {
 	t.Helper()
-	lv := lgraphtest.Level(t, specs...)
-	for i := range lv.Nodes {
-		if w, ok := widths[lv.Nodes[i].ID]; ok {
-			lv.Nodes[i].W = w
-		}
-	}
 	ctx, buf := layoutdbgtest.Capture()
-	reversed := cycle.Break(ctx, lv, nil)
-	g, err := lgraph.Build(lv, rank.Assign(ctx, lv, reversed, nil), reversed, 8)
-	require.NoError(t, err)
-	g.Layers = order.Minimize(ctx, g, false)
+	g := ordered(t, ctx, level(t, widths, specs...))
 	Place(ctx, g, o)
 	var out []map[string]any
 	for _, entry := range layoutdbgtest.Records(t, buf) {
@@ -262,24 +258,12 @@ func vertexOf(t *testing.T, g *lgraph.Graph, id string) int {
 	return -1
 }
 
-// laid runs S3 to S7 over lv as it is.
+// laid runs S2 to S7 over lv as it is.
 func laid(t *testing.T, lv *lgraph.Level, o Options) (*lgraph.Graph, func(id string) float64) {
 	t.Helper()
-	ctx := context.Background()
-	reversed := cycle.Break(ctx, lv, nil)
-	g, err := lgraph.Build(lv, rank.Assign(ctx, lv, reversed, nil), reversed, 8)
-	require.NoError(t, err)
-	g.Layers = order.Minimize(ctx, g, false)
-	x := Place(ctx, g, o)
-	return g, func(id string) float64 {
-		for i, n := range lv.Nodes {
-			if n.ID == id {
-				return x[i]
-			}
-		}
-		require.Failf(t, "no node", "%s", id)
-		return math.NaN()
-	}
+	g := ordered(t, context.Background(), lv)
+	x := Place(context.Background(), g, o)
+	return g, func(id string) float64 { return x[vertexOf(t, g, id)] }
 }
 
 // TestPlace_TerminalsKeepTheTerminalGap pins S7 (S9): two terminals, wire

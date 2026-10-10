@@ -22,17 +22,13 @@ var screen = Options{Clearance: 12, Span: 16, Reach: 20, BaseGap: 40, LaneGap: 8
 // 80 x 40 (lgraphtest).
 func graph(t *testing.T, widths map[string]float64, specs ...string) *lgraph.Graph {
 	t.Helper()
-	lv := lgraphtest.Level(t, specs...)
-	for i := range lv.Nodes {
-		if w, ok := widths[lv.Nodes[i].ID]; ok {
-			lv.Nodes[i].W = w
+	return shaped(t, func(lv *lgraph.Level) {
+		for i := range lv.Nodes {
+			if w, ok := widths[lv.Nodes[i].ID]; ok {
+				lv.Nodes[i].W = w
+			}
 		}
-	}
-	ctx := context.Background()
-	reversed := cycle.Break(ctx, lv, nil)
-	g, err := lgraph.Build(lv, rank.Assign(ctx, lv, reversed, nil), reversed, 8)
-	require.NoError(t, err)
-	return g
+	}, specs...)
 }
 
 // routed places every vertex of g at xs[its id] and routes g; it returns
@@ -94,12 +90,8 @@ func TestRoute_AChainRunsStraightBetweenRows(t *testing.T) {
 }
 
 func TestRoute_ARowIsItsTallestNodeAndEveryNodeStartsAtItsTop(t *testing.T) {
-	lv := lgraphtest.Level(t, "a->c", "b->d")
-	lv.Nodes[2].H = 60 // b
-	ctx := context.Background()
-	g, err := lgraph.Build(lv, rank.Assign(ctx, lv, nil, nil), nil, 8)
-	require.NoError(t, err)
-	r, route := routed(t, g, screen, map[string]float64{"a": 100, "b": 300, "c": 100, "d": 300})
+	fix := func(lv *lgraph.Level) { lv.Nodes[2].H = 60 } // b
+	r, route := routed(t, shaped(t, fix, "a->c", "b->d"), screen, map[string]float64{"a": 100, "b": 300, "c": 100, "d": 300})
 	assert.Equal(t, []float64{60, 40}, r.RowH)
 	assert.Equal(t, []float64{0, 100}, r.RowTop)
 	assertRoute(t, pts(100, 40, 100, 100), route("a->c#0"))

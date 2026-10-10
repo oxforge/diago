@@ -7,12 +7,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/oxforge/diago/internal/layout/layered/cycle"
 	"github.com/oxforge/diago/internal/layout/layered/lgraph"
 	"github.com/oxforge/diago/internal/layout/layered/lgraph/lgraphtest"
-	"github.com/oxforge/diago/internal/layout/layered/order"
 	"github.com/oxforge/diago/internal/layout/layered/ports"
-	"github.com/oxforge/diago/internal/layout/layered/rank"
 	"github.com/oxforge/diago/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -411,12 +408,7 @@ func TestPlace_ABottomClauseGivesWayToItsSides(t *testing.T) {
 // the bottom clause, the positive control.
 func TestPlace_ADeniedDiamondTakesNoBottomClause(t *testing.T) {
 	round := func(t *testing.T, denied bool, specs ...string) []forcedExit {
-		lv := lgraphtest.Level(t, specs...)
-		ctx := context.Background()
-		reversed := cycle.Break(ctx, lv, nil)
-		g, err := lgraph.Build(lv, rank.Assign(ctx, lv, reversed, nil), reversed, 8)
-		require.NoError(t, err)
-		g.Layers = order.Minimize(ctx, g, false)
+		g := ordered(t, context.Background(), lgraphtest.Level(t, specs...))
 		p := newPlacer(g, screen)
 		base := make([]float64, len(g.Vertices))
 		base[vertexOf(t, g, "main")] = 10
