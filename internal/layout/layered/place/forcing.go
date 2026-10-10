@@ -258,9 +258,8 @@ func (j *exitJudge) judgeDiamond(v int) {
 // moves a lone column out over it where the row lets it; a side vertex
 // that two or more exits leave from is a side rail, which the router
 // never moves out, so there only a port on the column, within
-// realizedTolerance, has. Every exit heads for that port. A secondary
-// alone on its side vertex that has reached its column may still need
-// room (judgeSecondary).
+// realizedTolerance, has. A secondary alone on its side vertex that has
+// reached its column may still need room (judgeSecondary).
 func (j *exitJudge) judgeSide(v int, side ports.Vertex, sides []ports.Vertex, prim, sec int) {
 	ex := j.exits[v]
 	sign := -1.0
@@ -296,17 +295,17 @@ func (j *exitJudge) judgeSide(v int, side ports.Vertex, sides []ports.Vertex, pr
 
 // judgeSecondary judges secondary exit sec of diamond v, whose port has
 // reached its column on the side sign points to, alone on its side vertex
-// (S7), when nodes of the row block that column (blocking): with its
-// primary prim realized, every one of them keeps the node clearance
-// beyond the port, which act 2 holds from the next rerun on, among the
-// rooms the round returns, once per secondary. In the first pass, a
-// secondary still blocked so with its room kept (the room gave way, or
-// another node now blocks), or one whose primary's forcing dropped,
-// denies its diamond the primary; and a denied diamond (prim -1) whose
-// exit that was the secondary still leaves a side the row blocks the
-// same way gets it back once the rounds settle with no denial and no new
-// room (sideExits). The second pass gives room too, but denies and gives
-// back nothing.
+// (S7), when nodes of the row block that column (blocking). Only a
+// primary prim that a forcing holds and that was not given back answers
+// it: realized, every one of them keeps the node clearance beyond the
+// port, which act 2 holds from the next rerun on, among the rooms the
+// round returns, once per secondary. In the first pass, a secondary
+// still blocked so with its room kept (the room gave way, or another node
+// now blocks), or one whose primary's forcing dropped, denies its diamond
+// the primary; and a denied diamond (prim -1) whose exit that was the
+// secondary still leaves a side the row blocks the same way gets it back
+// once the rounds settle with no denial and no new room (sideExits). The
+// second pass gives room too, but denies and gives back nothing.
 func (j *exitJudge) judgeSecondary(v int, sign float64, prim, sec int) {
 	p, ex := j.p, j.exits[v]
 	blocking := p.blocking(j.base, v, sign, ex[sec].Toward)
