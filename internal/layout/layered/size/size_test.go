@@ -1,11 +1,8 @@
 package size
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"math"
 	"math/rand/v2"
 	"strings"
@@ -15,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/oxforge/diago/internal/font"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 )
 
@@ -353,17 +350,14 @@ func TestMeasure_CompactLabelsKeepTheOtherLabels(t *testing.T) {
 }
 
 func TestMeasure_CompactLabelsRecordTheCountsTried(t *testing.T) {
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	Measure(ctx, []model.Node{
 		{ID: "gate", Label: "Metrics healthy?", Shape: model.ShapeDiamond},
 		{ID: "box", Label: "Metrics healthy?"},
 		{ID: "one", Label: "Approved?", Shape: model.ShapeDiamond},
 	}, screen)
 	var got []map[string]any
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var rec map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &rec))
+	for _, rec := range layoutdbgtest.Records(t, buf) {
 		if rec["decision"] == "label_compacted" {
 			got = append(got, rec)
 		}

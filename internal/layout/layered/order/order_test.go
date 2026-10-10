@@ -1,15 +1,11 @@
 package order
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"math"
 	"math/rand/v2"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,7 +15,7 @@ import (
 	"github.com/oxforge/diago/internal/layout/layered/lgraph"
 	"github.com/oxforge/diago/internal/layout/layered/lgraph/lgraphtest"
 	"github.com/oxforge/diago/internal/layout/layered/rank"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 )
 
 // graph cannot move into lgraphtest: cycle and rank's own internal tests
@@ -314,13 +310,10 @@ func TestMinimize_IsItsOwnAnchoredOrdering(t *testing.T) {
 func ordered(t *testing.T, order func(context.Context, *lgraph.Graph) [][]int, specs ...string) (*lgraph.Graph, map[string]map[string]any) {
 	t.Helper()
 	g := graph(t, specs...)
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	g.Layers = order(ctx, g)
 	got := map[string]map[string]any{}
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var entry map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &entry))
+	for _, entry := range layoutdbgtest.Records(t, buf) {
 		if entry["phase"] == "order" {
 			got[entry["decision"].(string)] = entry
 		}

@@ -1,10 +1,7 @@
 package pipeline
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"log/slog"
 	"strings"
 	"testing"
 
@@ -13,7 +10,7 @@ import (
 
 	"github.com/oxforge/diago/internal/diff"
 	"github.com/oxforge/diago/internal/font"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 	"github.com/oxforge/diago/internal/schema"
 	"github.com/oxforge/diago/internal/theme"
@@ -37,8 +34,7 @@ func TestLayoutGraphForFormat_DrawsTheSelfLoop(t *testing.T) {
 // layered engine, anchors a render of a changed spec (C18, S13), and a
 // render anchored on its own SVG reproduces it (C18.1).
 func TestLayered_AnchorsOnAPrevious(t *testing.T) {
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	previous, err := ParsePrevious(ctx, []byte(loopSpec), "flow", "", "")
 	require.NoError(t, err)
 	require.NotNil(t, previous)
@@ -49,9 +45,7 @@ func TestLayered_AnchorsOnAPrevious(t *testing.T) {
 	_, err = RenderWithOptions(ctx, []byte(changed), Options{Previous: previous})
 	require.NoError(t, err)
 	var applied map[string]any
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var rec map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &rec))
+	for _, rec := range layoutdbgtest.Records(t, buf) {
 		if rec["decision"] == "previous_applied" {
 			applied = rec
 		}

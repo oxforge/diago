@@ -1,11 +1,9 @@
 package layered
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"maps"
 	"slices"
 	"strconv"
@@ -17,7 +15,7 @@ import (
 
 	"github.com/oxforge/diago/internal/layout/contract"
 	"github.com/oxforge/diago/internal/layout/metrics"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 )
 
@@ -25,14 +23,11 @@ import (
 // and returns the layout and its anchoring records (S13).
 func anchored(t *testing.T, g model.Graph, cfg Config, prev *model.LayoutHints) (*model.PositionedGraph, []map[string]any) {
 	t.Helper()
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	pg, err := Layout(ctx, g, cfg, prev)
 	require.NoError(t, err)
 	var recs []map[string]any
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var rec map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &rec))
+	for _, rec := range layoutdbgtest.Records(t, buf) {
 		if rec["phase"] == "anchoring" {
 			recs = append(recs, rec)
 		}
@@ -620,14 +615,11 @@ func TestAnchoring_AFlatEdgeInTheCarrier(t *testing.T) {
 // previous_ranked, its lists).
 func flatRecords(t *testing.T, g model.Graph, cfg Config, prev *model.LayoutHints) (*model.PositionedGraph, []string) {
 	t.Helper()
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	pg, err := Layout(ctx, g, cfg, prev)
 	require.NoError(t, err)
 	var out []string
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var rec map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &rec))
+	for _, rec := range layoutdbgtest.Records(t, buf) {
 		switch {
 		case rec["phase"] == "flat":
 			out = append(out, fmt.Sprint(rec["decision"], " ", rec["edge"]))

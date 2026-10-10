@@ -68,7 +68,7 @@ diago/
 │   │   ├── metrics/      # Quality metrics (Q1–Q5) and defect counts of any PositionedGraph, and the churn of an anchored layout against its previous one (Q6, `churn.go`); imports no engine
 │   │   ├── layered/      # The layered engine, the only flow and class engine: one package per stage (size, cycle, rank, equalize, lgraph, order, ports, place, route, nest, flat, labels, frame)
 │   │   └── sequence/     # Custom timeline layout; `LayoutWithOptions` takes an activation mask for diff renders
-│   ├── layoutdbg/        # Decision-record logging (layoutdbg.go): extend this, never fmt.Printf
+│   ├── layoutdbg/        # Decision-record logging (layoutdbg.go): extend this, never fmt.Printf; layoutdbgtest/ captures the records for tests
 │   ├── diff/             # Structural diff and union graphs for flow, sequence and class specs, the fields each change touched (`fields.go`), the change list both the text footer and the SVG list print (`changes.go`), text stamping, member-level class union (`members.go`); depends on model only
 │   ├── mermaid/          # Mermaid importer: Sniff/Parse, flowchart, sequence and class dialects → schema spec structs; depends on schema only
 │   ├── source/           # Spec arguments: stdin, a file, or REV:PATH read with the git binary; Latest, a file's latest change for diago diff PATH; sourcetest/ builds test repositories

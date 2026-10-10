@@ -1,17 +1,14 @@
 package layered
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"log/slog"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 )
 
@@ -92,19 +89,12 @@ func TestArrange_DeterministicForcedSideExit(t *testing.T) {
 	g := graph(t, nil, "m:diamond->yes", "m->no")
 	cfg := screen()
 
-	var buf bytes.Buffer
-	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	ctx := layoutdbg.NewContext(context.Background(), logger)
+	ctx, buf := layoutdbgtest.Capture()
 	a, err := Arrange(ctx, g, cfg)
 	require.NoError(t, err)
 
 	forced := 0
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		if line == "" {
-			continue
-		}
-		var entry map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &entry))
+	for _, entry := range layoutdbgtest.Records(t, buf) {
 		if entry["decision"] == "side_exit_forced" {
 			forced++
 		}
@@ -149,14 +139,11 @@ func TestArrange_DeterministicRecordBoxes(t *testing.T) {
 // repeats byte-identically, 50 times, under DOWN and RIGHT.
 func TestArrange_DeterministicCorridorSeats(t *testing.T) {
 	g := graph(t, nil, "r->x", "r->a", "r->b", "r->c", "a->t", "b->t", "c->t", "r->t", "r->t", "a->s", "b->s", "r->s")
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	_, err := Arrange(ctx, g, screen())
 	require.NoError(t, err)
 	var seated []string
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var entry map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &entry))
+	for _, entry := range layoutdbgtest.Records(t, buf) {
 		if entry["decision"] == "corridor_seated" {
 			id, _ := entry["dummy"].(string)
 			seated = append(seated, id)
@@ -180,14 +167,11 @@ func TestArrange_DeterministicCorridorSeats(t *testing.T) {
 // 50 times, under DOWN and RIGHT, in both profiles.
 func TestArrange_DeterministicPackedParts(t *testing.T) {
 	g := graph(t, nil, "o->p", "p->q", "o->q", "c->d", "e->f", "iso")
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	_, err := Arrange(ctx, g, screen())
 	require.NoError(t, err)
 	moved := 0.0
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var entry map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &entry))
+	for _, entry := range layoutdbgtest.Records(t, buf) {
 		if entry["decision"] == "parts_packed" {
 			n, _ := entry["moved"].(float64)
 			moved += n
@@ -239,14 +223,11 @@ func dependencyGraph(t *testing.T, dir model.Direction) model.Graph {
 // the arrangement repeats byte-identically, 50 times, under RIGHT and
 // DOWN, in both profiles.
 func TestArrange_DeterministicPortOrder(t *testing.T) {
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	_, err := Arrange(ctx, dependencyGraph(t, model.Right), screen())
 	require.NoError(t, err)
 	reordered := 0.0
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var entry map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &entry))
+	for _, entry := range layoutdbgtest.Records(t, buf) {
 		if entry["decision"] == "port_gave_way" {
 			n, _ := entry["reordered"].(float64)
 			reordered += n
@@ -282,14 +263,11 @@ func TestArrange_DeterministicLoops(t *testing.T) {
 			"eval->good:diamond", "good->reg", "good->feat", "reg->deploy", "deploy->monitor", "monitor->retrain",
 			"retrain->train", "eval->report"),
 	}
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	_, err := Arrange(ctx, cases[0], screen())
 	require.NoError(t, err)
 	kept := 0
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var entry map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &entry))
+	for _, entry := range layoutdbgtest.Records(t, buf) {
 		if entry["decision"] == "loops_kept" {
 			kept++
 		}
@@ -630,8 +608,7 @@ func TestLayout_DeterministicFlatEdges(t *testing.T) {
 	for i := range g.Edges {
 		g.Edges[i].Label = "label"
 	}
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	_, err := Layout(ctx, g, screen(), nil)
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), `"decision":"flat_edge_ranked"`, "the fixture must fall back")

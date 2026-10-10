@@ -1,11 +1,7 @@
 package route
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"log/slog"
-	"strings"
 	"testing"
 
 	"github.com/oxforge/diago/internal/layout/layered/cycle"
@@ -13,7 +9,7 @@ import (
 	"github.com/oxforge/diago/internal/layout/layered/lgraph/lgraphtest"
 	"github.com/oxforge/diago/internal/layout/layered/ports"
 	"github.com/oxforge/diago/internal/layout/layered/rank"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -122,14 +118,11 @@ func TestRoute_PortsLandOnTheDrawnOutline(t *testing.T) {
 }
 
 func TestRoute_LogsItsDecisions(t *testing.T) {
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	g := graph(t, nil, "m:diamond->a", "a->m")
 	Route(ctx, g, []float64{200, 200}, screen)
 	var decisions []string
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var rec map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &rec))
+	for _, rec := range layoutdbgtest.Records(t, buf) {
 		assert.Equal(t, "route", rec["phase"])
 		assert.Equal(t, "S8", rec["spec_ref"])
 		decisions = append(decisions, rec["decision"].(string))
@@ -141,17 +134,14 @@ func TestRoute_LogsItsDecisions(t *testing.T) {
 // exits: the circle and how many exits leave its bottom vertex. The replay
 // takes them from the first route and records nothing new.
 func TestRoute_LogsAMergedFanOut(t *testing.T) {
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	g := graph(t, nil, "m:circle->a", "m->b", "m->c")
 	first := Route(ctx, g, []float64{200, 100, 200, 300}, screen)
 	replay := screen
 	replay.Side = first.Side
 	Route(ctx, g, []float64{200, 100, 200, 300}, replay)
 	var merged []map[string]any
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var rec map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &rec))
+	for _, rec := range layoutdbgtest.Records(t, buf) {
 		if rec["decision"] == "exits_merged" {
 			merged = append(merged, rec)
 		}

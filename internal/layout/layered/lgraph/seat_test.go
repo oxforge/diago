@@ -1,11 +1,6 @@
 package lgraph_test
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"log/slog"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,7 +8,7 @@ import (
 
 	"github.com/oxforge/diago/internal/layout/layered/lgraph"
 	"github.com/oxforge/diago/internal/layout/layered/lgraph/lgraphtest"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 )
 
 // seat builds lv on layers, its edges reversed as reversed says, seats
@@ -23,15 +18,10 @@ func seat(t *testing.T, lv *lgraph.Level, layers []int, reversed []bool) (*lgrap
 	t.Helper()
 	g, err := lgraph.Build(lv, layers, reversed, 8)
 	require.NoError(t, err)
-	var buf bytes.Buffer
-	g.SeatCorridors(layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))))
+	ctx, buf := layoutdbgtest.Capture()
+	g.SeatCorridors(ctx)
 	var recs []map[string]any
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		if line == "" {
-			continue
-		}
-		var rec map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &rec))
+	for _, rec := range layoutdbgtest.Records(t, buf) {
 		if rec["decision"] == "corridor_seated" {
 			recs = append(recs, rec)
 		}

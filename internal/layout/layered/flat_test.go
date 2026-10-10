@@ -1,14 +1,10 @@
 package layered
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"math"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,7 +12,7 @@ import (
 
 	"github.com/oxforge/diago/internal/layout/contract"
 	"github.com/oxforge/diago/internal/layout/layered/flat"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 )
 
@@ -56,20 +52,13 @@ func layLogged(t *testing.T, g model.Graph, dir model.Direction, text bool) (*mo
 	if text {
 		cfg, lim = TextConfig(dir), contract.TextLimits(dir)
 	}
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	pg, err := Layout(ctx, g, cfg, nil)
 	require.NoError(t, err)
 	for _, v := range contract.Check(pg, contract.Options{Limits: lim, Direction: dir, EdgeIDs: ids(g), Text: text}) {
 		t.Errorf("%s text=%v: %s %s: %s", dir, text, v.Rule, v.Subject, v.Detail)
 	}
-	var recs []map[string]any
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var rec map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &rec))
-		recs = append(recs, rec)
-	}
-	return pg, recs
+	return pg, layoutdbgtest.Records(t, buf)
 }
 
 // along is a point's coordinate along the flow under dir, in the output

@@ -3,8 +3,6 @@ package layered
 import (
 	"bytes"
 	"context"
-	"encoding/json"
-	"log/slog"
 	"math"
 	"strings"
 	"testing"
@@ -16,7 +14,7 @@ import (
 	"github.com/oxforge/diago/internal/layout/layered/lgraph"
 	"github.com/oxforge/diago/internal/layout/layered/lgraph/lgraphtest"
 	"github.com/oxforge/diago/internal/layout/layered/size"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 )
 
@@ -152,12 +150,11 @@ func TestCongruences_AMemberThatDoesNotCorrespondDegradesTheSet(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			g := twoDCs(t)
 			tc.change(&g)
-			var buf bytes.Buffer
-			ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+			ctx, buf := layoutdbgtest.Capture()
 			pg, err := Layout(ctx, g, screen(), nil)
 			require.NoError(t, err)
 			assert.Empty(t, pg.AppliedCongruences)
-			assert.Equal(t, []string{"congruence_degraded " + tc.reason}, decisions(t, &buf, "congruence"))
+			assert.Equal(t, []string{"congruence_degraded " + tc.reason}, decisions(t, buf, "congruence"))
 		})
 	}
 }
@@ -194,8 +191,7 @@ func TestCongruences_ASetWhoseGroupsCopyApartDegrades(t *testing.T) {
 			if text {
 				cfg, lim = TextConfig(dir), contract.TextLimits(dir)
 			}
-			var buf bytes.Buffer
-			ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+			ctx, buf := layoutdbgtest.Capture()
 			pg, err := Layout(ctx, g, cfg, nil)
 			require.NoError(t, err)
 			for _, v := range contract.Check(pg, contract.Options{Limits: lim, Direction: dir, EdgeIDs: ids(g), Text: text}) {
@@ -205,7 +201,7 @@ func TestCongruences_ASetWhoseGroupsCopyApartDegrades(t *testing.T) {
 			}
 			require.Len(t, pg.AppliedCongruences, 1, "%s text=%v: only r and m", dir, text)
 			assert.Len(t, pg.AppliedCongruences[0].RepEdges, 4, "%s text=%v", dir, text)
-			assert.Contains(t, decisions(t, &buf, "congruence"), "congruence_degraded copied_apart", "%s text=%v", dir, text)
+			assert.Contains(t, decisions(t, buf, "congruence"), "congruence_degraded copied_apart", "%s text=%v", dir, text)
 		}
 	}
 }
@@ -215,9 +211,7 @@ func TestCongruences_ASetWhoseGroupsCopyApartDegrades(t *testing.T) {
 func decisions(t *testing.T, buf *bytes.Buffer, phase string) []string {
 	t.Helper()
 	var out []string
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var rec struct{ Decision, Phase, Reason string }
-		require.NoError(t, json.Unmarshal([]byte(line), &rec))
+	for _, rec := range layoutdbgtest.Decode[struct{ Decision, Phase, Reason string }](t, buf) {
 		if rec.Phase == phase {
 			out = append(out, strings.TrimSpace(rec.Decision+" "+rec.Reason))
 		}
@@ -271,12 +265,11 @@ func TestCongruences_ACopyingLevelTakesItsOriginsReversals(t *testing.T) {
 	fresh := lay(t, cyclesInside(t, false), screen(), model.Down)
 	require.Len(t, fresh.AppliedCongruences, 3)
 	require.Equal(t, []string{"x1->a1#0", "x2->a2#0", "y1->b1#0", "y2->b2#0"}, fresh.LayoutHints.Reversed)
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	turned, err := Layout(ctx, cyclesInside(t, true), screen(), nil)
 	require.NoError(t, err)
 	assert.Len(t, turned.AppliedCongruences, 3, "turned")
-	assert.NotContains(t, decisions(t, &buf, "congruence"), "congruence_degraded edges")
+	assert.NotContains(t, decisions(t, buf, "congruence"), "congruence_degraded edges")
 	assert.Equal(t, fresh.LayoutHints.Reversed, turned.LayoutHints.Reversed, "turned")
 
 	// A carrier that reversed a2->x2 flips it in o2's own search.
@@ -553,13 +546,12 @@ func TestLayout_TheFanOutIsSkippedWhenItIsNotOneFan(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			g := tc.g(t)
-			var buf bytes.Buffer
-			ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+			ctx, buf := layoutdbgtest.Capture()
 			pg, err := Layout(ctx, g, screen(), nil)
 			require.NoError(t, err)
 			require.Len(t, pg.AppliedCongruences, 1)
 			assert.Empty(t, pg.AppliedCongruences[0].FanOut)
-			assert.Contains(t, decisions(t, &buf, "congruence"), "congruence_fanout_skipped "+tc.reason)
+			assert.Contains(t, decisions(t, buf, "congruence"), "congruence_fanout_skipped "+tc.reason)
 		})
 	}
 }
@@ -587,13 +579,12 @@ func TestLayout_ProbeSeed101SpreadsItsFanOutInText(t *testing.T) {
 		if text {
 			cfg = TextConfig(model.Down)
 		}
-		var buf bytes.Buffer
-		ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+		ctx, buf := layoutdbgtest.Capture()
 		pg, err := Layout(ctx, g, cfg, nil)
 		require.NoError(t, err)
 		require.Len(t, pg.AppliedCongruences, 1, "text=%v", text)
 		assert.Len(t, pg.AppliedCongruences[0].FanOut, 2, "text=%v: the fan-out from src is reported", text)
-		for _, d := range decisions(t, &buf, "congruence") {
+		for _, d := range decisions(t, buf, "congruence") {
 			assert.NotContains(t, d, "congruence_fanout_skipped", "text=%v", text)
 		}
 	}

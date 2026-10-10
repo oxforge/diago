@@ -1,14 +1,10 @@
 package place
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"math"
 	"math/rand/v2"
-	"strings"
 	"testing"
 
 	"github.com/oxforge/diago/internal/layout/layered/cycle"
@@ -16,7 +12,7 @@ import (
 	"github.com/oxforge/diago/internal/layout/layered/lgraph/lgraphtest"
 	"github.com/oxforge/diago/internal/layout/layered/order"
 	"github.com/oxforge/diago/internal/layout/layered/rank"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -239,21 +235,14 @@ func decisions(t *testing.T, o Options, widths map[string]float64, specs ...stri
 			lv.Nodes[i].W = w
 		}
 	}
-	var buf bytes.Buffer
-	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	ctx := layoutdbg.NewContext(context.Background(), logger)
+	ctx, buf := layoutdbgtest.Capture()
 	reversed := cycle.Break(ctx, lv, nil)
 	g, err := lgraph.Build(lv, rank.Assign(ctx, lv, reversed, nil), reversed, 8)
 	require.NoError(t, err)
 	g.Layers = order.Minimize(ctx, g, false)
 	Place(ctx, g, o)
 	var out []map[string]any
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		if line == "" {
-			continue
-		}
-		var entry map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &entry))
+	for _, entry := range layoutdbgtest.Records(t, buf) {
 		if entry["phase"] == "place" {
 			out = append(out, entry)
 		}

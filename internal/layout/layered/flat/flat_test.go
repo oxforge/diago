@@ -1,21 +1,17 @@
 package flat
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"math"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/oxforge/diago/internal/layout/contract"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 )
 
@@ -895,16 +891,13 @@ func TestRoute_NoneForAnEdgeItCannotRead(t *testing.T) {
 // positions refused before it, and a flat_edge_unrouted with each
 // candidate's reason and positions tried.
 func TestRoute_LogsItsDecisions(t *testing.T) {
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	pg, e := composed(nodes(box("a", rect, 0, 0, 80, 40), box("b", rect, 160, 38, 240, 78)), nil)("a", "b")
 	Route(ctx, pg, e, screen)
 	pg, e = composed(nodes(box("a", rect, 0, 0, 80, 40), box("c", rect, 160, 0, 240, 40), box("b", rect, 320, 0, 400, 40)), nil)("a", "b")
 	Route(ctx, pg, e, screen)
 	var recs []map[string]any
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var rec map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &rec))
+	for _, rec := range layoutdbgtest.Records(t, buf) {
 		assert.Equal(t, "flat", rec["phase"])
 		assert.Equal(t, "S9", rec["spec_ref"])
 		assert.Equal(t, "diago", rec["module"])

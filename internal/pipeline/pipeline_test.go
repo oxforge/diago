@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"os/exec"
 	"regexp"
@@ -17,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 	"github.com/oxforge/diago/internal/schema"
 )
@@ -551,9 +550,7 @@ func TestReportContract_DebugWiring(t *testing.T) {
 		Edges:     []model.Edge{{ID: "a->a#0", From: "a", To: "a"}},
 	}
 
-	var buf bytes.Buffer
-	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	ctx := layoutdbg.NewContext(context.Background(), logger)
+	ctx, buf := layoutdbgtest.Capture()
 
 	reportContract(ctx, pg, g, false)
 
@@ -593,9 +590,7 @@ func TestReportContract_TextLimits(t *testing.T) {
 	g := model.Graph{Direction: model.Down, Nodes: []model.Node{{ID: "a"}}}
 
 	run := func(text bool) string {
-		var buf bytes.Buffer
-		logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
-		ctx := layoutdbg.NewContext(context.Background(), logger)
+		ctx, buf := layoutdbgtest.Capture()
 		reportContract(ctx, pg, g, text)
 		return buf.String()
 	}
@@ -627,9 +622,7 @@ func TestRender_DebugResolvesAutoOnce(t *testing.T) {
 		{"class text", classSpec, "text"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
-			ctx := layoutdbg.NewContext(context.Background(), logger)
+			ctx, buf := layoutdbgtest.Capture()
 
 			_, err := RenderWithOptions(ctx, tt.spec, Options{Format: tt.format})
 			require.NoError(t, err)

@@ -1,11 +1,8 @@
 package layered
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"math"
 	"math/rand"
 	"slices"
@@ -13,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/oxforge/diago/internal/layout/contract"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -338,16 +335,13 @@ func TestLayout_ARoomWaitsForItsPrimary(t *testing.T) {
 	seed := decisionSeed387()
 	seed.Direction = model.Down
 	for name, g := range map[string]model.Graph{"two decisions": small, "decision seed 387": seed} {
-		var buf bytes.Buffer
-		ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+		ctx, buf := layoutdbgtest.Capture()
 		_, err := Layout(ctx, g, screen(), nil)
 		require.NoError(t, err)
 		// per pass (a placed record closes one): the diamonds whose primary's
 		// forcing dropped, and the diamonds that got room
 		dropped, roomed := map[string]bool{}, map[string]bool{}
-		for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-			var rec map[string]any
-			require.NoError(t, json.Unmarshal([]byte(line), &rec))
+		for _, rec := range layoutdbgtest.Records(t, buf) {
 			switch rec["decision"] {
 			case "side_exit_dropped":
 				if rec["primary"] == true {
@@ -729,14 +723,11 @@ func cascades(k, l int) model.Graph {
 // and take 52 ms with rooms instead.
 func TestLayout_CascadesSideBySideGetRoomTogether(t *testing.T) {
 	g := cascades(4, 4)
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	pg, err := Layout(ctx, g, screen(), nil)
 	require.NoError(t, err)
 	rooms, denied, restarts := 0, 0, 0.0
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var rec map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &rec))
+	for _, rec := range layoutdbgtest.Records(t, buf) {
 		switch rec["decision"] {
 		case "secondary_room":
 			rooms++

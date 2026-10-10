@@ -1,14 +1,12 @@
 package labels
 
 import (
-	"bytes"
 	"context"
-	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 )
 
 var (
@@ -76,8 +74,7 @@ func TestTitle_ABoxBlocksItsWholeSpan(t *testing.T) {
 }
 
 func TestTitle_ABlockedTitleStaysLeftAndIsRecorded(t *testing.T) {
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	b := wires(30, 70, 110, 150)
 	x, _ := Title(ctx, b, titleScreen)
 	assert.Equal(t, 8.0, x, "free spans of 16, 28, 28, 28 and 36 px hold no 40 px title")
@@ -91,8 +88,7 @@ func TestTitle_ABlockedTitleStaysLeftAndIsRecorded(t *testing.T) {
 // so the trial free window, [Inset, Width-Inset], is itself narrower than
 // the title.
 func TestTitle_ABandNarrowerThanTheTitleStaysLeftAndIsRecorded(t *testing.T) {
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	b := Band{ID: "g", Width: 50, Title: 40}
 	x, _ := Title(ctx, b, titleScreen)
 	assert.Equal(t, 8.0, x, "the band's free window [8,42] is 34 px, under the 40 px title")

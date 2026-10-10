@@ -1,9 +1,7 @@
 package layered
 
 import (
-	"bytes"
 	"context"
-	"log/slog"
 	"math"
 	"testing"
 
@@ -14,7 +12,7 @@ import (
 	"github.com/oxforge/diago/internal/layout/layered/labels"
 	"github.com/oxforge/diago/internal/layout/layered/lgraph"
 	"github.com/oxforge/diago/internal/layout/layered/size"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 )
 
@@ -380,8 +378,7 @@ func TestLayout_ATitleLeavesTheSlotAWireCrosses(t *testing.T) {
 // wire through it (C0).
 func TestLayout_ABlockedTitleStaysLeft(t *testing.T) {
 	g := grouped(graph(t, nil, "x->a"), model.Group{ID: "g", Label: "A title wider than half its group", Contains: []string{"a"}})
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	pg, err := Layout(ctx, g, screen(), nil)
 	require.NoError(t, err)
 	gr := group(t, pg, "g")
@@ -399,8 +396,7 @@ func TestLayout_NoGroupBlocksItsOwnOrAChildsTitle(t *testing.T) {
 		model.Group{ID: "outer", Label: "Outer", Children: []string{"inner"}},
 		model.Group{ID: "inner", Label: "Inner", Contains: []string{"a"}},
 	)
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	pg, err := Layout(ctx, g, screen(), nil)
 	require.NoError(t, err)
 	assert.NotContains(t, buf.String(), "group_title_blocked")

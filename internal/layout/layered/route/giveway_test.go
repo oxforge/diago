@@ -1,17 +1,12 @@
 package route
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"log/slog"
-	"strings"
 	"testing"
 
 	"github.com/oxforge/diago/internal/layout/layered/lgraph"
 	"github.com/oxforge/diago/internal/layout/layered/lgraph/lgraphtest"
 	"github.com/oxforge/diago/internal/layout/layered/ports"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -263,8 +258,7 @@ func TestRoute_AColumnFollowsItsPortWhenItGivesWay(t *testing.T) {
 // no port, and m->b's side column follows it (column_followed). s->c's
 // ends, clear of every other port, give way nowhere.
 func TestRoute_LogsAColumnThatFollowedItsPort(t *testing.T) {
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	lv := lgraphtest.Level(t, "m:diamond->a", "m->b", "s->c")
 	g, err := lgraph.Build(lv, []int{1, 2, 2, 0, 2}, nil, 8)
 	require.NoError(t, err)
@@ -275,9 +269,7 @@ func TestRoute_LogsAColumnThatFollowedItsPort(t *testing.T) {
 	}
 	Route(ctx, g, xs, screen)
 	var gave []map[string]any
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var rec map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &rec))
+	for _, rec := range layoutdbgtest.Records(t, buf) {
 		if rec["decision"] == "port_gave_way" {
 			gave = append(gave, rec)
 		}

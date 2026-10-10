@@ -1,10 +1,7 @@
 package rank
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"log/slog"
 	"math"
 	"slices"
 	"strconv"
@@ -17,7 +14,7 @@ import (
 	"github.com/oxforge/diago/internal/layout/layered/cycle"
 	"github.com/oxforge/diago/internal/layout/layered/lgraph"
 	"github.com/oxforge/diago/internal/layout/layered/lgraph/lgraphtest"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 )
 
 // layered breaks cycles and runs longest-path layering, as Assign does
@@ -164,16 +161,14 @@ func adopting(t *testing.T, previous map[string]int, specs ...string) (*lgraph.L
 			prev[v] = l
 		}
 	}
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	layers := Assign(ctx, lv, cycle.Break(ctx, lv, nil), prev)
 	var recs []string
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var rec struct {
-			Decision, Phase, Node, Reason string
-			Shift                         *int
-		}
-		require.NoError(t, json.Unmarshal([]byte(line), &rec))
+	type record struct {
+		Decision, Phase, Node, Reason string
+		Shift                         *int
+	}
+	for _, rec := range layoutdbgtest.Decode[record](t, buf) {
 		if rec.Phase == "anchoring" {
 			if rec.Shift != nil {
 				rec.Reason = strconv.Itoa(*rec.Shift)
@@ -470,15 +465,12 @@ func TestIsolated(t *testing.T) {
 // TestIsolated_LogsEachPlacement pins S3's debug record: one
 // isolated_placed per isolated node that adopted no layer.
 func TestIsolated_LogsEachPlacement(t *testing.T) {
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	lv := lgraphtest.Level(t, "a->c", "b->c", "iso1", "iso2")
 	reversed := cycle.Break(ctx, lv, nil)
 	Isolated(ctx, lv, reversed, Assign(context.Background(), lv, reversed, nil), nil, room)
 	var got []map[string]any
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var entry map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &entry))
+	for _, entry := range layoutdbgtest.Records(t, buf) {
 		if entry["decision"] == "isolated_placed" {
 			got = append(got, map[string]any{"node": entry["node"], "layer": entry["layer"], "fits": entry["fits"]})
 		}

@@ -1,14 +1,10 @@
 package layered
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"math"
 	"math/rand/v2"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,7 +15,7 @@ import (
 	"github.com/oxforge/diago/internal/layout/layered/lgraph/lgraphtest"
 	"github.com/oxforge/diago/internal/layout/layered/ports"
 	"github.com/oxforge/diago/internal/layout/layered/size"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 )
 
@@ -403,16 +399,13 @@ func TestFaceRoom_AGroupOrATerminalNeverGrows(t *testing.T) {
 // TestArrange_LogsAWidenedFace pins face_widened (S8, Debug phase): the
 // node, the ends of its busier face and its width before and after.
 func TestArrange_LogsAWidenedFace(t *testing.T) {
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	g := crowded(t, "", 30)
 	g.Direction = model.Right
 	_, err := Arrange(ctx, g, screen())
 	require.NoError(t, err)
 	var got []map[string]any
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var rec map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &rec))
+	for _, rec := range layoutdbgtest.Records(t, buf) {
 		if rec["decision"] == "face_widened" {
 			got = append(got, rec)
 		}

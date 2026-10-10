@@ -1,16 +1,12 @@
 package layered
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"log/slog"
 	"math"
-	"strings"
 	"testing"
 
 	"github.com/oxforge/diago/internal/layout/contract"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -106,13 +102,10 @@ func TestLayout_Auto(t *testing.T) {
 // and counts its routed decisions (S8): the first pass's, and the replays.
 func routes(t *testing.T, g model.Graph) (pg *model.PositionedGraph, fresh, replays int) {
 	t.Helper()
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	pg, err := Layout(ctx, g, screen(), nil)
 	require.NoError(t, err)
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		var rec map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &rec))
+	for _, rec := range layoutdbgtest.Records(t, buf) {
 		if rec["decision"] != "routed" {
 			continue
 		}

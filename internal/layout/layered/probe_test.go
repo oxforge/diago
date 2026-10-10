@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log/slog"
 	"maps"
 	"math"
 	"math/rand"
@@ -21,7 +20,7 @@ import (
 
 	"github.com/oxforge/diago/internal/layout/contract"
 	"github.com/oxforge/diago/internal/layout/metrics"
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 	"github.com/oxforge/diago/internal/schema"
 )
@@ -411,9 +410,9 @@ func TestProbe_Contract(t *testing.T) {
 				}
 				where := fmt.Sprintf("seed=%d dir=%s text=%v", seed, dir, text)
 				ctx := context.Background()
-				var log bytes.Buffer
+				var log *bytes.Buffer
 				if *probeDecisions && !text {
-					ctx = layoutdbg.NewContext(ctx, slog.New(slog.NewJSONHandler(&log, &slog.HandlerOptions{Level: slog.LevelDebug})))
+					ctx, log = layoutdbgtest.Capture()
 				}
 				start := time.Now()
 				pg, err := Layout(ctx, g, cfg, nil)
@@ -489,8 +488,7 @@ func TestProbe_Dump(t *testing.T) {
 	if *probeText {
 		cfg = TextConfig(dir)
 	}
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	pg, err := Layout(ctx, g, cfg, nil)
 	require.NoError(t, err)
 	for _, n := range g.Nodes {

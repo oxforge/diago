@@ -1,9 +1,7 @@
 package labels
 
 import (
-	"bytes"
 	"context"
-	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -11,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oxforge/diago/internal/layoutdbg"
+	"github.com/oxforge/diago/internal/layoutdbg/layoutdbgtest"
 	"github.com/oxforge/diago/internal/model"
 )
 
@@ -240,8 +238,7 @@ func TestPlace_ScreenIgnoresFramesAndHomes(t *testing.T) {
 }
 
 func TestPlace_LogsALabelOnABorder(t *testing.T) {
-	var buf bytes.Buffer
-	ctx := layoutdbg.NewContext(context.Background(), slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	ctx, buf := layoutdbgtest.Capture()
 	nodes := append(cellBoxes[:2:2], Rect{2, 3, 4, 6})
 	Place(ctx, nodes, make([]bool, 3), []Rect{{13, 1, 10, 10}}, []Edge{{ID: "e", Points: cellDown, Label: Size{5, 1}}}, text(model.Down))
 	out := buf.String()
