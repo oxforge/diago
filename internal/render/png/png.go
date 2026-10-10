@@ -34,8 +34,12 @@ type Options struct {
 // findResvg locates the resvg binary. Checks DIAGO_RESVG_PATH first, then $PATH.
 func findResvg() (string, error) {
 	if p := os.Getenv("DIAGO_RESVG_PATH"); p != "" {
-		if _, err := os.Stat(p); err != nil {
+		fi, err := os.Stat(p)
+		switch {
+		case err != nil:
 			return "", notFoundError{fmt.Sprintf("DIAGO_RESVG_PATH is %s, which does not exist: point it at the resvg binary, or unset it to look resvg up on PATH", p)}
+		case fi.IsDir():
+			return "", notFoundError{fmt.Sprintf("DIAGO_RESVG_PATH is %s, a directory: point it at the resvg binary, or unset it to look resvg up on PATH", p)}
 		}
 		return p, nil
 	}

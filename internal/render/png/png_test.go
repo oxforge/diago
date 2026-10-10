@@ -20,6 +20,7 @@ func TestResvgNotFound(t *testing.T) {
 	tests := []struct {
 		name     string
 		envPath  string // DIAGO_RESVG_PATH; empty looks resvg up on PATH
+		envDir   bool   // DIAGO_RESVG_PATH is a directory
 		pathDir  bool   // PATH is an empty directory
 		mentions []string
 	}{
@@ -29,6 +30,11 @@ func TestResvgNotFound(t *testing.T) {
 			mentions: []string{"DIAGO_RESVG_PATH is /nonexistent/resvg-does-not-exist", "unset it"},
 		},
 		{
+			name:     "DIAGO_RESVG_PATH names a directory",
+			envDir:   true,
+			mentions: []string{", a directory: point it at the resvg binary", "unset it"},
+		},
+		{
 			name:     "no resvg on PATH",
 			pathDir:  true,
 			mentions: []string{"PNG output needs resvg", "brew install resvg", "cargo install resvg", "svg and text output need nothing"},
@@ -36,7 +42,11 @@ func TestResvgNotFound(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("DIAGO_RESVG_PATH", tt.envPath)
+			envPath := tt.envPath
+			if tt.envDir {
+				envPath = t.TempDir()
+			}
+			t.Setenv("DIAGO_RESVG_PATH", envPath)
 			if tt.pathDir {
 				t.Setenv("PATH", t.TempDir())
 			}
