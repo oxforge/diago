@@ -193,7 +193,7 @@ func TestArrange_DeterministicPackedParts(t *testing.T) {
 	}
 }
 
-// dependencyGraph is the corpus's dependency-graph in direction dir:
+// dependencyGraph is the dependency-graph example in direction dir:
 // under RIGHT, S8's give-way moves pkg-0a's exit to pkg-1b past its exit to
 // pkg-1f, and the face's ports then take their positions in their order.
 func dependencyGraph(t *testing.T, dir model.Direction) model.Graph {

@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// lrPipeline is the corpus's lr-pipeline in direction dir.
+// lrPipeline is the lr-pipeline example in direction dir.
 func lrPipeline(dir model.Direction) model.Graph {
 	return model.Graph{
 		Direction: dir,
@@ -37,15 +37,15 @@ func lrPipeline(dir model.Direction) model.Graph {
 }
 
 // TestLayout_LRPipelineKeepsItsMainLineStraight pins S7's act 1 and
-// side-exit forcing on the corpus's lr-pipeline, in every direction: the back
+// side-exit forcing on lr-pipeline, in every direction: the back
 // edge errors->extract does not pull Extract (a node with faces), and
 // Valid?'s "yes" exit is its primary (Transform leads on to Warehouse,
 // Error log only back), so the main line Source -> Extract -> Valid? ->
 // Transform runs straight through the diamond; "no" leaves a side vertex
 // as an L into Error log, whose in-face it shares with the back edge. The
-// back edge's pull once put Extract 30 px off Valid?'s axis, and side-exit
-// forcing judged by Error log's center packed both ends 10 px apart at one
-// end of the face. Under RIGHT and LEFT the two ends sit at a third and
+// back edge's pull would put Extract 30 px off Valid?'s axis, and side-exit
+// forcing judged by Error log's center would pack both ends 10 px apart at
+// one end of the face. Under RIGHT and LEFT the two ends sit at a third and
 // two thirds of that face and the back edge runs as an L into Extract;
 // under DOWN and UP "no"'s port gives way from the back edge's dummy
 // column, which S7 leaves where act 1 puts it (both of that chain's hops
@@ -539,17 +539,16 @@ func xAt(t *testing.T, route []model.Point, y float64) float64 {
 }
 
 // TestLayout_FlowNetworksSpineRunsMidCanvas pins S5's Corridor seats on
-// flow-network's final layout, DOWN (the gallery review's issue 4): api
-// -> db's column starts between Redis Cache and Message Queue, so S7's
-// straight chain lines Web, API and Database up in the middle of the
-// canvas instead of at its right edge. Without the rule the column came
-// last in the middle row, x 611 on a 681 px canvas; API sat 214.9 px off
-// the midpoint of its fan (its four wires where they reach the middle
-// row) and Database 144.2 px off the midpoint of its parents' wires. With
-// it, 29.7 and 31.5 px: API's four ports spread over its face put the
-// query wire's port 14 px right of its center, and Message Queue, a
-// 218 px parallelogram, keeps its port 155 px right of the column,
-// Redis Cache's 92 px left.
+// flow-network's final layout, DOWN: api -> db's column starts between
+// Redis Cache and Message Queue, so S7's straight chain lines Web, API and
+// Database up in the middle of the canvas instead of at its right edge.
+// Without the rule the column would come last in the middle row, x 611 on
+// a 681 px canvas, API 214.9 px off the midpoint of its fan (its four
+// wires where they reach the middle row) and Database 144.2 px off the
+// midpoint of its parents' wires. With it, 29.7 and 31.5 px: API's four
+// ports spread over its face put the query wire's port 14 px right of its
+// center, and Message Queue, a 218 px parallelogram, keeps its port 155 px
+// right of the column, Redis Cache's 92 px left.
 func TestLayout_FlowNetworksSpineRunsMidCanvas(t *testing.T) {
 	pg := lay(t, flowNetwork(), screen(), model.Down)
 	web, api, db := positioned(t, pg, "web"), positioned(t, pg, "api"), positioned(t, pg, "db")
@@ -613,12 +612,12 @@ func ecommerceCheckout(dir model.Direction) model.Graph {
 }
 
 // TestLayout_EcommerceServicesPackTheirParts pins S7's *Packing* on the
-// final layout of ecommerce-checkout, DOWN (the gallery review's issue
-// 6): in the Services level, Order Service's part (its entry, Payment
-// Service, the Payment Provider's and PostgreSQL's wires) shares no edge
-// with Catalog Service's or Cart Service's, and act 1's reference drifted
-// it 60.6 px away from Catalog Service, a 780.3 px box. Packed, the box is
-// at most 720 px wide, and the row keeps its order.
+// final layout of ecommerce-checkout, DOWN: in the Services level, Order
+// Service's part (its entry, Payment Service, the Payment Provider's and
+// PostgreSQL's wires) shares no edge with Catalog Service's or Cart
+// Service's, and act 1's reference alone drifts it 60.6 px away from
+// Catalog Service, a 780.3 px box. Packed, the box is at most 720 px wide,
+// and the row keeps its order.
 func TestLayout_EcommerceServicesPackTheirParts(t *testing.T) {
 	pg := lay(t, ecommerceCheckout(model.Down), screen(), model.Down)
 	services := group(t, pg, "services")
@@ -750,18 +749,14 @@ func TestLayout_CascadesSideBySideGetRoomTogether(t *testing.T) {
 	}
 }
 
-// BenchmarkLayout_DenseLabelledGraph is the record of the layout's time on
-// dense labelled graphs, which the corpus lacks: at 40 nodes and 200 edges
-// it once took 13.6 s, nearly all in S10's ladders, where golayout took
-// 6.2 s. The bipartite graphs of rectangles run neither S6's loop
-// transposition nor S7's side-exit forcing: the pinned case, forward
-// edges between diamonds, circles and rectangles, runs S7's forcing and
-// its recheck, and the cyclic case S6's loop transposition. The cascade
-// case, 30 cascades of 8 decisions side by side, reaches S7's rooms for
-// blocked secondaries: denying those diamonds their primaries instead,
-// one restart per denied diamond took it to 1.09 s, and a round that
-// denied every diamond it found blocked at once to 35 ms; the rooms, one
-// more round and no restart, take 52 ms. It is not a gate.
+// BenchmarkLayout_DenseLabelledGraph measures the layout's time on dense
+// labelled graphs, up to 50 nodes and 300 edges. The bipartite graphs of
+// rectangles run neither S6's loop transposition nor S7's side-exit
+// forcing: the pinned case, forward edges between diamonds, circles and
+// rectangles, runs S7's forcing and its recheck, and the cyclic case S6's
+// loop transposition. The cascade case, 30 cascades of 8 decisions side by
+// side, reaches S7's rooms for blocked secondaries, which take one more
+// round and no restart. It is not a gate.
 //
 //	go test ./internal/layout/layered/ -run '^$' -bench DenseLabelled -benchtime 1x
 func BenchmarkLayout_DenseLabelledGraph(b *testing.B) {

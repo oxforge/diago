@@ -707,11 +707,8 @@ func wideAndNarrow(t *testing.T) model.Graph {
 // (two and three data centers, and a pair whose representative's label is
 // far wider than its members' offset) in every direction and profile and
 // checks the result against the full C14, member and fan-out labels
-// included: C17.4's exemption is gone, so nothing here nils out
-// AppliedCongruences to defeat it any more, and a violation would now
-// surface on its own. It still adds coverage the corpus's one congruent
-// fixture (flow-congruent-fan.json, checked by the contract baseline) does
-// not: two- and three-member congruences and the wide/narrow label case.
+// included: two- and three-member congruences and the wide/narrow label
+// case.
 func TestLayout_CongruenceLabelsPassC14(t *testing.T) {
 	for _, g := range []model.Graph{datacenters(t), threeDCs(t), wideAndNarrow(t)} {
 		for _, dir := range []model.Direction{model.Down, model.Up, model.Right, model.Left} {

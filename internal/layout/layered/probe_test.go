@@ -26,7 +26,8 @@ import (
 )
 
 // The random-graph probe: a dev tool, not a gate. It lays out random
-// graphs the corpus does not cover and counts their contract violations.
+// graphs, of shapes no hand-written fixture covers, and counts their
+// contract violations.
 //
 //	go test ./internal/layout/layered/ -run TestProbe_Contract -probe -v
 //	go test ./internal/layout/layered/ -run TestProbe_Contract -probe -probe.flat -probe.rule C9.1 -v

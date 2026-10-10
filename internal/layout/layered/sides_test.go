@@ -263,14 +263,13 @@ func cicdPipeline(dir model.Direction) model.Graph {
 	}
 }
 
-// TestLayout_GitPushsExitsLeaveOnePoint pins S8's merged fan-out on the
-// gallery review's issue 5, cicd-pipeline, in every direction: "git
-// push"'s two exits leave its out-vertex (its right vertex under RIGHT)
-// on one trunk and split into a bracket that enters Lint and Unit Tests,
-// two bends each, as golayout drew it. They left its side vertices, and
-// under RIGHT and LEFT each hooked back toward the CI group's anchored
-// ports, which sit 86.6 px apart against side columns 150.7 px apart,
-// three bends each.
+// TestLayout_GitPushsExitsLeaveOnePoint pins S8's merged fan-out on
+// cicd-pipeline, in every direction: "git push"'s two exits leave its
+// out-vertex (its right vertex under RIGHT) on one trunk and split into a
+// bracket that enters Lint and Unit Tests, two bends each. From its side
+// vertices, under RIGHT and LEFT, each would hook back toward the CI
+// group's anchored ports, which sit 86.6 px apart against side columns
+// 150.7 px apart, three bends each.
 func TestLayout_GitPushsExitsLeaveOnePoint(t *testing.T) {
 	for _, dir := range []model.Direction{model.Down, model.Up, model.Right, model.Left} {
 		t.Run(dir.String(), func(t *testing.T) {
@@ -385,10 +384,7 @@ func TestLayout_ASideColumnKeepsItsReach(t *testing.T) {
 	// that side, 0.20 px inside Reach; a snap of its column toward the
 	// dummy would leave a 19.80 px stub (C7), so the dummy moves to the
 	// column instead (S8, Stops). (A random graph, found by a search with
-	// the column's give-way undone; it needs every node and edge. The
-	// fixtures before it lost the case: the corpus's m-deploy when its diamond's
-	// label went onto two lines (S1, Compact labels), and another random
-	// graph when S7 stopped letting a back edge pull a node with faces.)
+	// the column's give-way undone; it needs every node and edge.)
 	g := graph(t, map[string]string{"n0": "staging Deploy", "n1": "Rollback", "n2": "Typecheck", "n3": "Fix Deploy"},
 		"n0:parallelogram", "n1:cylinder", "n2:diamond", "n3:diamond", "n1->n2", "n0->n2", "n1->n0", "n1->n0", "n3->n1", "n2->n3")
 	for _, dir := range []model.Direction{model.Down, model.Up} {
