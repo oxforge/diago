@@ -135,3 +135,24 @@ func TestAlign_ASpanExemptLinkAlignsAtAnyDistance(t *testing.T) {
 	assert.InDelta(t, 0, x[at["b"]]-x[at["a"]], 1e-9)
 	assert.InDelta(t, 20, x[at["a"]], 1e-9, "the block sits at its members' mean")
 }
+
+// TestAlign_AForcedBatchOutranksTheRooms pins act 2's precedence: a forced
+// batch that only the rooms make infeasible is accepted, and the rooms its
+// order contradicts give way. The room keeps o right of n; the forced link
+// p->n joins n to p, right of o in its layer, so the room would close a
+// cycle. The forcing wins: n runs straight under p, the block at its
+// members' mean, and o stays left of both, the layer's gap from p.
+func TestAlign_AForcedBatchOutranksTheRooms(t *testing.T) {
+	g, at := flat(30, []string{"o", "p"}, []string{"n"})
+	in := fixture(g, at, map[string]float64{"o": 0, "p": 40, "n": 100}, forcedLink(hop(at, 0, "p", "n", 0)))
+	in.rooms = []room{{next: at["n"], other: at["o"], sign: 1}}
+	x := align(in)
+	assert.InDelta(t, 0, x[at["n"]]-x[at["p"]], 1e-9, "n straight under p")
+	assert.InDelta(t, 70, x[at["n"]], 1e-9, "the block at its members' mean")
+	assert.InDelta(t, 0, x[at["o"]], 1e-9, "o at its reference, left of n: the room gave way")
+
+	// without the forcing the room holds: o the room's 15 right of n
+	in.links = []link{hop(at, 0, "p", "n", 0)}
+	x = align(in)
+	assert.GreaterOrEqual(t, x[at["o"]]-x[at["n"]], 15-1e-9)
+}
