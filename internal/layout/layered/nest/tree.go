@@ -35,10 +35,11 @@ type Tree struct {
 }
 
 // Build returns g's containment tree. A child's declaration order is its
-// first-declared node's: a group enters its container where the first
-// node inside it, at any depth, was declared. A node or a group that two
-// groups claim, a group that holds itself, and a name that is neither a
-// node nor a group are errors.
+// first-declared node's: a group enters its container where the first node
+// inside it, at any depth, was declared; a group with no node at any depth
+// follows every child that holds one, and empty groups keep their
+// declaration order. A node or a group that two groups claim, a group that
+// holds itself, and a name that is neither a node nor a group are errors.
 func Build(g model.Graph) (*Tree, error) {
 	nodeAt := make(map[string]int, len(g.Nodes))
 	for i, n := range g.Nodes {

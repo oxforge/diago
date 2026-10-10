@@ -295,14 +295,15 @@ func (j *exitJudge) judgeSide(v int, side ports.Vertex, sides []ports.Vertex, pr
 
 // judgeSecondary judges secondary exit sec of diamond v, whose port has
 // reached its column on the side sign points to, alone on its side vertex
-// (S7), when nodes of the row block that column (blocking). Only a
-// primary prim that a forcing holds and that was not given back answers
-// it: realized, every one of them keeps the node clearance beyond the
-// port, which act 2 holds from the next rerun on, among the rooms the
-// round returns, once per secondary. In the first pass, a secondary
-// still blocked so with its room kept (the room gave way, or another node
-// now blocks), or one whose primary's forcing dropped, denies its diamond
-// the primary; and a denied diamond (prim -1) whose exit that was the
+// (S7), when nodes of the row block that column (blocking). The secondary
+// gets a room, or costs its diamond the primary, only while a forcing
+// holds primary prim and the diamond has not given it back (clauseHeld).
+// With prim realized, every blocking node keeps the node clearance beyond
+// the port, which act 2 holds from the next rerun on, among the rooms the
+// round returns, once per secondary. In the first pass, a secondary still
+// blocked so with its room kept (the room gave way, or another node now
+// blocks), or one whose primary's forcing dropped, denies its diamond the
+// primary; and a denied diamond (prim -1) whose exit that was the
 // secondary still leaves a side the row blocks the same way gets it back
 // once the rounds settle with no denial and no new room (sideExits). The
 // second pass gives room too, but denies and gives back nothing.

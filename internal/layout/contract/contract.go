@@ -121,9 +121,9 @@ const (
 	retraceTol     = 0.01 // C10
 )
 
-// Check validates pg against rules C2–C17 and returns every violation, in
-// RuleIDs order; within one rule, in the order its check finds them
-// (sorted).
+// Check validates pg against rules C2–C17 and returns every violation:
+// in RuleIDs order and, within one rule, in the order its check finds
+// them (sorted puts them so).
 func Check(pg *model.PositionedGraph, opts Options) []Violation {
 	if pg == nil {
 		return nil

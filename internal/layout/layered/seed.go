@@ -27,15 +27,16 @@ func (n *nesting) seed(ctx context.Context) ([]float64, error) {
 	return x[:len(n.g.Nodes)], nil
 }
 
-// keys places container c's level nodes in the whole-graph seed: a key
-// and a tie-break each; nil without a seed. A node takes its seed
-// position and a group the mean of the nodes inside it. A terminal takes
+// keys places container c's level nodes in the whole-graph seed: a key and
+// a tie-break each; nil without a seed. A node takes its seed position, a
+// group the mean of the nodes inside it, and a group with no node at any
+// depth 0, the seed frame's origin (S9, Whole-graph seed). A terminal takes
 // the seed position of its edge's outside end's representative at the
-// edge's home level; among terminals of one representative, a top
-// terminal follows that representative's own terminal for the edge when
-// it is a group laid out already, a binding tie-break, so entries line up
-// with the exits they come from; every other terminal follows its inside
-// end's seed position, which S6 may overturn.
+// edge's home level; among terminals of one representative, a top terminal
+// follows that representative's own terminal for the edge when it is a
+// group laid out already, a binding tie-break, so entries line up with the
+// exits they come from; every other terminal follows its inside end's seed
+// position, which S6 may overturn.
 func (n *nesting) keys(c int) *seeding {
 	if n.flat == nil {
 		return nil

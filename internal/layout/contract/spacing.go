@@ -12,7 +12,8 @@ const (
 )
 
 // checkSpacing verifies C9 for every pair of distinct edges: no shared run
-// (C9.1) and the track gap between parallel segments (C9.2).
+// (C9.1, a rail excepted), and the track gap between parallel segments
+// that share no run (C9.2).
 func (c *checker) checkSpacing() {
 	edges := c.pg.Edges
 	for a := range edges {
