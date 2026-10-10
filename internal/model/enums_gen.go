@@ -45,6 +45,12 @@ func ParseDirection(s string) (Direction, error) {
 	}
 }
 
+// DirectionValues returns every non-empty canonical string, in
+// declaration order: the values a spec may name.
+func DirectionValues() []string {
+	return []string{"AUTO", "DOWN", "UP", "RIGHT", "LEFT"}
+}
+
 // MarshalJSON encodes Direction as its canonical string representation.
 func (d Direction) MarshalJSON() ([]byte, error) {
 	return json.Marshal(d.String())
@@ -110,6 +116,12 @@ func ParseShape(s string) (Shape, error) {
 	}
 }
 
+// ShapeValues returns every non-empty canonical string, in
+// declaration order: the values a spec may name.
+func ShapeValues() []string {
+	return []string{"rect", "rounded", "circle", "diamond", "cylinder", "hexagon", "parallelogram"}
+}
+
 // MarshalJSON encodes Shape as its canonical string representation.
 func (s Shape) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
@@ -161,6 +173,12 @@ func ParseEdgeStyle(s string) (EdgeStyle, error) {
 	default:
 		return EdgeSolid, fmt.Errorf("unknown edge style: %q", s)
 	}
+}
+
+// EdgeStyleValues returns every non-empty canonical string, in
+// declaration order: the values a spec may name.
+func EdgeStyleValues() []string {
+	return []string{"solid", "dashed", "dotted", "thick"}
 }
 
 // MarshalJSON encodes EdgeStyle as its canonical string representation.
@@ -216,6 +234,12 @@ func ParseEdgeDirection(s string) (EdgeDirection, error) {
 	}
 }
 
+// EdgeDirectionValues returns every non-empty canonical string, in
+// declaration order: the values a spec may name.
+func EdgeDirectionValues() []string {
+	return []string{"forward", "backward", "both", "none"}
+}
+
 // MarshalJSON encodes EdgeDirection as its canonical string representation.
 func (d EdgeDirection) MarshalJSON() ([]byte, error) {
 	return json.Marshal(d.String())
@@ -263,6 +287,12 @@ func ParseInteractionStyle(s string) (InteractionStyle, error) {
 	default:
 		return InteractionSolid, fmt.Errorf("unknown interaction style: %q", s)
 	}
+}
+
+// InteractionStyleValues returns every non-empty canonical string, in
+// declaration order: the values a spec may name.
+func InteractionStyleValues() []string {
+	return []string{"solid", "dashed", "async"}
 }
 
 // MarshalJSON encodes InteractionStyle as its canonical string representation.
@@ -320,6 +350,12 @@ func ParseFragmentType(s string) (FragmentType, error) {
 	default:
 		return FragmentAlt, fmt.Errorf("unknown fragment type: %q", s)
 	}
+}
+
+// FragmentTypeValues returns every non-empty canonical string, in
+// declaration order: the values a spec may name.
+func FragmentTypeValues() []string {
+	return []string{"alt", "opt", "loop", "par", "break"}
 }
 
 // MarshalJSON encodes FragmentType as its canonical string representation.
@@ -385,6 +421,12 @@ func ParseRelation(s string) (Relation, error) {
 	default:
 		return RelationNone, fmt.Errorf("unknown relation: %q", s)
 	}
+}
+
+// RelationValues returns every non-empty canonical string, in
+// declaration order: the values a spec may name.
+func RelationValues() []string {
+	return []string{"association", "inheritance", "realization", "dependency", "aggregation", "composition"}
 }
 
 // MarshalJSON encodes Relation as its canonical string representation.

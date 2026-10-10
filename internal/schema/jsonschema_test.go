@@ -2,8 +2,12 @@ package schema
 
 import (
 	"encoding/json"
+	"io/fs"
+	"strings"
 	"testing"
 
+	"github.com/oxforge/diago/internal/model"
+	"github.com/oxforge/diago/themes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -81,4 +85,46 @@ func TestGenerateClassSchema(t *testing.T) {
 	// tail of their sentence; keep every description comma-free.
 	assert.Contains(t, rel["kind"].(map[string]any)["description"], "subtype")
 	assert.Contains(t, rel["directed"].(map[string]any)["description"], "adorned")
+}
+
+// TestJSONSchema_EnumsAreTheModels: the values the schema lists for a
+// field are the ones diago accepts there, the model enum's and the
+// built-in theme names, so a value added to the enum generator or a theme
+// added to themes/ cannot be missing from the schema.
+func TestJSONSchema_EnumsAreTheModels(t *testing.T) {
+	files, err := fs.Glob(themes.FS, "*.json")
+	require.NoError(t, err)
+	var themeNames []string
+	for _, f := range files {
+		themeNames = append(themeNames, strings.TrimSuffix(f, ".json"))
+	}
+	for _, tc := range []struct {
+		spec, def, prop string
+		want            []string
+	}{
+		{"flow", "FlowSpec", "theme", themeNames},
+		{"flow", "FlowSpec", "direction", model.DirectionValues()},
+		{"flow", "NodeSpec", "shape", model.ShapeValues()},
+		{"flow", "EdgeSpec", "style", model.EdgeStyleValues()},
+		{"flow", "EdgeSpec", "direction", model.EdgeDirectionValues()},
+		{"sequence", "SequenceSpec", "theme", themeNames},
+		{"sequence", "InteractionSpec", "style", model.InteractionStyleValues()},
+		{"sequence", "FragmentSpec", "type", model.FragmentTypeValues()},
+		{"class", "ClassSpec", "theme", themeNames},
+		{"class", "ClassSpec", "direction", model.DirectionValues()},
+		{"class", "RelationSpec", "kind", model.RelationValues()},
+	} {
+		data, err := GenerateJSONSchema(tc.spec)
+		require.NoError(t, err)
+		var raw map[string]any
+		require.NoError(t, json.Unmarshal(data, &raw))
+		prop, ok := getDefProperties(t, raw, tc.def)[tc.prop].(map[string]any)
+		require.True(t, ok, "%s.%s", tc.def, tc.prop)
+		enum, _ := prop["enum"].([]any)
+		var got []string
+		for _, v := range enum {
+			got = append(got, v.(string))
+		}
+		assert.ElementsMatch(t, tc.want, got, "%s %s.%s", tc.spec, tc.def, tc.prop)
+	}
 }

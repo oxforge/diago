@@ -2,6 +2,7 @@ package schema
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -54,19 +55,6 @@ type RelationSpec struct {
 	Color    string  `json:"color,omitempty"`
 }
 
-// relationKinds lists the relation kinds in spec order; the canonical
-// strings of the model.Relation enum. Shared by the legend-label check
-// below and, from Task 3, checkClass.
-var relationKinds = []string{"association", "inheritance", "realization", "dependency", "aggregation", "composition"}
-
-var relationKindSet = func() map[string]bool {
-	m := make(map[string]bool, len(relationKinds))
-	for _, k := range relationKinds {
-		m[k] = true
-	}
-	return m
-}()
-
 var visibilities = map[string]bool{"+": true, "-": true, "#": true, "~": true}
 
 // ParseClass parses and validates a JSON class diagram spec into a flow
@@ -111,7 +99,7 @@ func ParseClass(data []byte) (*model.Graph, error) {
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			if !relationKindSet[k] {
+			if !slices.Contains(model.RelationValues(), k) {
 				errs = append(errs, ValidationError{Field: "legend_labels." + k, Message: fmt.Sprintf("unknown relation kind %q", k)})
 			}
 		}

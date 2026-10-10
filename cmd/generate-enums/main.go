@@ -1,5 +1,5 @@
-// Command generate-enums produces String, Parse, MarshalJSON, and UnmarshalJSON
-// methods for enum types in the model package.
+// Command generate-enums produces the String, Parse, Values, MarshalJSON
+// and UnmarshalJSON functions of the enum types in the model package.
 //
 // Usage: go run ./cmd/generate-enums
 package main
@@ -138,6 +138,12 @@ func Parse{{ .TypeName }}(s string) ({{ .TypeName }}, error) {
 	default:
 		return {{ (index .Values 0).Name }}, fmt.Errorf("unknown {{ .ErrorLabel }}: %q", s)
 	}
+}
+
+// {{ .TypeName }}Values returns every non-empty canonical string, in
+// declaration order: the values a spec may name.
+func {{ .TypeName }}Values() []string {
+	return []string{ {{- range .Values }}{{ with index .Strings 0 }}"{{ . }}", {{ end }}{{ end -}} }
 }
 
 // MarshalJSON encodes {{ .TypeName }} as its canonical string representation.
