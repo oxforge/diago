@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/oxforge/diago/internal/layout/layered/lgraph"
+	"github.com/oxforge/diago/internal/layout/layered/lgraph/lgraphtest"
 	"github.com/oxforge/diago/internal/layout/layered/ports"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -114,4 +115,29 @@ func TestRoute_AnchoredPortsKeepTheirJog(t *testing.T) {
 	assert.Equal(t, []int{1}, res.Lanes, "the jog takes a lane")
 	_, route = routed(t, shaped(t, fix(1e-9), "g->k"), screen, map[string]float64{"g": 0, "k": 0})
 	assert.Len(t, route("g->k#0"), 2, "float noise: one x")
+}
+
+// TestRoute_StopsSnappedOntoAnAnchoredPortStayWithIt pins S8's stops
+// (S9): the stops snapped onto an anchored port are locked with it, and
+// when the run they make meets another anchored port within Snap, the
+// whole run counts as the port's side, so the jog stays where the two
+// meet. g->h leaves g's face anchored at 0 and enters h's anchored at
+// 0.45, through dummies at 0.9 and 10: no straightening moves an anchored
+// end, and walking up from h's port moves the second dummy onto it, within
+// Snap of the first. Settling, the second dummy snaps back onto the first
+// and the two, a run on 0.9, onto h's port; that run, three stops on 0.45,
+// meets g's port 0.45 away, and the jog stays there, in the channel below
+// g, rather than splitting the run and moving down to h.
+func TestRoute_StopsSnappedOntoAnAnchoredPortStayWithIt(t *testing.T) {
+	lv := lgraphtest.Level(t, "g->h")
+	for v := range lv.Nodes {
+		lv.Nodes[v].Group, lv.Nodes[v].W, lv.Nodes[v].H = true, 300, 200
+	}
+	lv.Edges[0].Anchor = [2]lgraph.Anchor{{On: true, At: 0}, {On: true, At: 0.45}}
+	// layers: g 0, the dummies 1 and 2, h 3
+	g, err := lgraph.Build(lv, []int{0, 3}, nil, 8)
+	require.NoError(t, err)
+	res, route := routed(t, g, screen, map[string]float64{"g": 0, "g->h#0@1": 0.9, "g->h#0@2": 10, "h": 0})
+	assertRoute(t, pts(0, 200, 0, 224, 0.45, 224, 0.45, 328), route("g->h#0"))
+	assert.Equal(t, []int{1, 0, 0}, res.Lanes, "the jog takes a lane in the channel below g")
 }

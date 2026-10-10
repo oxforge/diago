@@ -576,3 +576,25 @@ func TestRoute_ATextPortSnapsOverACornerCell(t *testing.T) {
 	assertRoute(t, pts(9.5, 5, 9.5, 9), route("a->c#0"))
 	assertRoute(t, pts(11.25, 18, 11.25, 5), route("b->a#0"))
 }
+
+// TestRoute_ASideColumnSlidesOntoTheStopBesideIt pins S8's stops: a side
+// column within Span of its adjacent stop slides onto it when it may move
+// there, Reach or more outside its side, a column's distance from its side
+// being a floor, not a position. m's exit to a leaves its right vertex
+// (240) on the column Reach out (260), over its first dummy at 256. The
+// stops spread from 256 to a's in-port at 290, beyond Span, so the wire
+// does not run straight whole; walking up from the in-port, the second
+// dummy (270) lies 20 from it and stays, and the first moves onto it. The
+// column then lies 10 from the run at 270 and slides out onto it, 30
+// outside the vertex: the one jog left runs from the run onto a's in-port.
+func TestRoute_ASideColumnSlidesOntoTheStopBesideIt(t *testing.T) {
+	lv := lgraphtest.Level(t, "m:diamond->a", "m->b")
+	// layers: m 0, a 3, b 1
+	g, err := lgraph.Build(lv, []int{0, 3, 1}, nil, 8)
+	require.NoError(t, err)
+	r, route := routed(t, g, screen, map[string]float64{"m": 200, "m->a#0@1": 256, "m->a#0@2": 270, "a": 290, "b": 100})
+	ma := route("m->a#0")
+	assertRoute(t, pts(240, 20, 270, 20, 270, 184, 290, 184, 290, 208), ma)
+	assert.GreaterOrEqual(t, ma[1].X-ma[0].X, screen.Reach, "the stub out of m's side: %v", ma)
+	assert.Equal(t, []int{0, 0, 1}, r.Lanes, "one jog: from the run onto a's in-port")
+}
