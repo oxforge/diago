@@ -552,3 +552,28 @@ func TestRoute_APinnedVertexNeverSnapsOffItsVertex(t *testing.T) {
 		assert.Equal(t, 100.0, p.X, "on m's bottom vertex: %v", wire)
 	}
 }
+
+// TestRoute_ATextPortSnapsOverACornerCell pins S8's stops in the text
+// profile: a port within Snap of the x a wire runs straight on snaps onto
+// it anywhere over the middle nine tenths of its face's usable span, a
+// corner cell of its box included, where it never slides
+// (TestRoute_ATextPortSlidesOnlyInsideTheCorners). Under RIGHT, three rows
+// tall a's two out-ports take its corner rows, a->c's at 9.5 and b->a's
+// at 11.5. b->a's stops run from that port through its dummy at 12.25 to
+// b's in-port at 11.25, a quarter row inside the port, over the same
+// corner row: a's port snaps onto it, and the wire runs straight on
+// 11.25. The edge is reversed, its arrowhead on a: were the snap refused,
+// the stops would settle onto a's port, and the wire would run on 11.5.
+func TestRoute_ATextPortSnapsOverACornerCell(t *testing.T) {
+	sideways := Options{Clearance: 1, Span: 1, Reach: 2, BaseGap: 4, LaneGap: 2, InLaneGap: 1, Snap: 0.5, Dir: model.Right, Text: true}
+	lv := lgraphtest.Level(t, "a->c", "b->a")
+	for i := range lv.Nodes {
+		lv.Nodes[i].W, lv.Nodes[i].H = 3, 5
+	}
+	// layers: a 0, c 1, b 2; b->a reversed, through one dummy
+	g, err := lgraph.Build(lv, []int{0, 1, 2}, []bool{false, true}, 1)
+	require.NoError(t, err)
+	_, route := routed(t, g, sideways, map[string]float64{"a": 10.5, "c": 9.5, "b": 11.25, "b->a#0@1": 12.25})
+	assertRoute(t, pts(9.5, 5, 9.5, 9), route("a->c#0"))
+	assertRoute(t, pts(11.25, 18, 11.25, 5), route("b->a#0"))
+}
