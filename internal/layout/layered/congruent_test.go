@@ -106,6 +106,10 @@ func TestCongruences_AMemberThatDoesNotCorrespondDegradesTheSet(t *testing.T) {
 		{"another shape", "node_shape", func(g *model.Graph) { g.Nodes[6].Shape = model.ShapeRect }},
 		{"another size", "node_size", func(g *model.Graph) { g.Nodes[5].Label = "App Server Two" }},
 		{"another edge", "edges", func(g *model.Graph) { g.Edges[5].From = "b_in" }},
+		{"an edge more in the member", "edges", func(g *model.Graph) {
+			// every edge of a pairs, and b's shortcut is left over
+			g.Edges = append(g.Edges, model.Edge{ID: "b_in->b_db#0", From: "b_in", To: "b_db"})
+		}},
 		{"a wire leaving on the other row", "edges", func(g *model.Graph) {
 			// a's database feeds a sink below, b's feeds the load balancer
 			// back: one wire leaves on the bottom row, the other on the top
