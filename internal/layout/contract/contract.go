@@ -43,7 +43,7 @@ type Limits struct {
 	TitleInsetX   float64 // C13: title box left edge, from the group's left edge
 	TitleCenterY  float64 // C13: title box vertical center, from the group's top edge
 	TitlePad      float64 // C13: the blank the text renderer writes on each side of a title; zero on screen
-	CellW, CellH  float64 // C16: the text profile's cell, in which a point is drawn; zero on screen
+	CellW, CellH  float64 // C6.2, C14.2, C14.5, C16, C17.1: the text profile's cell, in which a point is drawn; zero on screen
 }
 
 // ScreenLimits returns the screen-profile values of Part 1.
@@ -103,9 +103,11 @@ type Options struct {
 	// Text marks a text-profile layout, where every shape is a box: the
 	// check reads every node as a rect. With the Limits' cell set
 	// (TextLimits), it also reads the cells the text renderer draws in:
-	// C14.2 tests a label against the cells another edge's segment is
-	// drawn in, C14.5 requires every label box to lie on whole cells, and
-	// C17.1 lets a copy's label lie up to half a cell off the translation.
+	// C6.2 measures a wire's distance from a group side in the cells both
+	// are drawn in, C14.2 tests a label against the cells another edge's
+	// segment is drawn in, C14.5 requires every label box to lie on whole
+	// cells, and C17.1 lets a copy's label lie up to half a cell off the
+	// translation.
 	Text bool
 }
 
@@ -120,7 +122,8 @@ const (
 )
 
 // Check validates pg against rules C2–C17 and returns every violation, in
-// rule order, then in edge, node and group order.
+// RuleIDs order; within one rule, in the order its check finds them
+// (sorted).
 func Check(pg *model.PositionedGraph, opts Options) []Violation {
 	if pg == nil {
 		return nil
