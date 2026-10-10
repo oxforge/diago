@@ -6,10 +6,7 @@ import (
 	"github.com/oxforge/diago/internal/model"
 )
 
-const (
-	hopRadius     = 5.0 // C15.2: crossings this close to a segment end need no record
-	crossMatchTol = 1.0 // C15.2: record to crossing point
-)
+const crossMatchTol = 1.0 // C15.2: record to crossing point
 
 // checkCrossings verifies C15: every Crossing record names a real segment
 // and a parameter in [0,1] (C15.1), and every proper crossing between two
@@ -33,7 +30,7 @@ func (c *checker) checkCrossings() {
 				for j := 0; j+1 < len(es[b].Points); j++ {
 					b1, b2 := es[b].Points[j], es[b].Points[j+1]
 					p, ok := crossing(a1, a2, b1, b2)
-					if !ok || nearAny(p, hopRadius, a1, a2, b1, b2) {
+					if !ok || nearAny(p, model.HopRadius, a1, a2, b1, b2) {
 						continue
 					}
 					if !recorded(es[a], p) && !recorded(es[b], p) {

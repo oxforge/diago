@@ -20,10 +20,6 @@ const (
 	cellH = model.TextCellH
 )
 
-// hopRadius is how far from a segment's end a crossing must lie to be
-// recorded, in px: the renderers' hop radius (C15.2).
-const hopRadius = 5.0
-
 // noise is the float tolerance of S9's joins and of S10's title rows: a
 // millionth of a unit.
 const noise = 1e-6
@@ -57,7 +53,7 @@ func Layout(ctx context.Context, g model.Graph, cfg Config, previous *model.Layo
 	for i, e := range pg.Edges {
 		routes[i] = e.Points
 	}
-	for i, cs := range route.Crossings(routes, hopRadius) {
+	for i, cs := range route.Crossings(routes, model.HopRadius) {
 		pg.Edges[i].Crossings = cs
 	}
 	pg.Title = g.Title

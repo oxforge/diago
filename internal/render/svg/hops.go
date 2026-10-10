@@ -9,7 +9,7 @@ import (
 	"github.com/oxforge/diago/internal/model"
 )
 
-const hopRadius = 5.0 // a lone hop's radius, and how high every hop rises
+const hopRadius = model.HopRadius // a lone hop's radius, and how high every hop rises
 
 // hop is where a wire's arc over its crossings starts and ends, and the
 // arc's radius along the wire: hopRadius over one crossing, wider over
