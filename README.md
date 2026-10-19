@@ -18,12 +18,6 @@ same spec always renders to the same bytes.
 
 <img alt="A terminal session: cat prints a small flow spec, diago render -format text draws it as text art, vim adds a Redis node and an edge from the API to it, and diago diff -format text draws both versions as one diagram with the new node marked +" src="https://diago.dev/demo.gif">
 
-`diago diff old.json new.json` draws two versions of a spec as one picture:
-added elements in green, changed ones in blue, removed ones in red and struck
-through, with every change listed under the picture. In flow and class
-diagrams the unchanged boxes stay close to where they were
-([this example on diago.dev](https://diago.dev/examples/service-change/)).
-
 Every diagram and every diff also draws as Unicode text art, to read in a
 terminal, a code block or a pull request.
 
