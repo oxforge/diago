@@ -16,10 +16,10 @@ same spec always renders to the same bytes.
   <img alt="An architecture diagram drawn by diago" src="https://diago.dev/readme-light.png">
 </picture>
 
-<img alt="A terminal session: cat prints a small flow spec, diago render -format text draws it as text art, vim adds a Redis node and an edge from the API to it, and diago diff -format text draws both versions as one diagram with the new node marked +" src="https://diago.dev/demo.gif">
-
 Every diagram and every diff also draws as Unicode text art, to read in a
-terminal, a code block or a pull request.
+terminal, a code block or a pull request:
+
+<img alt="A terminal session: cat prints a small flow spec, diago render -format text draws it as text art, vim adds a Redis node and an edge from the API to it, and diago diff -format text draws both versions as one diagram with the new node marked +" src="https://diago.dev/demo.gif">
 
 **Documentation** at [diago.dev](https://diago.dev):
 [getting started](https://diago.dev/docs/),
