@@ -19,12 +19,13 @@ same spec always renders to the same bytes.
 `diago diff old.json new.json` draws two versions of a spec as one picture:
 added elements in green, changed ones in blue, removed ones in red and struck
 through, with every change listed under the picture. In flow and class
-diagrams the unchanged boxes stay close to where they were.
+diagrams the unchanged boxes stay close to where they were
+([this example on diago.dev](https://diago.dev/examples/service-change/)):
 
-<a href="https://diago.dev/examples/service-change/"><picture>
+<picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://diago.dev/readme-diff-dark.png">
   <img alt="Two versions of a service diagram and their diff: the API server becomes a gateway, the mail sender goes, and a cache, a job queue, an email worker and an SMTP relay join" src="https://diago.dev/readme-diff-light.png">
-</picture></a>
+</picture>
 
 Every diagram and every diff also draws as Unicode text art, to read in a
 terminal, a code block or a pull request
