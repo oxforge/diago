@@ -85,7 +85,7 @@ diago/
 │   └── pipeline/         # Orchestration: pipeline.go (RenderWithOptions, every format), theme.go (`RenderTheme`: the render's theme), diff.go (RenderDiff), previous.go (-previous parsing: the CLI hands the file over as `Options.PreviousData`, read as a layout once the spec's type, format, fields and theme are checked), validate.go (`Validate`: what `check` runs), advisories.go, engine.go (`layoutWith`: the layered engine under the text Config or a theme's screen Config; `LayoutGraphForFormat` and the sequence layout)
 ├── schemas/              # Generated JSON schema files
 ├── themes/               # Built-in theme JSON files (default, dark, midnight, sketch)
-├── .claude-plugin/       # plugin.json + marketplace.json (the plugin is the repo root)
+├── .claude-plugin/       # plugin.json, marketplace.json and icon.png, the plugin directory's listing icon (the plugin is the repo root)
 ├── .github/              # workflows/: ci.yml (build, vet, test and lint every push and pull request) and release.yml (a pushed vX.Y.Z tag: GoReleaser, configured by .goreleaser.yaml, publishes the GitHub Release); ISSUE_TEMPLATE/bug_report.yml, the bug-report form (version, command, spec, what happened)
 ├── hooks/                # The plugin's SessionStart hook: hooks.json, session-start and its Go test
 ├── skills/               # diagramming/ (SKILL.md + cheatsheet.md) and illustrating/ (SKILL.md + documents.md; example/ is its worked example)

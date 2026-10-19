@@ -119,5 +119,11 @@ func TestHooksJSON_RunsSessionStartOnEveryFreshContext(t *testing.T) {
 	assert.Equal(t, "startup|clear|compact", ss[0].Matcher)
 	require.Len(t, ss[0].Hooks, 1)
 	assert.Equal(t, "command", ss[0].Hooks[0].Type)
-	assert.Equal(t, `bash "${CLAUDE_PLUGIN_ROOT}/hooks/session-start"`, ss[0].Hooks[0].Command)
+	// A literal path under the plugin root, which the plugin directory's
+	// review accepts without a reviewer; the script is executable (git mode
+	// 100755), which an installed plugin keeps.
+	assert.Equal(t, `"${CLAUDE_PLUGIN_ROOT}/hooks/session-start"`, ss[0].Hooks[0].Command)
+	info, err := os.Stat("session-start")
+	require.NoError(t, err)
+	assert.NotZero(t, info.Mode().Perm()&0o111, "the hook runs session-start by its path, so it must stay executable")
 }

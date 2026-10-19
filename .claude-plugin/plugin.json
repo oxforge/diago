@@ -5,6 +5,9 @@
   "author": {
     "name": "oxforge"
   },
+  "homepage": "https://diago.dev",
+  "repository": "https://github.com/oxforge/diago",
+  "license": "MIT",
   "keywords": [
     "diagrams",
     "architecture",
