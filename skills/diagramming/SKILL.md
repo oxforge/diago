@@ -10,8 +10,8 @@ what, diago lays it out and draws it. This skill is how to draw one well.
 When and where to show one is diago:illustrating; the JSON shapes and enums
 are in `cheatsheet.md` beside this file.
 
-**Prerequisite:** `command -v diago`, else
-`go install github.com/oxforge/diago/cmd/diago@latest`. PNG also needs
+**Prerequisite:** `command -v diago`, else tell the user that installing
+diago (https://diago.dev/docs/#install) enables diagrams. PNG also needs
 `resvg` (`command -v resvg`); without it, render SVG (or text in a terminal)
 and tell the user that `brew install resvg` or `cargo install resvg` enables
 PNG. Install nothing without asking, and never fall back to Mermaid or

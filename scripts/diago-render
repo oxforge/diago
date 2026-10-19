@@ -34,7 +34,7 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$DIR" ] || usage
 [ -d "$DIR" ] || die "no such directory: $DIR"
-command -v diago >/dev/null 2>&1 || die "diago not found on PATH: go install github.com/oxforge/diago/cmd/diago@latest"
+command -v diago >/dev/null 2>&1 || die "diago not found on PATH: install it (https://diago.dev/docs/#install)"
 if [ "$PNG" -eq 1 ]; then
   command -v resvg >/dev/null 2>&1 || die "--png needs resvg on PATH: install it (brew install resvg, or cargo install resvg), or drop --png to write SVG"
 fi

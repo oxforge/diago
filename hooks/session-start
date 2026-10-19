@@ -28,7 +28,7 @@ case "${CLAUDE_CODE_ENTRYPOINT:-}" in
   *) text="$text This session may run in a graphical host: show diagrams as text art in a fenced text block, then the SVG file's path on its own line." ;;
 esac
 if ! command -v diago >/dev/null 2>&1; then
-  text="$text The hook did not find the diago CLI on its PATH; if \`command -v diago\` fails in your shell too, tell the user once that \`go install github.com/oxforge/diago/cmd/diago@latest\` enables diagrams, and do not draw them by hand."
+  text="$text The hook did not find the diago CLI on its PATH; if \`command -v diago\` fails in your shell too, tell the user once that installing diago (https://diago.dev/docs/#install) enables diagrams, and do not draw them by hand."
 fi
 
 printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$(json_escape "$text")"

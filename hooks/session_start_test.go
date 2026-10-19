@@ -97,7 +97,7 @@ func TestSessionStart_WithoutDiagoTellsTheAgentToCheckItsShell(t *testing.T) {
 	assert.Contains(t, got, terminal)
 	assert.Contains(t, got, missing)
 	assert.Contains(t, got, "if `command -v diago` fails in your shell too")
-	assert.Contains(t, got, "go install github.com/oxforge/diago/cmd/diago@latest")
+	assert.Contains(t, got, "installing diago (https://diago.dev/docs/#install) enables diagrams")
 }
 
 func TestHooksJSON_RunsSessionStartOnEveryFreshContext(t *testing.T) {

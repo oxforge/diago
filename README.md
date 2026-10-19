@@ -64,15 +64,33 @@ $ diago render -format text password-reset.json
 
 ## Install
 
-Download the archive for your platform from the
-[latest release](https://github.com/oxforge/diago/releases/latest) (Linux,
-macOS and Windows, on amd64 and arm64) and put `diago` on `PATH`. On macOS, a
-binary downloaded with a browser is quarantined; clear it with
-`xattr -d com.apple.quarantine diago`. Or, with Go 1.26+:
+On macOS or Linux:
+
+```bash
+curl -fsSL https://diago.dev/install.sh | sh
+```
+
+On Windows, in PowerShell:
+
+```powershell
+irm https://diago.dev/install.ps1 | iex
+```
+
+The script downloads the latest release for your system, checks it against the
+release's `checksums.txt` and puts `diago` in `~/.local/bin` (on Windows it
+also adds that folder to your `Path`); `DIAGO_INSTALL_DIR` changes the folder.
+[Getting started](https://diago.dev/docs/#install) has the details and a
+manual download. Or, with Go 1.26+:
 
 ```bash
 go install github.com/oxforge/diago/cmd/diago@latest
 ```
+
+diago is at 0.x: a release may reject a spec the previous one accepted, change
+an exit code or change what a render draws, and its release notes list those
+breaking changes first. To stay on one version, give the script that version
+(`curl -fsSL https://diago.dev/install.sh | DIAGO_VERSION=vX.Y.Z sh`), or
+`go install …@vX.Y.Z`.
 
 PNG output also needs [resvg](https://github.com/linebender/resvg) 0.26 or
 newer (`brew install resvg` or `cargo install resvg`); every other format is

@@ -147,5 +147,5 @@ each review round shows its changes as diff diagrams.
 - One version per round the user sees, never per edit: three edits before
   the user looks are still one version.
 - No diago, no diagram: if `command -v diago` fails, tell the user once that
-  `go install github.com/oxforge/diago/cmd/diago@latest` enables diagrams.
+  installing diago (https://diago.dev/docs/#install) enables diagrams.
   Never fall back to Mermaid or hand-drawn ASCII.
