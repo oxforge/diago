@@ -47,6 +47,27 @@ func TestRanks_TiesGoByEdgeOrder(t *testing.T) {
 	assert.Equal(t, Rank{At: 1, Of: 2}, r[1][Head])
 }
 
+func TestRanks_ABundleFollowsItsFarAnchors(t *testing.T) {
+	// three edges into one group, anchored right, left and middle on its face
+	g := graph(t, "p->g", "p->g", "p->g")
+	for e, at := range []float64{40, -40, 0} {
+		g.Level.Edges[e].Anchor[1] = lgraph.Anchor{On: true, At: at}
+	}
+	r := Ranks(g, nil)
+	assert.Equal(t, Rank{At: 2, Of: 3}, r[0][Head], "the right anchor's edge leaves right")
+	assert.Equal(t, Rank{At: 0, Of: 3}, r[1][Head])
+	assert.Equal(t, Rank{At: 1, Of: 3}, r[2][Head])
+	assert.Equal(t, Rank{Anchored: true, Fixed: 40}, r[0][Tail], "an anchored end keeps its anchor")
+
+	// and the other way: out of a group, into one node's in-face
+	g = graph(t, "g->q", "g->q")
+	g.Level.Edges[0].Anchor[0] = lgraph.Anchor{On: true, At: 25}
+	g.Level.Edges[1].Anchor[0] = lgraph.Anchor{On: true, At: -25}
+	r = Ranks(g, nil)
+	assert.Equal(t, Rank{At: 1, Of: 2}, r[0][Tail])
+	assert.Equal(t, Rank{At: 0, Of: 2}, r[1][Tail])
+}
+
 func TestRanks_ALongEdgeRanksByItsDummy(t *testing.T) {
 	g := graph(t, "a->b", "b->c", "a->c")
 	r := Ranks(g, nil)

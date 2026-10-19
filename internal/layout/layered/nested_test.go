@@ -265,6 +265,27 @@ func TestLayout_SiblingGroupsLineUp(t *testing.T) {
 	}
 }
 
+// TestLayout_AFanIntoAGroupFollowsItsAnchors pins S8's slots for S7: a
+// node's edges into one group take their out-ports in the order of their
+// anchors on the group's face, not in edge order, so placement lines the
+// node up on the slots the router draws: the fan's ports stay evenly
+// spaced and the edge to the middle anchor runs straight.
+func TestLayout_AFanIntoAGroupFollowsItsAnchors(t *testing.T) {
+	// l, m and r sit left to right in g; the edges come middle, right,
+	// left. The wider l puts the fan's mean off m's anchor, within Span
+	// of it, so p lines up only on the slot the router gives p->m.
+	g := grouped(graph(t, map[string]string{"l": "a wide node"}, "l", "m", "r", "p->m", "p->r", "p->l"),
+		model.Group{ID: "g", Contains: []string{"l", "m", "r"}})
+	pg := lay(t, g, screen(), model.Down)
+	left, middle, right := edge(t, pg, "p->l#0").Points, edge(t, pg, "p->m#0").Points, edge(t, pg, "p->r#0").Points
+	require.Less(t, left[0].X, middle[0].X)
+	require.Less(t, middle[0].X, right[0].X)
+	assert.InDelta(t, middle[0].X-left[0].X, right[0].X-middle[0].X, 1e-6, "evenly spaced ports")
+	for _, p := range middle {
+		assert.InDelta(t, middle[0].X, p.X, 1e-6, "p->m runs straight: %v", middle)
+	}
+}
+
 // TestLayout_TextGroupsSitOnTheGrid pins S9 in the text profile: group
 // boxes on cell boundaries, and wires crossing their borders in the
 // middle of a cell.

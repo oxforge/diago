@@ -75,9 +75,13 @@ func Off(side [][2]Vertex) [][2]bool {
 // Ranks derives every chain end's slot from the ordering (S8). The ends on
 // a node's out-face sort by the in-layer index of the next vertex along
 // their chains, the ends on its in-face by the index of the previous
-// vertex, ties by edge order. side marks the ends the router attached at
-// a side, nil for none: they take no slot, and the rest spread over the
-// face without them. An anchored end (S9) takes its anchor and no slot.
+// vertex. A tie is a bundle of one-hop edges between the same two
+// vertices: it goes by the far ends' anchors when those are anchored on a
+// group's face (S9), the order the router lays the bundle in, so that the
+// slots placement aligns on are the ones it routes; then by edge order.
+// side marks the ends the router attached at a side, nil for none: they
+// take no slot, and the rest spread over the face without them. An
+// anchored end (S9) takes its anchor and no slot.
 func Ranks(g *lgraph.Graph, side [][2]bool) [][2]Rank {
 	type end struct{ edge, key int }
 	idx := g.Index()
@@ -105,7 +109,11 @@ func Ranks(g *lgraph.Graph, side [][2]bool) [][2]Rank {
 	for _, face := range faces {
 		for which, ends := range face {
 			slices.SortStableFunc(ends, func(a, b end) int {
-				return cmp.Or(cmp.Compare(a.key, b.key), cmp.Compare(a.edge, b.edge))
+				byAnchor := 0
+				if fa, fb := ranks[a.edge][1-which], ranks[b.edge][1-which]; fa.Anchored && fb.Anchored {
+					byAnchor = cmp.Compare(fa.Fixed, fb.Fixed)
+				}
+				return cmp.Or(cmp.Compare(a.key, b.key), byAnchor, cmp.Compare(a.edge, b.edge))
 			})
 			ends = slices.DeleteFunc(ends, func(en end) bool { return ranks[en.edge][which].Anchored })
 			for k, en := range ends {
