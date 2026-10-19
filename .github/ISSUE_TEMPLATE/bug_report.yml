@@ -1,0 +1,36 @@
+name: Bug report
+description: A wrong render, an error diago should not give, or a crash.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: What `diago --version` prints.
+      placeholder: diago v0.7.0
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: The command you ran, with every flag.
+      placeholder: diago render -format png spec.json > spec.png
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: spec
+    attributes:
+      label: Spec
+      description: The spec it read (JSON or Mermaid), or the smallest one that still shows the problem.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what diago did instead. Paste the error from stderr, or attach a screenshot of the render.
+    validations:
+      required: true

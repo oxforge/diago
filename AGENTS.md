@@ -86,7 +86,7 @@ diago/
 ├── schemas/              # Generated JSON schema files
 ├── themes/               # Built-in theme JSON files (default, dark, midnight, sketch)
 ├── .claude-plugin/       # plugin.json + marketplace.json (the plugin is the repo root)
-├── .github/workflows/    # ci.yml (build, vet, test and lint every push and pull request) and release.yml (a pushed vX.Y.Z tag: GoReleaser, configured by .goreleaser.yaml, publishes the GitHub Release)
+├── .github/              # workflows/: ci.yml (build, vet, test and lint every push and pull request) and release.yml (a pushed vX.Y.Z tag: GoReleaser, configured by .goreleaser.yaml, publishes the GitHub Release); ISSUE_TEMPLATE/bug_report.yml, the bug-report form (version, command, spec, what happened)
 ├── hooks/                # The plugin's SessionStart hook: hooks.json, session-start and its Go test
 ├── skills/               # diagramming/ (SKILL.md + cheatsheet.md) and illustrating/ (SKILL.md + documents.md; example/ is its worked example)
 └── scripts/diago-render  # Render/lint/diff/embed a folder of versioned diagrams (used by illustrating); its Go test is scripts/diago_render_test.go
