@@ -16,44 +16,16 @@ same spec always renders to the same bytes.
   <img alt="An architecture diagram drawn by diago" src="https://diago.dev/readme-light.png">
 </picture>
 
+<img alt="A terminal session: cat prints a small flow spec, diago render -format text draws it as text art, vim adds a Redis node and an edge from the API to it, and diago diff -format text draws both versions as one diagram with the new node marked +" src="https://diago.dev/demo.gif">
+
 `diago diff old.json new.json` draws two versions of a spec as one picture:
 added elements in green, changed ones in blue, removed ones in red and struck
 through, with every change listed under the picture. In flow and class
 diagrams the unchanged boxes stay close to where they were
-([this example on diago.dev](https://diago.dev/examples/service-change/)):
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://diago.dev/readme-diff-dark.png">
-  <img alt="Two versions of a service diagram and their diff: the API server becomes a gateway, the mail sender goes, and a cache, a job queue, an email worker and an SMTP relay join" src="https://diago.dev/readme-diff-light.png">
-</picture>
+([this example on diago.dev](https://diago.dev/examples/service-change/)).
 
 Every diagram and every diff also draws as Unicode text art, to read in a
-terminal, a code block or a pull request
-([this one's spec](https://diago.dev/examples/password-reset/)):
-
-```text
-$ diago render -format text password-reset.json
-                 Password reset
-
-  ┌──────┐             ┌──────────┐   ┌────────┐
-  │ User │             │ Web App  │   │ Mailer │
-  └──────┘             └──────────┘   └────────┘
-      │                      │             │
-      │                      │             │
-      ├─── request reset ────►             │
-      │                      ┃             │
-      │                      ┠ send token ─▷
-      │                      ┃             │
-      ◄╌╌╌╌╌╌╌╌╌╌╌ reset email ╌╌╌╌╌╌╌╌╌╌╌╌┤
-      ┃                      ┃             │
-      ├ submit new password ─►             │
-      │                      ┃             │
-      ◄╌╌╌╌╌╌ 200 OK ╌╌╌╌╌╌╌╌┤             │
-      ┃                      │             │
-  ┌──────┐             ┌──────────┐   ┌────────┐
-  │ User │             │ Web App  │   │ Mailer │
-  └──────┘             └──────────┘   └────────┘
-```
+terminal, a code block or a pull request.
 
 **Documentation** at [diago.dev](https://diago.dev):
 [getting started](https://diago.dev/docs/),
