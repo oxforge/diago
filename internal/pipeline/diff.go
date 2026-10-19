@@ -127,14 +127,15 @@ func parseDiffInputs(before, after []byte) (diffInputs, error) {
 	}
 }
 
-// layoutFlowDiff lays before out fresh, takes its carrier, and lays the
-// union out anchored on it (text: under the text profile, on the stamped
+// layoutFlowDiff lays before and after out fresh and lays the union out
+// anchored on before's carrier, its order completed from after's
+// (diff.UnionGraph.Anchor; text: under the text profile, on the stamped
 // copy so boxes fit their prefixes). Removed elements are real participants.
-// It also returns the before layout's own carrier (basePG.LayoutHints), the
-// anchor the union was laid out on: flatRankedDiffFields checks a union flat
-// edge's id against its Ranked to tell a kept fallback (S13, keepRanked)
+// It also returns the before layout's own carrier (basePG.LayoutHints),
+// whose Ranked the union's anchor shares: flatRankedDiffFields checks a
+// union flat edge's id against it to tell a kept fallback (S13, keepRanked)
 // from a fresh one.
-func layoutFlowDiff(ctx context.Context, u diff.UnionGraph, before *model.Graph, th theme.Theme, text bool) (*model.PositionedGraph, *model.LayoutHints, error) {
+func layoutFlowDiff(ctx context.Context, u diff.UnionGraph, before, after *model.Graph, th theme.Theme, text bool) (*model.PositionedGraph, *model.LayoutHints, error) {
 	union := u.Graph
 	if text {
 		union = diff.StampLabels(u)
@@ -143,7 +144,11 @@ func layoutFlowDiff(ctx context.Context, u diff.UnionGraph, before *model.Graph,
 	if err != nil {
 		return nil, nil, fmt.Errorf("diff: layout before: %w", err)
 	}
-	pg, err := layoutWith(ctx, union, th, text, basePG.LayoutHints)
+	afterPG, err := layoutWith(ctx, *after, th, text, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("diff: layout after: %w", err)
+	}
+	pg, err := layoutWith(ctx, union, th, text, u.Anchor(basePG.LayoutHints, afterPG.LayoutHints))
 	if err != nil {
 		return nil, nil, fmt.Errorf("diff: layout union: %w", err)
 	}
@@ -318,7 +323,7 @@ func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 	u := diff.BuildUnion(bg, ag)
 
 	if format == "text" {
-		pg, basePrev, err := layoutFlowDiff(ctx, u, bg, th, true)
+		pg, basePrev, err := layoutFlowDiff(ctx, u, bg, ag, th, true)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -330,7 +335,7 @@ func renderDiff(ctx context.Context, before, after []byte, opts DiffOptions) ([]
 		return []byte(withFooter(res.Art, opts.Caption, diff.FlowLegend(u))), res.DroppedLabels, flatRanked, nil
 	}
 
-	pg, basePrev, err := layoutFlowDiff(ctx, u, bg, th, false)
+	pg, basePrev, err := layoutFlowDiff(ctx, u, bg, ag, th, false)
 	if err != nil {
 		return nil, nil, nil, err
 	}

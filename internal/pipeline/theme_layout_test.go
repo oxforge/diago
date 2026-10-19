@@ -140,7 +140,7 @@ func TestThemePadding_ReachesFlowDiff(t *testing.T) {
 	for _, name := range []string{"default", "roomy"} {
 		th, err := theme.Load(name)
 		require.NoError(t, err)
-		pg, _, err := layoutFlowDiff(ctx, u, before, th, false)
+		pg, _, err := layoutFlowDiff(ctx, u, before, after, th, false)
 		require.NoError(t, err)
 		pgs = append(pgs, pg)
 	}

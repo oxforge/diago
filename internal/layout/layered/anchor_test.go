@@ -361,10 +361,10 @@ func TestAnchoring_DeletingTheTopNodeKeepsTheSlots(t *testing.T) {
 				continue
 			}
 			slots++
-			require.Contains(t, after.Order, slot(e, l-1), tc.name)
+			require.Contains(t, after.Order, model.Slot(e, l-1), tc.name)
 			for key2, i2 := range before.Order {
 				if e2, l2, ok := slotLayer(key2); ok && l2 == l && i < i2 {
-					assert.Less(t, after.Order[slot(e, l-1)], after.Order[slot(e2, l2-1)], "%s: %s stays before %s", tc.name, key, key2)
+					assert.Less(t, after.Order[model.Slot(e, l-1)], after.Order[model.Slot(e2, l2-1)], "%s: %s stays before %s", tc.name, key, key2)
 				}
 			}
 		}
@@ -386,7 +386,7 @@ func TestAnchoring_AStaleRowAboveMovesNothing(t *testing.T) {
 	}
 	for key, i := range fresh.LayoutHints.Scopes[""].Order {
 		if e, l, ok := slotLayer(key); ok {
-			key = slot(e, l+1)
+			key = model.Slot(e, l+1)
 		}
 		s.Order[key] = i
 	}

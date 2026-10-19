@@ -1,0 +1,26 @@
+{
+  "type": "flow",
+  "direction": "DOWN",
+  "nodes": [
+    {"id": "client", "label": "Web Client"},
+    {"id": "lb", "label": "Load Balancer"},
+    {"id": "api", "label": "API Gateway"},
+    {"id": "auth", "label": "Auth Service"},
+    {"id": "db", "label": "Postgres", "shape": "cylinder"},
+    {"id": "cache", "label": "Redis Cache", "shape": "cylinder"},
+    {"id": "queue", "label": "Job Queue"},
+    {"id": "worker", "label": "Email Worker"},
+    {"id": "smtp", "label": "SMTP Relay"}
+  ],
+  "edges": [
+    {"from": "client", "to": "lb"},
+    {"from": "lb", "to": "api"},
+    {"from": "api", "to": "auth"},
+    {"from": "api", "to": "db"},
+    {"from": "auth", "to": "db"},
+    {"from": "api", "to": "cache"},
+    {"from": "api", "to": "queue"},
+    {"from": "queue", "to": "worker"},
+    {"id": "worker-out", "from": "worker", "to": "smtp"}
+  ]
+}

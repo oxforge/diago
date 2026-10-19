@@ -4,18 +4,12 @@ import (
 	"context"
 	"maps"
 	"slices"
-	"strconv"
 
 	"github.com/oxforge/diago/internal/layout/layered/lgraph"
 	"github.com/oxforge/diago/internal/layout/layered/order"
 	"github.com/oxforge/diago/internal/layoutdbg"
 	"github.com/oxforge/diago/internal/model"
 )
-
-// slot is the carrier's key for edge id's vertex on layer l of a scope
-// where it has no node of its own: a dummy (S5), or a terminal on the
-// scope's border row (S9, C18).
-func slot(id string, l int) string { return id + "@" + strconv.Itoa(l) }
 
 // keys gives every vertex of lg its carrier key (C18): a node's or a
 // child group's id, and a dummy's or a terminal's slot of its edge on
@@ -43,7 +37,7 @@ func keys(lg *lgraph.Graph, at []int) []string {
 			e = edge[vx.Node]
 		}
 		if l := at[vx.Layer]; l >= 0 {
-			out[v] = slot(lv.Edges[e].ID, l)
+			out[v] = model.Slot(lv.Edges[e].ID, l)
 		}
 	}
 	return out

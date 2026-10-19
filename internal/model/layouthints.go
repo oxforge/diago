@@ -1,6 +1,10 @@
 package model
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 // LayoutHintsVersion is the carrier format this build emits and accepts.
 const LayoutHintsVersion = 1
@@ -24,6 +28,31 @@ type LayoutHints struct {
 	Scopes   map[string]ScopeHints `json:"scopes"`
 	Reversed []string              `json:"reversed"`         // logical edge ids, sorted
 	Ranked   []string              `json:"ranked,omitempty"` // the flat edges that fell back to ordinary ones (S9), logical ids, sorted; absent when none
+}
+
+// Slot is a carrier key for edge id's vertex on layer l of a scope where it
+// has no node of its own: a dummy, or a terminal on the scope's border row
+// (C18).
+func Slot(id string, l int) string { return id + "@" + strconv.Itoa(l) }
+
+// SplitSlot splits a slot key into its edge id and layer; ok is false for
+// any other key, a node's or a group's id among them, since those never end
+// in "@" and digits.
+func SplitSlot(key string) (id string, l int, ok bool) {
+	i := strings.LastIndexByte(key, '@')
+	if i < 0 || i == len(key)-1 {
+		return "", 0, false
+	}
+	for _, r := range key[i+1:] {
+		if r < '0' || r > '9' {
+			return "", 0, false
+		}
+	}
+	l, err := strconv.Atoi(key[i+1:])
+	if err != nil {
+		return "", 0, false
+	}
+	return key[:i], l, true
 }
 
 // NewLayoutHints returns an empty carrier of the current version.

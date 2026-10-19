@@ -91,7 +91,7 @@ func TestLayoutFlowDiff_LayeredAnchorsTheUnion(t *testing.T) {
 	}
 	require.Less(t, x(fresh, "c"), x(fresh, "b"), "fresh, the union follows after's order")
 	for _, text := range []bool{false, true} {
-		pg, _, err := layoutFlowDiff(ctx, u, before, th, text)
+		pg, _, err := layoutFlowDiff(ctx, u, before, after, th, text)
 		require.NoError(t, err)
 		assert.Less(t, x(pg, "b"), x(pg, "c"), "text=%v", text)
 	}

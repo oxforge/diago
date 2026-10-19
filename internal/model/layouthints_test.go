@@ -59,3 +59,28 @@ func TestLayoutHints_Validate(t *testing.T) {
 	assert.NoError(t, h.Validate(), "absent order map and null reversed are tolerated")
 	assert.NotNil(t, h.Scope("").Order, "Scope backfills nil maps")
 }
+
+func TestSplitSlot(t *testing.T) {
+	tests := []struct {
+		key   string
+		id    string
+		layer int
+		ok    bool
+	}{
+		{"api->db#0@3", "api->db#0", 3, true},
+		{"e@1@12", "e@1", 12, true}, // an edge id may itself hold "@" and digits
+		{"auth", "", 0, false},
+		{"x@", "", 0, false},
+		{"x@-1", "", 0, false},
+		{"x@1a", "", 0, false},
+	}
+	for _, tc := range tests {
+		id, layer, ok := SplitSlot(tc.key)
+		assert.Equal(t, tc.ok, ok, tc.key)
+		if tc.ok {
+			assert.Equal(t, tc.id, id, tc.key)
+			assert.Equal(t, tc.layer, layer, tc.key)
+			assert.Equal(t, tc.key, Slot(id, layer), "%s: Slot joins what SplitSlot splits", tc.key)
+		}
+	}
+}

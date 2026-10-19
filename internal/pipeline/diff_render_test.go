@@ -157,7 +157,7 @@ func TestRenderDiff_NoRemovedNodeOverlaps(t *testing.T) {
 			require.Equal(t, "flow", in.kind)
 			u := diff.BuildUnion(in.flowBefore, in.flowAfter)
 			th, _ := resolveTheme("default")
-			pg, _, err := layoutFlowDiff(context.Background(), u, in.flowBefore, th, text)
+			pg, _, err := layoutFlowDiff(context.Background(), u, in.flowBefore, in.flowAfter, th, text)
 			require.NoError(t, err)
 			for _, a := range pg.Nodes {
 				if u.Nodes[a.ID] != diff.Removed {

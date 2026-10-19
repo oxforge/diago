@@ -1,0 +1,20 @@
+{
+  "type": "flow",
+  "direction": "DOWN",
+  "nodes": [
+    {"id": "client", "label": "Web Client"},
+    {"id": "lb", "label": "Load Balancer"},
+    {"id": "api", "label": "API Server"},
+    {"id": "auth", "label": "Auth Service"},
+    {"id": "db", "label": "Postgres", "shape": "cylinder"},
+    {"id": "mail", "label": "Mail Sender"}
+  ],
+  "edges": [
+    {"from": "client", "to": "lb"},
+    {"from": "lb", "to": "api"},
+    {"from": "api", "to": "auth"},
+    {"from": "api", "to": "db"},
+    {"from": "auth", "to": "db"},
+    {"from": "api", "to": "mail"}
+  ]
+}

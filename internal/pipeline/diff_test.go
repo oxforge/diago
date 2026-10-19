@@ -1,7 +1,9 @@
 package pipeline
 
 import (
+	"cmp"
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -26,6 +28,31 @@ func TestRenderDiff_SequenceRemovedMessageHasNoActivation(t *testing.T) {
 	require.Len(t, ps.Interactions, 3, "the removed message keeps its row")
 	for _, a := range ps.Activations {
 		assert.NotEqual(t, "u", a.ActorID, "the masked message must not activate u")
+	}
+}
+
+func TestLayoutFlowDiff_OrdersAsBeforeAndAfterDo(t *testing.T) {
+	// Before's row under api: auth, mail, then api->db's dummy. After's:
+	// auth, cache, api->db's dummy, queue, with db and worker below. The
+	// union keeps mail beside auth and the added nodes where after has
+	// them, so db sits right of cache, as in after.
+	in, err := parseDiffInputs(example(t, "flow-gateway-v1.json"), example(t, "flow-gateway-v2.json"))
+	require.NoError(t, err)
+	u := diff.BuildUnion(in.flowBefore, in.flowAfter)
+	th, err := resolveTheme("default")
+	require.NoError(t, err)
+	for _, text := range []bool{false, true} {
+		pg, _, err := layoutFlowDiff(context.Background(), u, in.flowBefore, in.flowAfter, th, text)
+		require.NoError(t, err)
+		x := map[string]float64{}
+		for _, n := range pg.Nodes {
+			x[n.ID] = n.X
+		}
+		row := []string{"auth", "mail", "cache", "queue"}
+		slices.SortFunc(row, func(a, b string) int { return cmp.Compare(x[a], x[b]) })
+		assert.Equal(t, []string{"auth", "mail", "cache", "queue"}, row, "text %v", text)
+		assert.Less(t, x["cache"], x["db"], "text %v: db right of cache", text)
+		assert.Less(t, x["db"], x["worker"], "text %v: db left of worker", text)
 	}
 }
 

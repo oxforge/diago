@@ -117,7 +117,7 @@ func copyGraph(rg *lgraph.Graph, lv *lgraph.Level, nodeOf, edgeOf []int) *lgraph
 			w.ID, w.Node = lv.Nodes[at[v]].ID, at[v]
 		} else {
 			w.Edge = edgeOf[vx.Edge]
-			w.ID = slot(lv.Edges[w.Edge].ID, vx.Layer)
+			w.ID = model.Slot(lv.Edges[w.Edge].ID, vx.Layer)
 		}
 		g.Vertices[at[v]] = w
 	}
