@@ -37,13 +37,7 @@ The repository has three parts:
 ## Tech Stack
 
 - **Go 1.26+**. Dependencies: `golang.org/x/image` (font metrics), `github.com/invopop/jsonschema` (generating `schemas/*.json` in `internal/schema/jsonschema.go`) and testify for tests; nothing else, and no runtime service.
-- **Layout engines**: the layered engine (`internal/layout/layered/`, a Sugiyama pipeline in pure Go) for flow and class diagrams; a custom timeline engine (`internal/layout/sequence/`) for sequence diagrams. See *Where layout code lives* below.
-- **SVG rendering**: Go-native SVG generation (structured types, no string concatenation).
-- **PNG export**: resvg subprocess rasterizing the SVG (`internal/render/png`).
-- **Git**: `REV:PATH` spec arguments and the one-path `diago diff` run the `git` binary as a subprocess (`internal/source`); nothing else needs it.
 - **Export formats** (beta, not fully tested and reviewed yet): draw.io XML and Excalidraw JSON (`internal/export/`), flow diagrams only, derived from the laid-out model, never from the SVG.
-- **Font metrics**: embedded TTF files (Inter, Pangolin) + `golang.org/x/image/font/sfnt` (no system font dependency).
-- **Themes**: JSON-defined theme files (colors, typography, spacing, strokes), embedded.
 
 ## Key Commands
 
@@ -56,41 +50,11 @@ The repository has three parts:
 
 ## Project Structure
 
-```
-diago/
-├── cmd/
-│   ├── diago/            # CLI entrypoint (verbs: render, diff, check, import, plus help and --version; a verb is required; every spec argument is a path, stdin or REV:PATH, and may be Mermaid by .mmd extension or header; output on stdout; advisories and import reports on stderr)
-│   └── generate-enums/   # Codegen for internal/model/enums_gen.go ("DO NOT EDIT": change the generator, not the output; `go generate ./internal/model` reruns it, and `TestGenerate_MatchesTheCheckedInFile` fails while the checked-in file differs from what it writes; `TestJSONSchema_EnumsAreTheModels` pins the `jsonschema` enum tags in `internal/schema/` to its `XxxValues`, so a changed value changes those tags too, then `just schemas`)
-├── internal/
-│   ├── schema/           # JSON schema definitions and validation per diagram type (flow, sequence, class), plus the advisory checker (schema.Check, the ignore list, rule constants)
-│   ├── layout/
-│   │   ├── contract/     # Output-contract checker: rules C2–C17 on any PositionedGraph, screen or text profile; imports no engine
-│   │   ├── metrics/      # Quality metrics (Q1–Q5) and defect counts of any PositionedGraph, and the churn of an anchored layout against its previous one (Q6, `churn.go`); imports no engine
-│   │   ├── layered/      # The layered engine, the only flow and class engine: one package per stage (size, cycle, rank, equalize, lgraph, order, ports, place, route, nest, flat, labels, frame)
-│   │   └── sequence/     # Custom timeline layout; `LayoutWithOptions` takes an activation mask for diff renders
-│   ├── layoutdbg/        # Decision-record logging (layoutdbg.go): extend this, never fmt.Printf; layoutdbgtest/ captures the records for tests
-│   ├── diff/             # Structural diff and union graphs for flow, sequence and class specs, the fields each change touched (`fields.go`), the change list both the text footer and the SVG list print (`changes.go`), text stamping, member-level class union (`members.go`), the carrier the union is anchored on (`anchor.go`); depends on model only
-│   ├── mermaid/          # Mermaid importer: Sniff/Parse, flowchart, sequence and class dialects → schema spec structs; depends on schema only
-│   ├── source/           # Spec arguments: stdin, a file, or REV:PATH read with the git binary; Latest, a file's latest change for diago diff PATH; sourcetest/ builds test repositories
-│   ├── render/
-│   │   ├── svg/          # SVG rendering (flow.go with edge.go and group.go, sequence.go, class.go, elements, shapes, text, sketch, arrows (the markers and the set a document defines), hops, ids, diffstyle, changelist, metadata)
-│   │   ├── png/          # SVG→PNG rasterization via resvg subprocess
-│   │   └── text/         # Unicode box-drawing text art renderer (flag-based char grid; flow, sequence, class; laid out under a text profile, always orthogonal)
-│   ├── export/
-│   │   ├── drawio/       # draw.io XML export
-│   │   └── excalidraw/   # Excalidraw JSON export
-│   ├── theme/            # Theme types (their JSON tags are the theme file's keys), loading, validation, accent colors; themetest/ gives tests the embedded default theme
-│   ├── model/            # Internal graph model (nodes, edges, groups, positioned variants) + enums_gen.go
-│   ├── font/             # Embedded Inter + Pangolin fonts and text measurement
-│   └── pipeline/         # Orchestration: pipeline.go (RenderWithOptions, every format), theme.go (`RenderTheme`: the render's theme), diff.go (RenderDiff), previous.go (-previous parsing: the CLI hands the file over as `Options.PreviousData`, read as a layout once the spec's type, format, fields and theme are checked), validate.go (`Validate`: what `check` runs), advisories.go, engine.go (`layoutWith`: the layered engine under the text Config or a theme's screen Config; `LayoutGraphForFormat` and the sequence layout)
-├── schemas/              # Generated JSON schema files
-├── themes/               # Built-in theme JSON files (default, dark, midnight, sketch)
-├── .claude-plugin/       # plugin.json, marketplace.json and icon.png, the plugin directory's listing icon (the plugin is the repo root)
-├── .github/              # workflows/: ci.yml (build, vet, test and lint every push and pull request) and release.yml (a pushed vX.Y.Z tag: GoReleaser, configured by .goreleaser.yaml, publishes the GitHub Release); ISSUE_TEMPLATE/bug_report.yml, the bug-report form (version, command, spec, what happened)
-├── hooks/                # The plugin's SessionStart hook: hooks.json, session-start and its Go test
-├── skills/               # diagramming/ (SKILL.md + cheatsheet.md) and illustrating/ (SKILL.md + documents.md; example/ is its worked example)
-└── scripts/diago-render  # Render/lint/diff/embed a folder of versioned diagrams (used by illustrating); its Go test is scripts/diago_render_test.go
-```
+Every package has a doc comment, so `go list -f '{{.ImportPath}}: {{.Doc}}' ./...`
+maps the tree. Two things it does not show:
+
+- `internal/model/enums_gen.go` is generated by `cmd/generate-enums` ("DO NOT EDIT": change the generator, not the output; `go generate ./internal/model` reruns it, and `TestGenerate_MatchesTheCheckedInFile` fails while the checked-in file differs from what it writes; `TestJSONSchema_EnumsAreTheModels` pins the `jsonschema` enum tags in `internal/schema/` to its `XxxValues`, so a changed value changes those tags too, then `just schemas`).
+- The import rules: `internal/layout/contract` and `internal/layout/metrics` import no engine, `internal/diff` depends on `model` only, and `internal/mermaid` on `schema` only.
 
 The plugin follows releases: `.claude-plugin/marketplace.json` pins it to the
 release tag, and `version` in `.claude-plugin/plugin.json` names that
