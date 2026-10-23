@@ -66,6 +66,14 @@ inclusive, in order without overlapping; two fragments nest or stay apart. Self-
 ```
 
 For `inheritance` and `realization`, `from` is the subtype, `to` the supertype.
+More class fields: `stereotype` (printed `«interface»` above the name),
+`type_params` (`["T"]` prints `Repo<T>`), a member's `static` (underlined; ` $`
+in text art) and `abstract` (italic; ` *`), a relation's `label`, `from_card` and
+`to_card`, and `directed` (an arrowhead at `to`; default `true` for `dependency`,
+`false` for `association`; a validation error on `inheritance`, `realization`,
+`aggregation` and `composition`, whose adornment replaces the arrowhead). With
+`legend: true`, `legend_labels` renames a legend row (`{"inheritance": "is-a"}`)
+and `""` hides one.
 
 ## Enums
 
@@ -83,20 +91,38 @@ For `inheritance` and `realization`, `from` is the subtype, `to` the supertype.
 | member `visibility` | `+`, `-`, `#`, `~` |
 
 Optional top-level keys on every type: `title` (a band above the diagram, a
-centered first line in text art) and `ignore` (advisory rule names to silence).
-Class diagrams take `packages` (groups under another name) and `legend: true`.
+centered first line in text art), `theme` (`default`, `dark`, `midnight`,
+`sketch`; `-theme` overrides it) and `ignore` (advisory rule names to silence).
+Class diagrams take `packages` (groups under another name), `legend: true` and
+`legend_labels`. A key outside the schema is ignored with an `unknown-field`
+warning: there is no key that marks an element as new, removed or changed (a
+diff diagram is `diago diff` of two specs, see `SKILL.md`'s *Showing a change*).
 
 ## Advisories you will hit
 
-`vague-edge-label` / `vague-message-label` ("data", "calls"), `edge-without-id`,
-`long-label` (over 60 characters), `unbreakable-token` (a word over 24
-characters), `shape-soup` (more than 5 shapes), `too-large` (more than 20
-nodes), `deep-nesting` (sequence fragments nested over 3 levels), `unlabeled-branch` (a diamond
-whose out-edges have no labels), `unlabeled-alt-section`, `isolated-node`,
-`seq-too-many-participants` (more than 8), `god-class` (more than 15 members),
-`overlong-member` (over 40 characters), and `text-label-dropped` (text art had
-no room for a label: shorten it). Fix the JSON; add a rule to `ignore` only
-when the finding is deliberate, never to silence it.
+`vague-edge-label` / `vague-message-label` ("data", "calls"), `long-label` (over
+60 characters), `unbreakable-token` (a word over 24 characters), `shape-soup`
+(more than 5 shapes), `too-large` (more than 20 nodes),
+`oversized-class-diagram` (more than 20 classes), `deep-nesting` (sequence
+fragments nested over 3 levels), `unlabeled-branch` (a diamond whose
+out-edges have no labels), `unlabeled-alt-section`, `isolated-node` /
+`isolated-class` (nothing connects to it), `no-entry` (every node has an
+incoming edge: add a start node or break a cycle), `empty-group` (a group or
+package that contains nothing), `duplicate-edge` (two edges with the same ends
+and label), `seq-too-many-participants` (more than 8), `god-class` (more than
+15 members), `overlong-member` (over 40 characters), `unknown-field` (a key the
+schema does not know, ignored; the message suggests the nearest known key),
+and `text-label-dropped` (text art had no room for a label: shorten it). Fix
+the JSON; add a rule to `ignore` only when the finding is deliberate, never to
+silence it.
+
+Two more come only from `render -previous` and `diago diff`, where ids decide
+which element is which: `edge-without-id` (an edge without an `id` that shares
+its ends with another: give each an `id`) and `id-drift` (`diago diff` only: an
+element is added and another that reads the same is removed under another id,
+so the diff draws one thing twice: v2 was not made from a copy of v1. Give it
+the old id the message names; ignore the rule in v2 only when the thing really
+was replaced).
 
 `removed-field` means a leftover top-level `style`, `hints` or `alignment`
 key from before diago went orthogonal-only; under `--strict` it fails the
@@ -110,8 +136,8 @@ profiles and can decide a flat edge differently, and the lint is the text
 render's, so the SVG can draw flat an edge the lint warns about. A message
 that says the edge was *kept* as an ordinary edge, rather than that no clear
 side route exists, means the previous version's own layout fell back on it
-and `scripts/diago-render`'s `-previous` anchoring carried that fallback
-into this version. It lasts one version: the next version is anchored on
+and anchoring (`render -previous`, or `diago diff`, whose union is anchored
+on the old layout) carried that fallback into this version. It lasts one version: the next version is anchored on
 this version's own layout and keeps it only if this version, laid out on its
 own, has no side route for the edge either. Under `--strict`, add
 `flat-edge-ranked` to this version's `ignore` list and delete it again in

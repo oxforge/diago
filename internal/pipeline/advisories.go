@@ -2,7 +2,9 @@ package pipeline
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/oxforge/diago/internal/diff"
 	"github.com/oxforge/diago/internal/model"
 	textrender "github.com/oxforge/diago/internal/render/text"
 	"github.com/oxforge/diago/internal/schema"
@@ -176,7 +178,80 @@ func diffAdvisories(before, after []byte, dropped []textrender.DroppedLabel, fla
 	if err != nil {
 		return nil, fmt.Errorf("diff: %w", err)
 	}
+	advs, err = appendIDDrift(advs, before, after)
+	if err != nil {
+		return nil, fmt.Errorf("diff: %w", err)
+	}
 	schema.SortAdvisories(advs)
+	return advs, nil
+}
+
+// driftWords names a drifted element in its diagram type's words: the noun
+// and the spec field that lists it.
+var driftWords = map[string]map[diff.DriftKind][2]string{
+	"flow":     {diff.DriftNode: {"node", "nodes"}, diff.DriftEdge: {"edge", "edges"}, diff.DriftGroup: {"group", "groups"}},
+	"class":    {diff.DriftNode: {"class", "classes"}, diff.DriftEdge: {"relation", "relations"}, diff.DriftGroup: {"package", "packages"}},
+	"sequence": {diff.DriftActor: {"actor", "actors"}},
+}
+
+// appendIDDrift adds one id-drift finding per element the diff adds under
+// one id while it removes another that reads the same under another
+// (diff.GraphDrift, diff.SequenceDrift), on the after side, unless the after
+// spec ignores the rule. Such a pair is most likely one thing whose id
+// changed, which the diff draws twice.
+func appendIDDrift(advs []schema.Advisory, before, after []byte) ([]schema.Advisory, error) {
+	ignored, err := schema.Ignored(after)
+	if err != nil {
+		return nil, err
+	}
+	if ignored[schema.RuleIDDrift] {
+		return advs, nil
+	}
+	in, err := parseDiffInputs(before, after)
+	if err != nil {
+		return nil, err
+	}
+	index := map[diff.DriftKind]map[string]int{}
+	add := func(kind diff.DriftKind, i int, id string) {
+		if index[kind] == nil {
+			index[kind] = map[string]int{}
+		}
+		index[kind][id] = i
+	}
+	var drifts []diff.Drift
+	if in.kind == "sequence" {
+		drifts = diff.SequenceDrift(in.seqBefore, in.seqAfter)
+		for i, a := range in.seqAfter.Actors {
+			add(diff.DriftActor, i, a.ID)
+		}
+	} else {
+		drifts = diff.GraphDrift(in.flowBefore, in.flowAfter)
+		for i, n := range in.flowAfter.Nodes {
+			add(diff.DriftNode, i, n.ID)
+		}
+		for i, e := range in.flowAfter.Edges {
+			add(diff.DriftEdge, i, e.ID)
+		}
+		for i, g := range in.flowAfter.Groups {
+			add(diff.DriftGroup, i, g.ID)
+		}
+	}
+	for _, d := range drifts {
+		w := driftWords[in.kind][d.Kind]
+		same, article := "label", "a"
+		if d.Kind == diff.DriftEdge {
+			same = "ends and label"
+		}
+		if strings.ContainsRune("aeiou", rune(w[0][0])) {
+			article = "an"
+		}
+		advs = append(advs, schema.Advisory{
+			Rule:  schema.RuleIDDrift,
+			Field: fmt.Sprintf("after.%s[%d]", w[1], index[d.Kind][d.AfterID]),
+			Message: fmt.Sprintf("%s %q is added and %s %s with the same %s removed under the id %q: if it is the same %s, keep the id %q",
+				w[0], d.Name, article, w[0], same, d.BeforeID, w[0], d.BeforeID),
+		})
+	}
 	return advs, nil
 }
 

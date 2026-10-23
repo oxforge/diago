@@ -13,14 +13,14 @@ func TestRules_SortedAndComplete(t *testing.T) {
 	assert.True(t, sort.StringsAreSorted(ruleNames), "ruleNames must be sorted")
 	for _, r := range []string{
 		RuleDeepNesting, RuleDuplicateEdge, RuleEdgeWithoutID, RuleEmptyGroup, RuleFlatEdgeRanked,
-		RuleGodClass, RuleIsolatedClass, RuleIsolatedNode, RuleLongLabel, RuleNoEntry,
+		RuleGodClass, RuleIDDrift, RuleIsolatedClass, RuleIsolatedNode, RuleLongLabel, RuleNoEntry,
 		RuleOverlongMember, RuleOversizedClassDiagram, RuleRemovedField, RuleSeqTooManyParticipants,
 		RuleShapeSoup, RuleTextLabelDropped, RuleTooLarge, RuleUnbreakableToken, RuleUnknownField,
 		RuleUnlabeledAltSection, RuleUnlabeledBranch, RuleVagueEdgeLabel, RuleVagueMessageLabel,
 	} {
 		assert.Contains(t, ruleNames, r)
 	}
-	assert.Len(t, ruleNames, 23)
+	assert.Len(t, ruleNames, 24)
 }
 
 func TestSortAdvisories_RuleThenNaturalFieldThenMessage(t *testing.T) {

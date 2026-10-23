@@ -44,6 +44,7 @@ const (
 	RuleEmptyGroup             = "empty-group"
 	RuleFlatEdgeRanked         = "flat-edge-ranked"
 	RuleGodClass               = "god-class"
+	RuleIDDrift                = "id-drift"
 	RuleIsolatedClass          = "isolated-class"
 	RuleIsolatedNode           = "isolated-node"
 	RuleLongLabel              = "long-label"
@@ -71,6 +72,7 @@ var ruleNames = []string{
 	RuleEmptyGroup,
 	RuleFlatEdgeRanked,
 	RuleGodClass,
+	RuleIDDrift,
 	RuleIsolatedClass,
 	RuleIsolatedNode,
 	RuleLongLabel,

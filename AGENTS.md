@@ -30,8 +30,10 @@ The repository has three parts:
    documents for review in its `documents.md`); a SessionStart hook
    (`hooks/session-start`, tested by `hooks/session_start_test.go`) puts the
    rule in every session's context. `scripts/diago-render` does the
-   render/lint/diff/embed mechanics; `skills/illustrating/example/` is the
-   worked example, regenerated with
+   render/lint/diff/embed mechanics of a review document's diagrams (a chat
+   diagram runs `diago` itself); it is a plugin file, never on `PATH`, so the
+   skills and the hook name it by its full path.
+   `skills/illustrating/example/` is the worked example, regenerated with
    `scripts/diago-render <dir> --png --strict --embed <doc>`.
 
 ## Tech Stack

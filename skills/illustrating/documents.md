@@ -18,12 +18,16 @@ Each diagram is `<slug>.v<N>.json` (slug: lowercase kebab-case), a diago spec.
 The script writes `<slug>.v<N>.txt`, `<slug>.v<N>.svg` and, when a lower version
 exists, `<slug>.v<P>-v<N>.diff.txt` / `.svg`.
 
-Script: `${CLAUDE_PLUGIN_ROOT}/scripts/diago-render <diagrams-dir> [--embed <doc.md>] [--strict] [--png]`
-(the session's start names its full path; without it, the script is
-`../../scripts/diago-render` from this file's folder).
+Script: `diago-render`, a file in this plugin and **not a command on
+`PATH`**: always run it by its full path, which diago:illustrating's
+`SKILL.md` (*Documents for review*) and the session's start both give; from
+this file's folder it is `../../scripts/diago-render`. Below,
+`<diago-render>` stands for that full path:
+`<diago-render> <diagrams-dir> [--embed <doc.md>] [--strict] [--png]`.
 
 It prints one line per slug: `architecture v2 (diff v1->v2) width=87 diff-width=95 ok`.
-Lint warnings arrive on stderr as `diago-render: lint <slug>.v<N>: <rule> <field>: …`.
+Lint warnings arrive on stderr as `diago-render: lint <slug>.v<N>: <rule> <field>: …`,
+and a revision's `id-drift` as `diago-render: lint <slug>.v<P>-v<N>: id-drift …`.
 `--png` writes and links PNG instead of SVG (needs `resvg`). Use it when the
 diagrams folder is tracked by git (`git check-ignore -q <dir>` fails), since
 each SVG embeds its font (~500 KB); a gitignored folder keeps the default SVG.
@@ -99,7 +103,7 @@ spec with `architecture` v1→v2, `diff-run`, `data-model`).
    instructs.
 2. Pick the diagrams from the tables. Author `<slug>.v1.json` files in
    `<name>.diagrams/`.
-3. Run `diago-render <diagrams-dir>`. Fix lint warnings and widths. Re-run.
+3. Run `<diago-render> <diagrams-dir>`. Fix lint warnings and widths. Re-run.
 4. Put marker pairs in the document under the section each diagram illustrates
    (for plans: a `## Task graph` section after Global Constraints):
 
@@ -108,7 +112,7 @@ spec with `architecture` v1→v2, `diff-run`, `data-model`).
    <!-- diago:end architecture -->
    ```
 
-5. Run `diago-render <diagrams-dir> --embed <doc.md>`.
+5. Run `<diago-render> <diagrams-dir> --embed <doc.md>`.
 6. At the review gate, **print every diagram's text art in chat first**, each
    under a line naming its slug (in a graphical host, the image's path after
    its art), then the usual "written to `<path>`, please review" line, then:
@@ -117,12 +121,15 @@ spec with `architecture` v1→v2, `diff-run`, `data-model`).
 ## Protocol: revision after feedback
 
 1. Revise the markdown as usual.
-2. For each diagram whose *structure* changed: copy `<slug>.v<N>.json` to
-   `<slug>.v<N+1>.json` and edit it, keeping ids for things that are the same.
-   Unchanged diagrams are not bumped.
-3. Run `diago-render <diagrams-dir>` (fix lint), then `--embed`. A flow or class
-   diagram's new version is laid out anchored on the old one, so unchanged
-   boxes stay put.
+2. For each diagram whose *structure* changed:
+   `cp <slug>.v<N>.json <slug>.v<N+1>.json`, then edit the copy in place,
+   one change at a time, keeping the ids of things that are the same
+   (`SKILL.md`'s *Changes are diff diagrams*, steps 2 and 3). Never write the
+   new version from scratch. Unchanged diagrams are not bumped.
+3. Run `<diago-render> <diagrams-dir>` (fix lint), then `--embed`. A flow or
+   class diagram's new version is laid out anchored on the old one, so
+   unchanged boxes stay put. An `id-drift` lint line means the new version
+   gave something from the old one a new id: give it back the old id.
 4. Add or update a `## Changes since v<N>` section directly under the
    document's title block (before its first section): one line of prose per
    change, then a `<slug>.diff` marker pair per changed diagram:

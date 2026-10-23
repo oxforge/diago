@@ -247,3 +247,30 @@ func TestDiagoRender_StrictFailsOnALintWarning(t *testing.T) {
 	assert.Contains(t, out, "diago-render: lint warnings in "+spec+" (--strict)")
 	assert.NotContains(t, out, " ok\n", "no diagram reports ok")
 }
+
+// TestDiagoRender_RelaysIDDrift: a v2 written afresh instead of copied from
+// v1 gives a node a new id; the diff's id-drift warning is relayed as the
+// diff's lint line (and only that warning: the diff's other findings repeat
+// the specs' own), and --strict fails on it.
+func TestDiagoRender_RelaysIDDrift(t *testing.T) {
+	path, _ := setup(t)
+	dir := t.TempDir()
+	specs := map[string]string{
+		"drift.v1.json": `{"type":"flow","nodes":[{"id":"api","label":"API"},{"id":"svc","label":"Order Service"}],"edges":[{"id":"e1","from":"api","to":"svc","label":"uses"}]}`,
+		"drift.v2.json": `{"type":"flow","nodes":[{"id":"gateway","label":"API"},{"id":"svc","label":"Order Service"}],"edges":[{"id":"e1","from":"gateway","to":"svc","label":"places order"}]}`,
+	}
+	for name, spec := range specs {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(spec), 0o644))
+	}
+	lint := "diago-render: lint drift.v1-v2: id-drift after.nodes[0]: node \"API\" is added and a node with the same label removed under the id \"api\": if it is the same node, keep the id \"api\"\n"
+
+	out, code := script(t, path, dir)
+	assert.Zero(t, code, "%s", out)
+	assert.Contains(t, out, lint)
+	assert.NotContains(t, out, "vague-edge-label", "v1's own findings are not relayed from the diff")
+	assert.Contains(t, out, "drift v2 (diff v1->v2)")
+
+	out, code = script(t, path, dir, "--strict")
+	assert.Equal(t, 1, code, "%s", out)
+	assert.Contains(t, out, lint)
+}

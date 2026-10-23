@@ -19,9 +19,9 @@ json_escape() {
   printf '%s' "$s"
 }
 
-text='The diago plugin is active. Before you present the user anything with structure (components and how they connect, a request or process path, task order or dependencies, a data model, states, or a change to any of these), decide whether a diagram makes it faster to grasp. If it does, use the diago:illustrating skill; a change to code, architecture or business logic (one you made or propose, or a commit, branch or diff you summarize) is shown as a diff diagram.'
+text='The diago plugin is active. Before you present the user anything with structure (components and how they connect, a request or process path, task order or dependencies, a data model, states, or a change to any of these), decide whether a diagram makes it faster to grasp. If it does, use the diago:illustrating skill; a change to code, architecture or business logic (one you made or propose, or a commit, branch or diff you summarize) is shown as a diff diagram. A diff diagram is never drawn from one spec: write the before state as <slug>.v1.json, copy it to <slug>.v2.json, edit the copy keeping the id of everything that stays, then run diago diff <slug>.v1.json <slug>.v2.json.'
 if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
-  text="$text Its diago-render script is at $CLAUDE_PLUGIN_ROOT/scripts/diago-render."
+  text="$text The diagrams of a document written for review go through its diago-render script, a plugin file and not a command on PATH: run it by its path, $CLAUDE_PLUGIN_ROOT/scripts/diago-render."
 fi
 case "${CLAUDE_CODE_ENTRYPOINT:-}" in
   cli | sdk-cli) text="$text This session runs in a terminal: show diagrams as text art in a fenced text block." ;;

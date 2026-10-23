@@ -416,3 +416,74 @@ func TestRenderDiff_EdgeWithoutIDWarnsOnTheSideWithASibling(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"edge-without-id before.edges[1]"}, advKeys(advs))
 }
+
+// TestRenderDiff_IDDrift: an element removed under one id and added under
+// another that reads the same (a v2 written afresh instead of copied from
+// v1) is reported on the after side, in the diagram type's own words.
+func TestRenderDiff_IDDrift(t *testing.T) {
+	drift := func(t *testing.T, before, after string) []schema.Advisory {
+		t.Helper()
+		var advs []schema.Advisory
+		_, err := RenderDiff(context.Background(), []byte(before), []byte(after), DiffOptions{Format: "text", Advisories: &advs})
+		require.NoError(t, err)
+		var out []schema.Advisory
+		for _, a := range advs {
+			if a.Rule == schema.RuleIDDrift {
+				out = append(out, a)
+			}
+		}
+		return out
+	}
+	flowBefore := `{"type":"flow","nodes":[{"id":"api","label":"API"},{"id":"svc","label":"Order Service"},{"id":"db","label":"Orders DB"}],
+	 "edges":[{"id":"e1","from":"api","to":"svc","label":"places order"},{"id":"e2","from":"svc","to":"db","label":"writes order"}],
+	 "groups":[{"id":"backend","label":"Backend","contains":["svc","db"]}]}`
+	flowAfter := `{"type":"flow","nodes":[{"id":"svc","label":"Order Service"},{"id":"db","label":"Orders DB"},{"id":"gateway","label":"API"}],
+	 "edges":[{"id":"e2","from":"svc","to":"db","label":"writes order"},{"id":"api-to-svc","from":"gateway","to":"svc","label":"places order"}],
+	 "groups":[{"id":"core","label":"Backend","contains":["svc","db"]}]}`
+
+	t.Run("flow", func(t *testing.T) {
+		assert.Equal(t, []schema.Advisory{
+			{Rule: schema.RuleIDDrift, Field: "after.edges[1]", Message: `edge "API -> Order Service" is added and an edge with the same ends and label removed under the id "e1": if it is the same edge, keep the id "e1"`},
+			{Rule: schema.RuleIDDrift, Field: "after.groups[0]", Message: `group "Backend" is added and a group with the same label removed under the id "backend": if it is the same group, keep the id "backend"`},
+			{Rule: schema.RuleIDDrift, Field: "after.nodes[2]", Message: `node "API" is added and a node with the same label removed under the id "api": if it is the same node, keep the id "api"`},
+		}, drift(t, flowBefore, flowAfter))
+	})
+
+	t.Run("ids kept", func(t *testing.T) {
+		kept := `{"type":"flow","nodes":[{"id":"api","label":"Gateway"},{"id":"svc","label":"Order Service"},{"id":"queue","label":"Order Queue"}],
+		 "edges":[{"id":"e1","from":"api","to":"svc","label":"places order"},{"id":"e3","from":"svc","to":"queue","label":"publishes order"}],
+		 "groups":[{"id":"backend","label":"Backend","contains":["svc","queue"]}]}`
+		assert.Empty(t, drift(t, flowBefore, kept))
+	})
+
+	t.Run("the after spec's ignore list silences it", func(t *testing.T) {
+		var m map[string]any
+		require.NoError(t, json.Unmarshal([]byte(flowAfter), &m))
+		m["ignore"] = []string{"id-drift"}
+		ignored, err := json.Marshal(m)
+		require.NoError(t, err)
+		assert.Empty(t, drift(t, flowBefore, string(ignored)))
+	})
+
+	t.Run("class", func(t *testing.T) {
+		before := `{"type":"class","classes":[{"id":"order","label":"Order"},{"id":"item","label":"Item"}],
+		 "relations":[{"id":"r1","from":"order","to":"item","kind":"composition"}],
+		 "packages":[{"id":"domain","label":"Domain","contains":["order","item"]}]}`
+		after := `{"type":"class","classes":[{"id":"item","label":"Item"},{"id":"Order","label":"Order"}],
+		 "relations":[{"id":"order-items","from":"Order","to":"item","kind":"composition"}],
+		 "packages":[{"id":"model","label":"Domain","contains":["Order","item"]}]}`
+		assert.Equal(t, []schema.Advisory{
+			{Rule: schema.RuleIDDrift, Field: "after.classes[1]", Message: `class "Order" is added and a class with the same label removed under the id "order": if it is the same class, keep the id "order"`},
+			{Rule: schema.RuleIDDrift, Field: "after.packages[0]", Message: `package "Domain" is added and a package with the same label removed under the id "domain": if it is the same package, keep the id "domain"`},
+			{Rule: schema.RuleIDDrift, Field: "after.relations[0]", Message: `relation "Order -> Item" is added and a relation with the same ends and label removed under the id "r1": if it is the same relation, keep the id "r1"`},
+		}, drift(t, before, after))
+	})
+
+	t.Run("sequence", func(t *testing.T) {
+		before := `{"type":"sequence","actors":[{"id":"u","label":"User"},{"id":"w","label":"Web"}],"interactions":[{"from":"u","to":"w","label":"login"}]}`
+		after := `{"type":"sequence","actors":[{"id":"user","label":"User"},{"id":"w","label":"Web"}],"interactions":[{"from":"user","to":"w","label":"login"}]}`
+		assert.Equal(t, []schema.Advisory{
+			{Rule: schema.RuleIDDrift, Field: "after.actors[0]", Message: `actor "User" is added and an actor with the same label removed under the id "u": if it is the same actor, keep the id "u"`},
+		}, drift(t, before, after))
+	})
+}

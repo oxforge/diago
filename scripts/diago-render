@@ -81,10 +81,12 @@ max_width() {
   printf '%s\n' "$m"
 }
 
-# run_diago <lint|quiet> <out> <label> <diago args...>: run diago with stdout
-# to <out> (via a temp file, so a failure never leaves a half-written
-# artifact). In lint mode its stderr warnings are relayed as lint lines. Dies
-# with diago's error on a non-zero exit, whatever the mode.
+# run_diago <lint|drift|quiet> <out> <label> <diago args...>: run diago with
+# stdout to <out> (via a temp file, so a failure never leaves a half-written
+# artifact). In lint mode its stderr warnings are relayed as lint lines; in
+# drift mode only its id-drift warnings are (a diff's other findings repeat
+# its two specs' own). Dies with diago's error on a non-zero exit, whatever
+# the mode.
 run_diago() {
   mode="$1"; out="$2"; label="$3"; shift 3
   err="$out.err.tmp"
@@ -93,6 +95,10 @@ run_diago() {
   fi
   if [ "$mode" = lint ] && [ -s "$err" ]; then
     sed "s|^warning: |diago-render: lint $label: |" "$err" >&2
+    LINTED=1
+  fi
+  if [ "$mode" = drift ] && grep -q '^warning: id-drift ' "$err"; then
+    grep '^warning: id-drift ' "$err" | sed "s|^warning: |diago-render: lint $label: |" >&2
     LINTED=1
   fi
   mv "$out.tmp" "$out"; rm -f "$err"
@@ -125,7 +131,9 @@ render_slug() {
   summary="$slug v$n"
   if [ -n "$p" ]; then
     base="$DIR/$slug.v$p-v$n.diff"
-    run_diago quiet "$base.txt" "$slug.v$p-v$n" diff "$prev" "$src" -format text
+    # A new version written afresh instead of copied gives the same things
+    # new ids, and the diff draws them twice: relay its id-drift warnings.
+    run_diago drift "$base.txt" "$slug.v$p-v$n" diff "$prev" "$src" -format text
     run_diago quiet "$base.$IMG" "$slug.v$p-v$n" diff "$prev" "$src" -format "$IMG"
     if grep -qE '^(added|removed|changed): ' "$base.txt"; then
       summary="$summary (diff v$p->v$n)"

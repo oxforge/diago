@@ -35,6 +35,17 @@ func TestRun_DiffPrintsPrefixedAdvisories(t *testing.T) {
 	assert.NotContains(t, stderr, "after.")
 }
 
+// A new version written afresh gives the same node a new id: the diff draws
+// it twice, and the warning names the id to keep. It is a warning, not an
+// error.
+func TestRun_DiffWarnsIDDrift(t *testing.T) {
+	old := writeTemp(t, "old.json", `{"type":"flow","nodes":[{"id":"api","label":"API"},{"id":"svc","label":"Order Service"}],"edges":[{"id":"e1","from":"api","to":"svc","label":"places order"}]}`)
+	nw := writeTemp(t, "new.json", `{"type":"flow","nodes":[{"id":"gateway","label":"API"},{"id":"svc","label":"Order Service"}],"edges":[{"id":"e1","from":"gateway","to":"svc","label":"places order"}]}`)
+	code, _, stderr := runCLI(t, "", "diff", old, nw, "-format", "text")
+	require.Equal(t, 0, code)
+	assert.Equal(t, "warning: id-drift after.nodes[0]: node \"API\" is added and a node with the same label removed under the id \"api\": if it is the same node, keep the id \"api\"\n", stderr)
+}
+
 func TestRun_DiffSVGAndText(t *testing.T) {
 	old, neu := writeTemp(t, "old.json", diffOld), writeTemp(t, "new.json", diffNew)
 	code, out, stderr := runCLI(t, "", "diff", old, neu)

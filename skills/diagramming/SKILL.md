@@ -33,6 +33,27 @@ hand-drawn ASCII.
 4. Adjust (direction, fewer or shorter labels, a split) and render again.
 5. Render the final format.
 
+## Showing a change
+
+A change (one you made or propose, a commit, a branch, a diff) is drawn
+from two versions of one spec, never from one spec with the change marked
+in it:
+
+```sh
+# <slug>.v1.json: the before state, checked
+cp <slug>.v1.json <slug>.v2.json
+# edit <slug>.v2.json in place: only what changed; every other id stays
+diago check -strict <slug>.v2.json
+diago diff <slug>.v1.json <slug>.v2.json -format text
+```
+
+`diago diff` marks each element added (`+`, green), removed (`-`, red) or
+changed (`~`, blue) and lists the changes under the drawing. Its `id-drift`
+warning means v2 gave something from v1 a new id, so the diff draws it
+twice: give it back the old id. No label, color or key in a single spec
+marks a change. When and how to show one: diago:illustrating's *Changes are
+diff diagrams*.
+
 ## Choosing the type
 
 | The reader needs to see | Type |
@@ -170,6 +191,8 @@ word: a long one widens the frame, and the art with it.
 - Members: only the attributes and methods the reader needs (`god-class`
   fires above 15; a member over 40 characters trips `overlong-member`).
 - `"legend": true` once 3 or more relation kinds appear.
+- `stereotype`, `type_params`, `static`, `abstract`, cardinalities,
+  `directed` and `legend_labels`: `cheatsheet.md`.
 
 ## Themes and title
 
@@ -187,9 +210,9 @@ band above the diagram, a centered first line in text art.
 
 | Command | Does |
 |---|---|
-| `diago render [flags] SPEC > out` | Render. SPEC is a JSON spec, a Mermaid file (`.mmd`, rendered as it is), `REV:PATH` (the file at a git revision, `HEAD~1:spec.json`), or stdin when omitted |
+| `diago render [flags] SPEC > out` | Render. SPEC is a JSON spec, a Mermaid source (a `.mmd` or `.mermaid` file, or a body whose first line is a Mermaid header), `REV:PATH` (the file at a git revision, `HEAD~1:spec.json`), or stdin when omitted or `-` |
 | `diago check [-strict] [-json] SPEC` | Advisories only, no layout; `-strict` exits 1 on any finding |
-| `diago diff old.json new.json [flags] > out` | One diagram of both versions, each element marked added, removed or changed, with the list of changes under it (a footer in text art) and a first line naming both sides; either side may be `REV:PATH`, and `diago diff spec.json` alone draws a git-tracked spec's latest change |
+| `diago diff old.json new.json [flags] > out` | One diagram of both versions, each element marked added, removed or changed, with the list of changes under it (a footer in text art) and a first line naming both sides. new.json is a copy of old.json, edited (*Showing a change*). Either side may be `REV:PATH` or Mermaid, and `diago diff spec.json` alone draws a git-tracked spec's latest change |
 | `diago help [verb]`, `diago --version` | The usage or one verb's flags; the installed version (a release tag, the commit it was built from, or `(devel)`) |
 | `diago import diagram.mmd > spec.json` | Mermaid (`flowchart`/`graph`, `sequenceDiagram`, `classDiagram`) to diago JSON, only to keep editing it as JSON: every verb reads a `.mmd` file directly |
 

@@ -65,6 +65,7 @@ func TestSessionStart_WordsTheRuleForTheHost(t *testing.T) {
 			got := runHook(t, true, env...)
 			assert.Contains(t, got, "use the diago:illustrating skill")
 			assert.Contains(t, got, "a change to code, architecture or business logic (one you made or propose, or a commit, branch or diff you summarize) is shown as a diff diagram")
+			assert.Contains(t, got, "A diff diagram is never drawn from one spec: write the before state as <slug>.v1.json, copy it to <slug>.v2.json, edit the copy keeping the id of everything that stays, then run diago diff <slug>.v1.json <slug>.v2.json.")
 			assert.Contains(t, got, tt.want)
 			assert.NotContains(t, got, tt.not)
 			assert.NotContains(t, got, missing)
@@ -74,8 +75,8 @@ func TestSessionStart_WordsTheRuleForTheHost(t *testing.T) {
 
 func TestSessionStart_NamesTheScript(t *testing.T) {
 	got := runHook(t, true, "CLAUDE_PLUGIN_ROOT=/opt/plugins/diago")
-	assert.Contains(t, got, "Its diago-render script is at /opt/plugins/diago/scripts/diago-render.")
-	assert.NotContains(t, runHook(t, true), "diago-render script")
+	assert.Contains(t, got, "The diagrams of a document written for review go through its diago-render script, a plugin file and not a command on PATH: run it by its path, /opt/plugins/diago/scripts/diago-render.")
+	assert.NotContains(t, runHook(t, true), "diago-render")
 }
 
 // TestSessionStart_EscapesThePluginRoot: whatever the plugin root holds,
